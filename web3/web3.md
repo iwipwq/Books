@@ -908,7 +908,7 @@ pragma solidity 0.8.7; // 0.8.12
 pragma solidity ^0.8.7;
 ```
 아니면 특정 버전 범위를 정해서 해당 버전의 컴파일러만 작동하도록 만들 수도 있습니다.
-```sol
+```solidity
 pragma solidity >=0.8.7 <0.9.0; //0.8.7이상 0.9.0 미만의 컴파일러만 작동
 ```
 
@@ -919,7 +919,7 @@ pragma solidity >=0.8.7 <0.9.0; //0.8.7이상 0.9.0 미만의 컴파일러만 �
   - 이는 옵션 선택이지만 가끔 이를 요구하는 컴파일러가 있습니다.
   - 이 설정은 컴파일러 설정보다 먼저(코드 위쪽에) 위치해야합니다.
 
-```sol
+```solidity
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.8;
 ```
@@ -941,7 +941,7 @@ pragma solidity 0.8.8;
 contract 키워드는 contract를 정의하는 키워드입니다.
 java나 javascript같은 객체지향형 프로그래밍 언어의 class와 비슷하다고 보면 됩니다.
 
-```sol
+```solidity
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.8;
 
@@ -990,7 +990,7 @@ address: 주소, 메타마스크 계정에 있는 그 주소가 맞습니다.
 bytes: 로우레벨에서 사용할 수 있는 단위 나중에 더 자세히 다룹니다.
 
 hasFavoriteNumber 라는 변수를 만들어볼까요. 
-```sol
+```solidity
 contract SimpleStorage {
     // boolean, unit, int, address, bytes
     bool hasFavoriteNumber = true;
@@ -1016,7 +1016,7 @@ contract SimpleStorage {
 
 ### Basic Solidity Functions
 
-```sol
+```solidity
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.8;
 
@@ -1133,7 +1133,7 @@ store 밑에 추가로 favoriteNumber 버튼이 나타났습니다.
 
 https://docs.soliditylang.org/en/v0.8.14/cheatsheet.html?highlight=visibility#function-visibility-specifiers
 
->```sol
+>```solidity
 >function myFunction() <visibility specifier> >returns (bool) {
 >    return true;
 >}
@@ -1161,7 +1161,7 @@ internal은 이 계약에서 그리고 그 자식요소들만이 이 함수를 �
 
 참고로 visibility의 디폴트값은 internal입니다.
 
-```sol
+```solidity
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.8;
 
@@ -1196,7 +1196,7 @@ contract SimpleStorage {
 
 값을 1 더해서 업데이트 해주는 기능을 추가해 봅시다.
 
-```sol
+```solidity
     function store(uint256 _favoriteNumber) public {
         favoriteNumber = _favoriteNumber;
         favortieNumber = favoriteNumber + 1;
@@ -1223,7 +1223,7 @@ contract SimpleStorage {
 만약 이런경우는 어떨까요?
 something 함수에서 store 함수에서 선언한 testVar에 재할당 하고 있습니다. 가능할까요?
 
-```sol
+```solidity
 contract SimpleStorage {
 
     uint256 public favoriteNumber;
@@ -1243,7 +1243,7 @@ store 의 {} 안에서 선언된 testVar 는 그 안에서만 접근이 가능�
 
 `uint 256 public favoriteNumber;` 가 값을 반환하는 게터함수를 가진다는 사실을 알고 있습니다. 이 함수를 수동으로 구현해볼까요
 
-```sol
+```solidity
 contract SimpleStorage {
 
     uint256 public favoriteNumber;
@@ -1271,7 +1271,7 @@ favoriteNumber와 같은 역할을 하고 있다는걸 알 수 있습니다.
 그렇다면 여기서 주황색 버튼과 파란색 버튼의 차이는 뭘까요?
 
 이유는 바로 `view` 키워드 때문입니다.
-```sol
+```solidity
 function retrieve() public view returns(uint256) {
         return favoriteNumber;
     }
@@ -1345,7 +1345,7 @@ favoriteNumber에 많은 양의 다른 수들을 저장하는 방법이 있을�
 우리는 여기서 새 타입을 `sturct`라는 키워드를 통해 만들 수 있습니다.
 `많은 사람들의 좋아하는 숫자를 가진` `People`이라는 타입을 만들어 봅시다.
 
-```sol
+```solidity
     struct People {
         uint256 favoriteNumber;
         string name;
@@ -1357,7 +1357,7 @@ People은 uint256 타입의 favortieNumber를 가지고있고, name이라는 문
 이제 People 타입을 사용해봅시다.
 uint public favoriteNumber;와 비슷하게 사용할 수 있습니다.
 
-```sol
+```solidity
 uint256 public favoriteNumber;
 People public person = People({favoriteNumber: 2, name: "Kim"})
 
@@ -1383,7 +1383,7 @@ person이라는 새 버튼이 생겼습니다.
 
 이 이유에 대해선 나중에 더 알아보도록 합시다.
 
-```sol
+```solidity
     uint256 public favoriteNumber;      --- 0
     uint256 public favoriteNumberOne;   --- 1
     uint256 public favoriteNumberTwo;   --- 2
@@ -1393,7 +1393,7 @@ person이라는 새 버튼이 생겼습니다.
 
 더 많은 사람들을 만들고 싶은데, 이렇게 만들어야 할까요?
 
-```sol
+```solidity
 People public person = People({favoriteNumber: 2, name: "Kim"});
 People public person1 = People({favoriteNumber: 5, name: "CHAD"});
 People public person2 = People({favoriteNumber: 7, name: "pepe"});
@@ -1452,7 +1452,7 @@ People을 타입으로 갖는 array는 최대 3개의 요소만 가질 수 있�
 
 비어있는 `people` 배열을 채워줄 수 있는 addPerson 함수를 만들어 봅시다.
 
-```sol
+```solidity
 function addPerson(string memory _name, uint256 _favoriteNumber) public {
     people.push(People(_favoriteNumber, _name));
 }
@@ -1462,7 +1462,7 @@ Array.push 메소드를 이용해 어떤 요소를 넣을것인데,
 
 이는 다른 방식으로 표현할 수 있습니다.
 
-```sol
+```solidity
 function addPerson(string memory _name, uint256 _favoriteNumber) public {
     // people.push(People(_favoriteNumber, _name));
     People newPerson = People({favoriteNumber: _favoriteNumber, name: _name});
@@ -1481,7 +1481,7 @@ function addPerson(string memory _name, uint256 _favoriteNumber) public {
 memory 키워드에 대해선 나중에 좀 더 알아봅시다.
 (Basic memory 편으로)
 
-```sol
+```solidity
 function addPerson(string memory _name, uint256 _favoriteNumber) public {
     // people.push(People(_favoriteNumber, _name));
     People newPerson = People({favoriteNumber: _favoriteNumber, name: _name});
@@ -1512,7 +1512,7 @@ people 에 0을 넣고 호출해봅시다.
 
 코드를 좀 더 줄여보면 이렇게도 사용가능합니다.
 
-```sol
+```solidity
 function addPerson(string memory _name, uint256 _favoriteNumber) public {
     // people.push(People(_favoriteNumber, _name));
     // People memory newPerson = People({favoriteNumber: _favoriteNumber, name: _name});
@@ -1530,7 +1530,7 @@ function addPerson(string memory _name, uint256 _favoriteNumber) public {
 
 ### Basic Solidity Memory, Storage, & Calldata (Intro)
 
-```sol
+```solidity
 function addPerson(string memory _name, number _favoriteNumber) public {
     people.push(People(_name, _favoriteNumber));
 }
@@ -1571,7 +1571,7 @@ calldata는 임시데이터 값을 변경하지 않아도 될때 사용합니다
 
 string _name을 calldata로 불러온 후 'cat'이란 문자열을 재할당 한다면 에러가 발생합니다.
 
-```sol
+```solidity
 function addPerson(string calldata _name, number _favoriteNumber) public {
     _name: cat;
     people.push(People(_name, _favoriteNumber));
@@ -1582,7 +1582,7 @@ function addPerson(string calldata _name, number _favoriteNumber) public {
 
 반면에 memory는 재할당이 가능합니다.
 
-```sol
+```solidity
 function addPerson(string memory _name, number _favoriteNumber) public {
     people.push(People(_favoriteNubmer, _name))
 }
@@ -1597,7 +1597,7 @@ storage는 재할당 가능한 영구적인 변수입니다.
 
 uint256 에도 memory를 붙여서 parameter로 보내봅시다.
 
-```sol
+```solidity
 function addPerson(string memory _name, number memory _favoriteNumber) public {
     people.push(People(_name, _favoriteNumber));
 }
@@ -1644,7 +1644,7 @@ string을 uint256에 매핑하는 타입이고 visibility는 public 이름은 na
 
 - 매핑을 addPerson에서 추가하도록 만들기
 
-```sol
+```solidity
 function addPerosn (string memory _name, number _favoriteNumber) public {
     people.push(People(_favoriteNumber,_name));
     nameToFavoriteNumber[_name] = _favoriteNumber;
@@ -1805,23 +1805,23 @@ Avalanche, Fantom, Polygon 에서도 사용가능합니다.
 3. 계약(contract SimpleStorage {}) 작성하기 -> 다른 프로그램언어의 class 와 비슷한것
 4. 데이터타입엔 uint, boolean, string 등 다양한 것이 있습니다.
 5. 만약 새 타입을 작성하고 싶다면 `struct`를 이용하면 됩니다.
-```sol
+```solidity
 struct People {
     uint256 favoriteNumber;
     string name;
 }
 ```
 6. 배열로 리스트를 만들 수 있습니다.
-```sol
+```solidity
 People[] public people;
 ```
 7. 매핑으로 키와 값을 쌍으로 가지는 해시테이블을 만들 수 있습니다.
-```sol
+```solidity
 mapping(string => number) public nameToFavoriteNumber;
 ```
 8. 블록체인 stat를 바꿀 수 있는 함수를 작성할 수 있습니다.
 
-```sol
+```solidity
 uint256 favoriteNumber;
 
 function store(uint256 _favoriteNumber) public {
@@ -1829,13 +1829,13 @@ function store(uint256 _favoriteNumber) public {
 }
 ```
 
-```sol
+```solidity
 function addPerson(stirng memory _name, uint256 _favoriteNumber) public {
     people.push(People(_favoriteNumber, _name))
 }
 ```
 9. 또한 블록체인 상태(state)를 변경시키지 않는 함수도 만들 수 있습니다.
-```sol
+```solidity
 //view, pure
 function retrieve() public view retruns(uint256) {
     return favoriteNumber;
@@ -1845,7 +1845,7 @@ function retrieve() public view retruns(uint256) {
 calldata, memory는 임시
 storage는 영구적입니다.
 
-```sol
+```solidity
 //calldatat, memory, storage
 function addPerson(string memory _name, uint256 _favoriteNumber) public {
     people.push(People(_memory, _favoriteNumber));
@@ -1905,7 +1905,7 @@ This is specially awesome when it comes things like deFi or you can have really 
 
 다음과 같이 기본설정을 해준 후 컴파일 후 저장해줍니다.
 
-```sol
+```solidity
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
@@ -1918,7 +1918,7 @@ contract StorageFactory {
 
 전역변수로 createSimpleStroageContract를 저장했습니다.
 
-```sol
+```solidity
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
@@ -1935,7 +1935,7 @@ contract StorageFactory {
 
 이렇게 해봅시다. simpleStorage의 코드를 통째로 복사해서 StorageFacotory 코드에 붙여넣습니다.
 
-```sol
+```solidity
 
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
@@ -1984,7 +1984,7 @@ contract StorageFactory {
 
 그런 다음 createSimpleStorageContract함수 안에 new 키워드로 새 계약을 배포하겠다는 코드를 작성해줍니다.
 
-```sol
+```solidity
 contract StorageFactory {
     SimpleStorage public simpleStorage;
     function createSimpleStorageContract() public {
@@ -2012,7 +2012,7 @@ createSimpleStorageContract를 눌러 simpleStorage 계약을 하나 배포합�
 
 사실 simpleStorage를 만들기 위해 위에 복사해 놓은 코드들은 `import`를 이용해 다른 파일에서 불러들여오는것이 좋습니다.
 
-```sol
+```solidity
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
@@ -2034,7 +2034,7 @@ contract StorageFactory {
 
 이번엔 SimpleStorage를 배열로 만들어 여러개의 계약을 받아 볼 겁니다.
 
-```sol
+```solidity
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
@@ -2067,7 +2067,7 @@ contract StorageFactory {
 sfStore(storage factory Store)라는 이름으로 함수를 만들어보겠습니다.
 이 함수는 uint256 인수 두가지를 받으며 visibility는 public입니다.
 
-```sol
+```solidity
 contract StorageFactory {
     SimpleStorage[] public simpleStorageArray;
 
@@ -2114,7 +2114,7 @@ Address를 가져올 수 있도록 인수(simpleStorageArray에 안의 index값)
 
 아니면 아예 simpleStorageArray로 접근해서 _simpleStorageIndex를 사용해 해당 배열index의 계약을 simpleStorage 변수에 할당합니다.
 
-```sol
+```solidity
 import "./SimpleStorage.sol";
 
 contract StorageFactory {
@@ -2144,7 +2144,7 @@ simpleStorageArray가 계속 address를 추적해 주고 있으며 때문에 ABI
 
 이제 simpleStorage 에서 SimpleStorage계약 안의 store함수를 다음과 같이 사용할 수 있습니다.
 
-```sol
+```solidity
 function sfStore(uint256 _simpleStorageIndex, uint256 _simpleStorageNumber) public {
     SimpleStorage simpleStorage = simpleStorageArray[_simpleStorageIndex];
     simpleStorage.store(_simpleStorageNumber);
@@ -2155,7 +2155,7 @@ function sfStore(uint256 _simpleStorageIndex, uint256 _simpleStorageNumber) publ
 다른 함수도 불러와 보겠습니다.
 이번엔 SimpleStorage 안의 getter 함수를 불러와 sfStore로 저장한 숫자를 불러와보겠습니다.
 
-```sol
+```solidity
 function sfGet(uint256 _simpleStorageIndex) public view returns(uint256) {
     SimpleStorage simpleStorage = simpleStorageArray[_simpleStorageIndex];
     return simpleStorage.retrieve();
@@ -2164,7 +2164,7 @@ function sfGet(uint256 _simpleStorageIndex) public view returns(uint256) {
 
 이제 아래 최종 완성 코드를 배포한 후에 실행해보겠습니다.
 
-```sol
+```solidity
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
@@ -2215,7 +2215,7 @@ contract StorageFactory {
 이해를 위해 더 간단하게 만들어볼까요?
 sfGet함수는 이런식으로 바로 SimpleStore 오브젝트에 접근해서 오브젝트 안의 함수를 가져올 수도 있습니다.
 
-```sol
+```solidity
 function sfGet(uint256 _simpleStorageIndex) public view returns(uint256) {
     return simpleStorageArray[_simpleStorageIndex].retrieve();
 }
@@ -2235,7 +2235,7 @@ ExtraStorage.sol 이라는 파일을 만들어보겠습니다.
 첫번재로 ExtraStorage에서 사용될 계약들을 모두 불러옵니다.
 두번째로 계약 이름 뒤에 is를 붙여 불러온 계약의 이름을 붙여줍니다.
 
-```sol
+```solidity
 // SPDX-License-Identifier: MIT
 
 pragma solidity ^0.8.0;
@@ -2265,7 +2265,7 @@ store 함수는 현재 favoritNumber를 인수로 받아 저장하고 있습니�
 
 지금은 일단 언급한 키워드 없이 store 함수를 ExtraStorage에 그대로 옮겨서 구현해보겠습니다.
 
-```sol
+```solidity
 // SPDX-License-Identifier: MIT
 
 pragma solidity ^0.8.0;
@@ -2340,7 +2340,7 @@ fund() 와 withdraw()를 이용해서 모금하고 출금하는 DeFi앱을 만�
 
 FundMe.sol 파일을 만들어보겠습니다.
 
-```sol
+```solidity
 // 사용자로부터 펀딩기금 받아오기
 // 모금된 기금 인출하기
 // 달러로 최소 펀딩 금액 설정하기
@@ -2418,7 +2418,7 @@ VALUE 단위인 Wei Gwei Finney Ether
 
 Remix에서 이 지정자가 들어간 함수는 빨간 버튼으로 표시됩니다.
 
-```sol
+```solidity
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.8;
 
@@ -2453,7 +2453,7 @@ payable을 사용하면 DEPLOY탭에 있는 VALUE 에 접근할 수 있습니다
 https://ethereum.stackexchange.com/questions/97173/do-solidity-smart-contract-symbols-support-unicode
 유니코드 이스케이프 문자를 쓰거나, unicode 키워드를 문자열앞에 붙여주면 됩니다. ex)`string memory greeting = unicode"안녕하세요"` or `"\ucd5c\uc18c\u0020\ud380\ub529\uae08\uc561\uc5d0\u0020\ubbf8\ub2ec\ud569\ub2c8\ub2e4\u002e"`
 
-```sol
+```solidity
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.8;
 
@@ -2507,7 +2507,7 @@ Wei를 Ether로 바꿔줍시다.
 
 예를 들어 전역변수로 number를 지정하고 이를 fund함수에서 불러와 보겠습니다.
 
-```sol
+```solidity
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.8;
 
@@ -2543,7 +2543,7 @@ number를 5로 바꾸기 위해 사용했습니다. 그리고 남은 모든 가�
 예를 들어 다음과 같이 require 다음에 많은 연산을 한다고 가정해봅시다.
 그렇게 되면 require 다음에 오는 연산들에 소모되는 가스들은 모두 다시 되돌려집니다.
 
-```sol
+```solidity
 function fund() public payable {
     number = 5; // -> 이 가스는 소모되었고 반환되지 않습니다.
     require(msg.value > 1, unicode"최소 펀딩금액에 미달합니다.");
@@ -2773,7 +2773,7 @@ Well, chainlink nodes can do that chainlink nodes can make direct requests to an
 
 예제 코드 : https://docs.chain.link/docs/single-word-response/
 
-```sol
+```solidity
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.7;
 
@@ -2915,7 +2915,7 @@ volume을 호출해보겠습니다.
 
 초기값인 0으로 나오는데, 지난 24시간의 ETH volume을 조회하기 위해서 해당 주석을 참고하면 구조를 알 수 있습니다.
 
-```sol
+```solidity
 
 // Set the URL to perform the GET request on
         req.add('get', 'https://min-api.cryptocompare.com/data/pricemultifull?fsyms=ETH&tsyms=USD');
@@ -2943,7 +2943,7 @@ https://min-api.cryptocompare.com/data/pricemultifull?fsyms=ETH&tsyms=USD
 
 하나의 트랜잭션에 요청을 만들고, 두번째 트랜잭션엔 볼륨값을 받아 volume 전역변수에 저장할 것입니다.
 
-```sol
+```solidity
     /**
      * Receive the response in the form of uint256
      */
@@ -2989,7 +2989,7 @@ Connect to any api: 분산시스템을 통해 API 연결가능
 
 ## Interfaces & Price Feeds
 
-```sol
+```solidity
 // 사용자로부터 펀딩기금 받아오기
 // 기금 인출하기
 // 달러로 최소 펀딩 금액 설정하기
@@ -3039,7 +3039,7 @@ https://github.com/smartcontractkit/chainlink
 
  https://github.com/smartcontractkit/chainlink/blob/develop/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol
 
-```sol
+```solidity
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
@@ -3086,7 +3086,7 @@ interface AggregatorV3Interface {
 인터페이스 코드를 붙여넣었다면 이제 API 호출이 가능합니다.
 
 
-```sol
+```solidity
     function getPrice() public {
         // ABI
         // Address 
@@ -3105,7 +3105,7 @@ getPrice에서 AggregatorV3Interface를 불러온 뒤 인수로 Rinkeby BTC/USD 
 uint256 값을 반환하는 함수 getVersion을 작성하고
 AggregatorV3Interface 타입의 객체 priceFeed를 만듭니다.
 
-```sol
+```solidity
 function getVersion() public returns (uint256) {
     AggregatorV3Interface priceFeed = AggregatorV3Interface(0xECe365B379E1dD183B20fc5f022230C044d51404)
     return priceFeed.version();
@@ -3136,7 +3136,7 @@ yarn add @chainlink/contracts
 
 이제 가격을 가져올 차례입니다. chainlink 문서의 코드를 리버스엔지니어링 해서 가져오는것도 좋습니다.
 
-```sol
+```solidity
 // 사용자로부터 펀딩기금 받아오기
 // 기금 인출하기
 // 달러로 최소 펀딩 금액 설정하기
@@ -3182,11 +3182,11 @@ contract FundMe {
 특히 latestRoundData 함수 안의 int256 answer 값이 현재 원하는 값입니다.
 
 이제 priceFeed 에서 answer를 반환시켜봅시다.
-```sol
+```solidity
 priceFeed.latestRoundData()
 ```
 
-```sol
+```solidity
 function latestRoundData()
     external
     view
@@ -3208,7 +3208,7 @@ function latestRoundData()
 ```
 하지만 지금은 int256 price만 필요하니 나머지는 지워도 상관없습니다.
 
-```sol
+```solidity
 (,int256 price,,,) = priceFeed.latestRoundData();
 
 ```
@@ -3225,7 +3225,7 @@ Wei는 0이 18개인 숫자이고,
 
 `return uint256(price * 1e10);`
 
-```sol
+```solidity
     function getPrice() public view returns(uint256) {
         // ABI
         // Address 
@@ -3241,7 +3241,7 @@ Wei는 0이 18개인 숫자이고,
 
 이제 getConversionRate 함수를 작성해보겠습니다.
 
-```sol
+```solidity
     function getConversionRate(uint256 ethAmount) public view returns(uint256) {
         
     }
@@ -3263,7 +3263,7 @@ Wei는 0이 18개인 숫자이고,
 
 하지만 소숫점 없이 전체 숫자로 계산할 경우엔 올바른 결과값이 나옵니다. 따라서 먼저 곱셉으로 소숫점을 생성하지 않고 결과값을 낸 뒤 자릿수로 나눠줘야 정상적인 결과를 얻을 수 있습니다.
 
-```sol
+```solidity
 function getConversionRate(uint256 ethAmount) public view returns(uint256) {
     uint256 ethPrice = getPrice();
     uint256 ethAmountInUsd = (ethPrice * ethAmount) / 1e18;
@@ -3381,7 +3381,7 @@ library PriceConverter {
 
 먼저 모든 함수를 public에서 internal로 전환합니다.
 
-```sol
+```solidity
 // SPDX-License-Identifier: MIT
 
 pragma solidity ^0.8.0;
@@ -3424,7 +3424,7 @@ library PriceConverter {
 
 이제 이 모든 함수들을 FundMe.sol 에서 import 한 후 uint256 안에 함수로 붙여넣을 수 있습니다.
 
-```sol
+```solidity
 
 import "./PriceConverter.sol"
 
@@ -3445,7 +3445,7 @@ Now in our library, the first variable that gets passed to the function is going
 
 따라서 암묵적으로 msg.value.getConversionRate()는 getConversionRate(msg.value)와 동일합니다.
 
-```sol
+```solidity
  function fund() public payable {
         require(msg.value.getConversionRate() >= minimumUsd, unicode"최소 펀딩금액에 미달합니다.");
 
@@ -3459,12 +3459,12 @@ Now in our library, the first variable that gets passed to the function is going
 `msg.value.getConversionRate()`에서 `msg.value`는 첫번째 파라미터로 취급되며 이와 같은 라이브러리 함수의 첫번째 파라미터로 취급됩니다.
 
 만약 라이브러리 함수 getConversionRate에 다른 인수를 추가하고 싶다면 예를들어
-```sol
+```solidity
 function getConversionRate(int256 ethAmount, int256 sometingElse) internal view returns(uint256){}
 ```
 이라면
 
-```sol
+```solidity
 require(msg.value.getConversionRate(123), unicode"....)
 ```
 이런식으로 인수를 추가해줘야 합니다.
@@ -3485,7 +3485,7 @@ SafeMath는 솔리디티 버전 0.8 이전부터 거의 모든 부분에 사용�
 
 만약 여기에 +1을 더하면 어떻게 될까요?
 
-```sol
+```solidity
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.6.0;
 
@@ -3519,7 +3519,7 @@ add를 호출하게 되면 에러가 발생합니다.
 
 unchecked 키워드를 사용한다면 unchecked 버전으로 되돌릴 수도 있습니다.
 
-```sol
+```solidity
 //SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
@@ -3553,13 +3553,13 @@ contract SafeMathTester {
 
 /* */ 안에 있는 모든 구문은 주석으로 처리됩니다.
 
-```sol
+```solidity
 for(/* starting index, ending index, step amount*/) {
     //code
 }
 ```
 
-```sol
+```solidity
 function withdraw() public {
     for(int256 funderIndex = 0; funderIndex < funders.length; funderIndex++) {
         address funder = funders[funderIndex];
@@ -3576,7 +3576,7 @@ function withdraw() public {
 
 for 로 일일이 루프하는기보다 array를 초기화시켜보겠습니다.
 
-```sol
+```solidity
 funders = new address[](0);
 ```
 funders는 새로운 address를 가진 []배열입니다 안에는 (0)개의 오브젝트가 들어있습니다.(아무것도 없습니다.) 
@@ -3602,7 +3602,7 @@ address(this)로 FundMe에 접근하여 balance 변수에 접근하면 계약이
 
 이를 위해 먼저 해야할 일은 이 msg.sender를 address에서 payable로 타입캐스트(타입변환) 해주는 것입니다.
 
-```sol
+```solidity
 // msg.sender = address
 // payable(msg.sender) = payable address
 payable(msg.sender).transfer(address(this).balance)
@@ -3627,12 +3627,12 @@ send는 transfer와 마찬가지로 23000의 가스사용량이 제한되어있�
 
 send를 이용한다면 에러를 발생시키지 않습니다. 성공했는지 여부를 알리는 boolean을 반환합니다.
 
-```sol
+```solidity
 payable(msg.sender).send(address(this).balance);
 ```
 그런데 만약 이렇게 끝나게 된다면 send는 트랜잭션을 되돌리지(revert) 않기때문에 우리가 돈을 돌려받을 코드를 작성할 필요가 있습니다.
 
-```sol
+```solidity
 boolean sendSuccess = payable(msg.sender).send(address(this).balance);
 require(sendSuccess, "Send failed");
 ```
@@ -3652,7 +3652,7 @@ call은 이더리움의 모든 함수를 virtually 로 사용할 수 있습니�
 
 콜은 'send'와 매우 비슷해보입니다.
 
-```sol
+```solidity
 payable(msg.sender).call()
 ```
 
@@ -3660,13 +3660,13 @@ payable(msg.sender).call()
 
 여기서는 실제로 함수를 불러들일 필요는 없기때문에 공백으로`("")` 놔둘겁니다. 이렇게 함으로써 트랜잭션을 하는것처럼 이용할 수 있습니다.
 
-```sol
+```solidity
 payable(msg.sender).call("");
 ```
 
 그리고 배포탭을 보면 항상 'msg.value' 값이 있습니다(Remix의 DEPOLY탭의 VALUE 인풋). 이 call 함수를 일반 트랜잭션처럼 사용할 것이며 'msg.value'와 같은 기능을 추가할 수 있습니다.
 
-```sol
+```solidity
 payable(msg.sender).call{value: address(this).balnace}("");
 ```
 
@@ -3678,13 +3678,13 @@ The two variables, it returns are going to be a Boolean, that we're going to  ca
 
 이 call 함수는 실제로 두개의 변수를 반환합니다. 그리고 이를 좌변항의 괄호안에 놓았을때 그 두 변수를 나타낼 수 있습니다.
 
-```sol
+```solidity
 () = payable(msg.sender).call{value: address(this).balance}("");
 ```
 
 이 두변수들은, 하나는 boolean을 변환할것이며, 이걸 callSuccess라 지정하겠습니다. 그리고 다른 하나는 bytes를 반환할것이며, dataReturned라 지정하겠습니다.
 
-```sol
+```solidity
 (bool callSuccess, bytes dataReturned) = payable(msg.sender).call{value: address(this).balance}("");
 ```
 
@@ -3692,7 +3692,7 @@ call은 다른 함수를 호출 할 수 있도록 해줍니다. 만약 호출한
 
 그리고 bytes객체는 배열이기 때문에 데이터 반환은 memory 안에 있어야 합니다.
 
-```sol
+```solidity
 (bool callSuccess, bytes memory dataReturned) = payable(msg.sender).call{value: address(this).balance}("");
 ```
 
@@ -3702,7 +3702,7 @@ price 계약과 비슷하게 dataReturned 부분을 지우고 진행해도 상�
 
 그리고 send와 마찬가지로 require문을 작성해줘야합니다.
 
-```sol
+```solidity
 (bool callSuccess, bytes dataReturned) = payable(msg.sender).call{value: address(this).balance}("");
 require(callSuccess, "Call failed");
 ```
@@ -3719,7 +3719,7 @@ require(callSuccess, "Call failed");
 
 배포시에 배포자가 이 계약의 소유자 될 수 있도록 자동으로 설정하게 만들겁니다.
 
-```sol
+```solidity
     function callMeRgihtAway() {
         
     }
@@ -3737,7 +3737,7 @@ constructor는 이 계약이 배포되는 즉시 호출되는 함수입니다.
 
 만약 이렇게 작성한다면
 
-```sol
+```solidity
 constructor() {
     minimumUsd = 2;
 }
@@ -3758,7 +3758,7 @@ address public owner;
 
 이제 컨스트럭터에 다음과 같이 작성합니다.
 
-```sol
+```solidity
 address public owner;
 
 constructor () {
@@ -3777,7 +3777,7 @@ withdraw 함수안의 내용을 실행시키기 전에 맨 위쪽에 requrie문�
 
 withdraw 함수를 작동시키는 사람 (msg.sender)가 owner와 같은지 확인하고 다음 코드를 실행시킬 수 있도록 작성합니다.
 
-```sol
+```solidity
 function withdraw() public {
     require(msg.sender == owner, unicode"펀딩 소유자가 아닙니다.");
     for(uint256 fundersIndex = 0; fundersindex < funders.length; fundersIndex++) {
@@ -3798,7 +3798,7 @@ function withdraw() public {
 
 modifier 키워드로 onlyOwner 라는 객체를 생성하고 앞서 withdraw함수에서 작성한 소유자 확인 require문을 붙여넣습니다. 그 후 맨 끝줄에 `_`(언더스코어)를 붙입니다.
 
-```sol
+```solidity
     modifier onlyOwner {
         require(msg.sender == owner, unicode"펀딩 소유자만 인출할 수 있습니다.");
         _;
@@ -3807,7 +3807,7 @@ modifier 키워드로 onlyOwner 라는 객체를 생성하고 앞서 withdraw함
 
 그러고나서 midifier를 함수선언문 오른쪽에 붙여줍니다
 
-```sol
+```solidity
     function withdraw() public onlyOwner {
         for(uint256 funderIndex = 0; funderIndex < funders.length; funderIndex++) {
             address funder = funders[funderIndex];
@@ -3941,4 +3941,720 @@ funders에도 0과 1을 각각 넣고 호출해보겠습니다.
 
 ![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-07%20003822.png)
 
-## Advanced Solidity Concepts
+## Advanced Solidity Concepts 5:04:30
+
+### Advancded Solidity Immutable & Constant 5:05:40
+
+이제 이 펀딩 계약을 더 전문적으로 만들어보겠습니다.
+대단하다고는 할 수 없지만 좀 더 나아질 거에요. 왜 그런지 알게될 겁니다.
+
+먼저 이쪽의 변수들을 살펴보겠습니다.
+
+특히 owner 와 minimunUsd를 보면, owner는 계약에서 단 한번만 설정되었고, 그 후 전혀 값이 바뀌지 않았습니다.
+minimumUsd는 한번만 설정되었고, 심지어 constructor 바깥에서 선언되었습니다. 
+
+만약 우리가 단 한번만 값이 설정되는 변수를 가지고 있다면, 솔리디티에 있는 툴을 이용해서 가스를 효율적으로 사용하도록 만들 수 있습니다.
+
+일단 FundMe를 컴파일하고 JS VM에 배포해보겠습니다.
+참고로 VM에 배포할 경우 fund 와 withdraw 등은 사용하지 못할 겁니다. 왜냐하면 VM에 chainlink network가 없기 때문입니다.(chainlink는 실제 서비스이기때문에 실제 메인넷이나 테스트넷에서 작동가능)
+
+하지만 상관없습니다. 여기서 중요한건 가스사용량 입니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-07%20095118.png)
+
+현재 이 계약은 872,573 가스가 사용되었고, 이 사용량을 줄이기 위해 몇가지 트릭을 추가하겠습니다.
+
+트릭에 사용할 수 있는 키워드는 2가지가 있습니다.
+1. constant
+2. immutable
+
+솔리디티에는 변수를 재할당 할 수 없게 만드는 2가지 키워드가 있습니다. 
+
+솔리디티 공식문서에서 더 자세히 알 수 있습니다.
+
+https://docs.soliditylang.org/en/v0.8.14/contracts.html?highlight=constant#constant
+
+https://docs.soliditylang.org/en/v0.8.14/contracts.html?highlight=constant#immutable
+
+만약 변수가 함수 바깥에서 한번만 할당되었고, 이후에 재할당이 이루어지지 않았다면, 그래서 만약 변수가 컴파일 시 할당되었다면, 변수에 `constant` 키워드를 추가할 수 있습니다. 
+
+```solidity
+uint256 public constant minimumUsd= 50 * 10e18;
+```
+
+나중에 stroage에 대해서 좀 더 배우겠지만, constant 키워드를 추가하면, minimumUsd는 스토리지 공간을 차지 하지 않고, 읽기도 훨씬 쉬워집니다. 
+
+컴파일 후 배포해보겠습니다. 가스가 줄어들었는지 확인합니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-07%20104528.png)
+
+
+872,573 -> 852,990 로 줄어든걸 확인 할 수 있습니다.
+20000 정도의 가스를 아낄 수 있습니다. 이 정도면 이더리움을 한번 보낼 수 있을 정도의 가스입니다.
+
+보통, constant 변수는 다른 명명규칙을 가지고 있습니다. 보통 모두 대문자로 표기하고 `_`로 단어를 나눕니다. 이렇게 하면 해당 명명규칙을 가진 변수가 상수(constant)라는 걸 알 수 있고 읽는 비용이 저렴하다는 걸 알 수 있습니다.
+
+```solidity
+int256 public constant MINIMUM_USD = 50 * 1e18;
+```
+
+다시 배포하고 이번엔 MINIMUM_USD를 호출해보겠습니다.
+view 함수도 가스값을 가진다는 사실을 지난시간에 알아보았습니다. 
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-07%20105504.png)
+
+execution cost 를 확인해보니 
+21415 gas 가 명시되어있습니다.
+
+constant 키워드를 없이 deploy 하면 excution cost가 23515 gas 입니다.
+
+23515 -> 21415 로 줄어들었습니다. 
+
+이런 변화는 작은 트랜잭션에선 체감이 덜 될지도 모르지만 이더리움 같은 비싼체인에서는 큰 차이를 생깁니다. 
+
+예를들어 이더리움에서 현재 가스요금(current gas price)를 알 수 있습니다.
+
+https://etherscan.io/gastracker
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-07%20110156.png)
+
+이를 평균 42gwei 값을 wei로 환산해서 트랜잭션에 소모하는 가스량에 곱하면 소모하는 총 이더리움(가스요금)을 구할 수 있습니다.
+
+21,415 * 42,000,000,000 = 899,430,000,000,000 wei
+
+= 0.00089943 ether = 1.618974 달러
+
+23,515 * 42,000,000,000 = 987,630,000,000,000 wei
+
+= 0.00098763 ether = 1.777734 달러
+
+물론, 아직 현재 배우는 단계에서 가스 최적화를 생각하지마십시오. 나중에 정어어엉말 잘 하게 된다면 그때 가스 최적화를 시작하면 됩니다. 하지만 지금 가스최적화에 시간을 뺏기거나 스트레스 받지 마세요!
+
+이제 나머지 owner 변수를 살펴보겠습니다.
+우리는 owner를 컨스트럭터 바깥에서 선언한 후, 컨스트럭터에서 한번 할당하고 바꾸지 않았습니다.
+
+이렇게 컨스트럭터에서 할당하고, 컨스트럭터 바깥에서 선언한 변수는 `immutable` 키워드를 사용할 수 있습니다.
+
+일반적으로 immutable 값을 나타내는 좋은 컨벤션은 이름앞에 `i_`를 붙이는 것입니다.
+```solidity
+address public immutable i_owner;
+```
+constant 키워드와 가스절약 방식이 비슷합니다. 
+
+owner 변수는 `address public immutable i_owner;` 구간에서 값을 설정하지 못합니다. 왜냐하면 전역스코프에 는 실행되고 있는 함수가 없기 때문입니다. 즉 전역에서는 msg.sender를 호출하지 못합니다. msg.sender는 함수 안에 있어야 받을 수 있습니다. 
+
+이제 immutable 유무에 따른 가스값을 알아보겠습니다.
+
+immutable 미적용
+![immutable 미적용](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-07%20112311.png)
+
+immutable 적용
+![immutable 적용](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-07%20112427.png)
+
+23622 -> 21508
+
+이 두가지 방법이 가스를 절약할 수 있는 방법은 스토리지에 이 변수를 저장하는것이 아니라 이 계약에 직접 byte코드로 들어가기 때문입니다. 이러한 저수준 컨트롤은 이 과정의 후반부에 배울것입니다.
+
+### Advancde Solidity Custom Errors 5:12:56
+
+가스 소모량을 줄일 다른 방법이 또 있을까요?
+
+하나는 require를 업데이트 하는 것입니다.
+
+현재 require문에는 에러메세지가 포함되어있는데 이 에러메세지 문자열 하나하나마다 배열에 포함되어야 하기 때문에 소모되는 비용이 있습니다.
+
+0.8.4 버전부터 커스텀 에러 기능이 생겼습니다.
+맨 위에 커스텀에러를 선언하고 rquire 대신 if를 사용하는 방법입니다.
+
+https://blog.soliditylang.org/2021/04/21/custom-errors/
+
+```solidity
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity ^0.8.4;
+
+error Unauthorized();
+
+contract VendingMachine {
+    address payable owner = payable(msg.sender);
+
+    function withdraw() public {
+        if (msg.sender != owner)
+            revert Unauthorized();
+
+        owner.transfer(address(this).balance);
+    }
+    // ...
+}
+```
+이 방법은 직접 에러코드를 호출하는 것(`error Unauthorized();`)으로 훨씬 가스량을 줄일 수 있습니다. 오류와 관련된 전체 문자열을 호출하는 것이 아니라 오류코드를 직접 호출하기 때문입니다.
+
+require 문을 custom error로 바꿔보겠습니다.
+
+먼저 contract 바깥에 error를 선언합니다.
+```sol
+error NotOwner();
+```
+
+이제 onlyOwner 모디파이어의 require문을 고쳐보겠습니다.
+
+```sol
+//require(msg.sender == i_owner, unicode"계정 소유자만 인출 가능합니다.")
+if(msg.sender != i_owner) { revert NotOwner();}
+_;
+```
+
+이렇게 하면 긴 오류메세지를 직접 저장해하는 대신 오류코드만 호출하면 끝납니다.
+
+하지만 아직도 require 문을 많이 볼 수 있을겁니다. custom error 가 만들어지지 얼마 안됬기 때문에 상황에 따라 사용하는 걸 추천드립니다. 아마 미래에 custom error도 require 문 만큼 가독성이 좋게 업데이트 될 지도 모릅니다. 하지만 더 효율적인 가스사용을 원한다면 custom error를 사용하면 됩니다.
+
+revert는 require에서 revert 되는 원리와 달리 revet 다음에 오는 아무것이나 다시 되돌릴 수 있습니다.
+
+### Advancde Solidity Receive & fallback
+
+자 이제 이 계약을 향상시켜줄 방법 한개만 더 봅시다.
+
+떄때로, 사람들은 필요한 구문을 통과하지 않고 이더리움이나 블록체인 토큰을 가져가는 계약과 상호작용 할 것입니다.
+
+예를 들어, remix의 JavaScript EVM에서 fund 함수 없이 돈을 보낼 수 도 있습니다. 그렇게 되면 어떻게 될까요?
+
+fund함수를 실행시켰나요? 아닙니다. 우리는 기부자를(funder)를 추적하지 않을 것이고, 그 사람의 개인정보를 가지고 정보를 이 계약에 업데이트 하지 않을 겁니다.
+
+그래서 나중에 우리가 보상이나 어떤걸 주고 싶을 때 우리는 그 기부자들에 대해 알 수 없습니다. 그리고 이건 문제가 될겁니다. 사람들이 우리에게 정보없이 돈을 보낼 것이고 우리는 그들에게 어떠한 보상을 줄 수도 없게 됩니다.
+
+추가적으로 그 사람들이 아마 의도치 않게 다른 함수를 잘못 호출했을 수도 있습니다. 그리고 그들은 메타마스크를 사용하지도 않고, 그들에게 무언가 알려줄 툴도 사용하지 않을거고(이 트랜잭션이 잘못됬다는 걸 알려주는 ), 이런경우에 우리는 어떻게 대처해야 할까요?
+
+fund 함수를 호출하지 않고 이 계약에 ETH를 보냈을때 어떤 일이 발생할까요?
+
+지금은 fundMe 계약의 balnace로 ETH가 전송될 것이며 fundMe 계약은 보낸 사람을 추적하지 않을 겁니다.
+
+하지만 사실 사람들이 존재하지 않는 함수를 호출해서 이 계약에 돈을 보냈을때도 코드를 작동시키는 방법이 있습니다.
+
+자, 솔리디티엔 두가지 특별한 함수가 있습니다.
+
+하나는 `receive` 라 불리고 다른 하나는 `fallback`이라 불립니다.
+
+1. `receive()`
+2. `fallback()`
+
+솔리디티의 여러 특별 함수 중 두가지가 이것들입니다.
+
+https://docs.soliditylang.org/en/v0.8.14/contracts.html?highlight=receive#receive-ether-function
+
+https://docs.soliditylang.org/en/v0.8.14/contracts.html?highlight=receive#fallback-function
+
+>A contract can have at most one receive function, declared using 'receive() external payable { ... }' (without the function keyword). This function cannot have arguments, cannot return anything and must have external visibility and payable state mutability. It can be virtual, can override and can have modifiers.
+
+계약에는 `receive() external paybal { ... }`(`function` 키워드 없이)을 사용하여 선언된 최대 하나의 `receive` 함수를 가질 수 있습니다. 이 함수는 인수를 가질 수 없고, 아무것도 반환할 수 없으며, `external` 가시성(visibility) 및 `payable`지급 가능한' 상태 변이성(mutability)을 가져야 합니다. 가상(`virtual`)일 수 있고, 재정의(`override`)할 수 있으며, 수정자(`modifier`)가 있을 수 있습니다.
+
+이게 정확히 의마하는 바가 뭘까요?
+
+따로 파일을 만들어 실험해 보겠습니다.
+
+FallbackExample.sol
+
+```sol
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.7;
+
+contract FallbackExample {
+    uint256 public result;
+
+    receive() external payable {
+        result = 1;
+    }
+}
+```
+
+솔리디티는 receive()가 특별함수임 알기에
+이더리움을 이 계약으로 보내거나 트랜잭션이 일어났을때 트랜잭션과 연관된 코드가 없더라도receive 함수가 작동할 것입니다.
+
+한번 자바스크립트 vm에 배포해서 테스트 해볼까요
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-07%20135136.png)
+
+처음 아무것도 보내거나 트랜잭션 하지 않았을대 result는 0으로 초기화 됩니다.
+
+하지만 이 계약으로 이더리움을 조금 보내면 어떻게 될까요?
+
+remix의 Low level interactions 에 CALLDATA에서 ETH를 직접적으로 보내보겠습니다. 지금 여기에 있는 calldata가 무엇인지 알지 못해도 괜찮습니다. 이곳을 통해 그냥 다른 함수를 이용해 작업하거나 보낼 수 있다는 사실만 알아두십시오. 
+
+그리고 파라미터를 transact 옆 인풋에 넣어 보낼 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-07%20135440.png)
+
+이곳은 VM 환경이기 때문에 MetaMask를 사용 할 수 없습니다. 따라서 메타마스크에서 보내기(send)기능을 사용하는것과 동일한 방식을 통해 테스트할 겁니다.
+
+VALUE 값에 1wei를 넣은 뒤 Low level interactions에 아무것도 넣지 않은 상태로 transact 버튼을 누릅니다. 이는 메타마스크의 send 작동과 비슷합니다.
+
+우리가 receive 함수를 실행시키지도 않았는데
+receive()를 실행시켰다고 로그에 나옵니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-07%20135858.png)
+
+그럼 result 값이 바뀌었는지 확인해볼까요
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-07%20140023.png)
+
+receive 안의 코드가 실행되어 result에 1을 재할당 하였습니다!
+
+현재 배포를 지우고 다시 배포한 후 이번엔 0wei VALUE 로 transact 버튼을 눌러보겠습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-07%20140240.png)
+
+마찬가지로 0을 보내더라도 receive 함수가 작동되어 1을 할당 한 것을 확인 할 수 있습니다.
+
+receive 함수는 트랜잭션이 일어난 모든 순간에 작동됩니다. 그리고 여기에선 함수를 특정짓지 않고, call data도 빈 값으로 두었습니다.
+
+FundMe와 같이 다른 계약과 같이 작동해야 할때는, 예를 들어, 우리는 fund,withdraw,addressToAmountFunded... 같은 함수들 중 하나를 작동시킬때 calldata에 이 함수 들 중 하나를 가리키는 특정 데이터를 채웁니다.
+
+즉 receive는 calldata가 빈 값 일때 작동됩니다.
+
+이번엔 calldata에 특정함수를 가리키는 값을 집어넣어 보겠습니다.
+
+`0x00`을 입력했을때 'Fallback' function is not defined라고 에러 메세지가 나옵니다.
+
+즉 calldata에 들어있는 함수정보를 통해 해당 함수에 맞는 함수를 실행하고, 만약 해당 함수를 찾지못햇을때 fallback 함수가 실행되는 겁니다.
+
+```sol
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.7;
+
+contract FallbackExample {
+    uint256 public result;
+
+    receive() external payable {
+        result = 1;
+    }
+
+    fallback() external payable {
+        result = 2;
+    }
+}
+```
+
+fallback 은 솔리디티가 예상하는 함수 "키워드"를 입력하지 않았을때 실행됩니다.
+
+이것과 비슷한 것이 지난시간에 배운것중에 있습니다. 바로 constructor()입니다. 이것 또한 특별함수입니다. 솔리디티가 constructor가 배포시에 가장 먼저 실행되어야 할 코드라는 걸 알고 있습니다.
+
+이제 코드로 돌아와서 다시 배포한 후에 `0x00`값을 넣고 Transact를 눌러봅시다. 그럼 솔리디티가 해당하는 함수를 찾지 못하고 `fallback`함수를 실행시키게 되고 result는 2값을 반환하게 됩니다.
+
+이번엔 다시 calldata에 아무것도 넣지 않고 transact  버튼을 눌러봅시다. 이는 솔리디티가 이렇게 받아들이게 됩니다 " 이 계약에 이더리움을 보내거나 함수를 호출하기 하려하는데, 어떤 일을 할지 특정짓지 않고 그것을 하려하는구나, 내게 준비된 (레시피) 함수가 있으니 그걸 실행시켜줄께 " 이렇게하여 `receive` 함수를 실행시키게 되고 result 값은 다시 1이 됩니다.
+
+https://solidity-by-example.org/fallback/
+
+```
+이더리움이 계약으로 전송됨
+            |
+     msg.data 가 비었나요?
+          /   \
+         네   아니오
+        /        \
+    receive()?  fallback()
+      /  \
+    네   아니오
+    /       \
+receive()  fallback()
+```
+
+이제 FundMe에 적용시켜 보겠습니다.
+
+fund 함수를 작동시키지 않고 돈을 보내거나 트랜잭션 했을때 receive와 fallback을 실행시키도록 만들겁니다.
+
+누군가 의도치 않게 돈을 보냈을때, receive 함수가 작동되도록 그리고 fallback함수가 작동되도록 해서 자동적으로 fund 함수를 실행시키도록 합니다.
+
+```sol
+receive() external payable {
+    fund();
+}
+
+fallback() external payalbe {
+    fund();
+}
+
+```
+
+이제 실제 테스트넷에 배포해서 작동되는지 확인해보겠습니다.
+
+배포가 완료되면 fund함수를 사용하지 않고 메타마스크를 직접 열어 보내기(send) 기능에 해당 계약주소를 넣고 ETH를 송금합니다.
+
+현재 배포된 계약의 상태는 계약생성시 트랜잭션밖에 없고 balance도 0ETH 인 상태입니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-07%20144400.png)
+
+abc3
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-07%20144502.png)
+
+abc2
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-07%20144636.png)
+
+abc1
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-07%20144700.png)
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-07%20144720.png)
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-07%20144740.png)
+
+
+이제 이더스캔에 업데이트된 정보를 확인해보겠습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-07%20145044.png)
+
+계약에 돈이 들어와있고 fund 대신 transfer로 트랜잭션도 발생했습니다.
+
+이제 funders 배열도 확인해봅시다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-07%20145219.png)
+
+배열에도 우리가 보낸 지갑주소가 저장되어있으며 해당 지갑주소로 addressToAmoutFunded를 호출하면 보낸 금액을 확인할 수 있습니다.
+
+## LESSON 4 Recap
+
+### 아직 안배운 것들
+실제 사용하는 이유를 모르면 배우기 어렵기 때문에 나중에 배울것입니다.
+
+1. Enums
+2. Events
+3. Try / Catch
+4. Function Selectors
+5. abi.encode / decode
+6. Hasing
+7. Yul / Assumbly
+
+하지만 그래도 지금까지 배운것들로만으로도 대부분의 솔리디티 코드가 무엇을 하는지 이해할 수 있을 겁니다.
+
+### LESSON4에서 배운것들
+1. 솔리디티의 특별한 함수
+ - receive
+ - fallback
+ - constructor
+
+이 함수들은 function 키워드 없이 사용 할 수 있습니다.
+msg.data에 있는 값이 특정 함수를 지정하는 값이 아니라면 fallback 함수를 실행시킵니다. msg.data에 값이 비어있다면(empty) receive함수를 실행시킵니다.
+ 
+2. 가스를 아낄 수 있는 두가지 키워드
+ - constant
+ - immutable
+
+ constant와 immutable은 오직 한번만 업데이트 되는 변수에만 적용 할 수 있습니다. 
+ constant는 한번만 할당되었고, 이후에 값이 변경되지 않는 경우 사용가능하고, immutable은 constructor에서 할당되어 이후에 값이 변경되지 않는 변수에 사용합니다.
+
+3. remix의 Low level Interactions 는 CALLDATA 와 transfer를 통해 함수호출 없이 값을 보낼 수 있으며 CALLDATA가 비어있을땐 `receive` 함수를 호출하고 CALLDATA에 값이 있다면 값이 가리키는 특정 함수를 찾아 실행시키고 만약 없다면 `fallback`함수를 실행시킵니다. 
+
+# 축하합니다! 솔리디티 기본과정을 마쳤습니다! 5:30:40
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-07%20151022.png)
+
+# LESSON 5 Ethers.js Simple Stroage
+
+## Effective Debugging Strategies & Getting Help Don't skip this!!
+
+하드햇(HardHat)과 자바스크립트로 넘어가기 전에 왜 그래야하는지 알아야합니다.
+
+잠시 도움을 요청하는 방법과 문제에 대응하는 방법에 대해 알아봅시다.
+
+- tinker and figure out yourself : Limit tinkering / triaging to 20 minutes.
+
+20분이 넘어간다면 다음 단계로 넘어가세요.
+하지만 반드시 적어도 15분은 스스로 생각해보세요.
+or be 100% sure
+you exhausted all options
+
+Tinker and try to pinpoint exactly what's going on
+
+stack exchange eth
+
+2. check the documentation
+3. google it
+
+- Indexed Code-Based Forum : Stack overflow
+- Indexed Repository : GitHub
+- Indexed Technology-Specific Forum : r/ether (reddit)
+- Unindexed Discussion Platform : chainlink discord channel
+
+"Make your questions searchable and indexed by web crawlers"
+
+And maybe build a new decentralized Stackoverflow please. Please build this.
+
+ex)
+I'm trying to find the best places to learn about smart contracts? Where should I look?
+
+-> asking r/ethdev or probably more a "discord"
+Why? -> It's Opinionated, Not Technical, etc
+
+How do I undo 'git add' before commit?
+
+I mistakenly ~...... ... ...
+```
+git add myfile.txt
+```
+I have not yet run `git commit`. Is there ~ ....
+
+-> asking Stack Overflow
+
+## Installation & Setup - Moving to local development
+
+### HardHat
+
+A smart contract developer framework similar to brownie or foundry or, and likes,
+
+그리고 하드햇을 쓰는 이유는 바로 자바스크립트 기반이기때문입니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-07%20200131.png)
+
+타입스크립트를 좋아하는 분들을 위해서 코드 끝부분 마다 타입스크립트 버전의 코드를 보여드릴겁니다.
+
+HardHat을 배우기 전에 먼저 배워야 할 패키지가 있습니다.
+
+### Ethers.js
+
+앞으로 Ethers.js로 할 수 있는 모든것들을 배울것입니다.
+Ethers.js는 스마트 컨트렉트로 작업하기 위한 자바스크립트 기반의 라이브러리 입니다. 그리고 이 다음 배울 HardHat을 작동시킬 라이브러리기도 합니다.
+
+HardHat 환경 안에는 많은 ethers.js가 있습니다. 그러니 ethers.js를 배우는것은 hardHat이 무엇을 하는지 이해하기 위해 굉장히 중요합니다.
+
+## Local Development Introduction
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-07%20224519.png)
+
+설치
+
+포메터 설정
+
+`ctrl shift  p` -> `기본설정(settings.json)`
+
+을 열고 다음줄을 추가합니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-07%20225257.png)
+
+
+```solidity
+    "[solidity]": {
+        "editor.defaultFormatter": "NomicFoundation.hardhat-solidity"
+    }
+```
+hardhat-solidity plulgin을 디폴트 포멧터로 설정
+javascript는 prettier로
+
+폴더에 전에 만들었던 SimpleStorage.sol 파일을 복사해서 넣어놓겠습니다.
+
+## Tiny JavaScript Refresher
+
+노드환경에서 자바스크립트를 실행시켜봅시다.
+
+deploy.js를 만들고 다음과 같이 입력합니다.
+
+```js
+console.log("hi");
+```
+
+이제 터미널에서 node deploy.js 를 실행해봅시다.
+
+터미널에서 tab키를 누르면 파일이름을 자동완성 시켜줍니다.
+
+## Async Programming in JavaScript
+
+솔리디티는 synchronous(동기) 프로그램밍 언어입니다.
+
+동기가 뜻하는 것은 그저 다른것이 끝나면 한줄이 다시 시작되는 것입니다. 
+
+```js
+function main() {
+  console.log("hi");
+  let variable = 5;
+  console.log(variable);
+}
+
+main();
+```
+
+만약 코드가 이렇게 되어있다면 이건 동기적으로 작성한겁니다. 
+
+main()이 먼저 실행될 것이고, main안의 코드들이 한줄한줄 차례로 실행될겁니다.
+
+이것이 자바스크립트의 동기형 프로그래밍이고 솔리디티는 모든 처리가 동기형으로 되어있습니다. 다만 오라클에서 작업할때는 예외가 있습니다.
+
+그러나 지금은, 동기형으로 작동합니다.
+
+자바스크립트는 비동기로 작동할 수 있습니다. 
+이 말은 코드실행을 동시에 할 수 있다는 뜻입니다.
+
+요리를 좋은 예시로 차이점에 대해서 설명해보겠습니다.
+
+```tsx
+요리
+
+동기(Synchronous)
+1. 팝콘을 전자레인지에 넣는다.
+2. 팝콘이 완성될때까지 기다린다.
+3. 다른 사람들을 위해 음료수를 준비한다.
+
+```
+
+여기서 이상한 점이 있다면, 굳이 이 순서대로 요리를 해야할까요?
+`3. 다른 사람들을 위해 음료수를 준비한다` 는 `2. 팝콘이 완성될때까지 기다린다` 를 하면서 충분히 할 수 있는 일입니다. 팝콘이 다 될때까지 기다리지 않고, 음료수를 따르면 되겠죠?
+
+```tsx
+요리
+
+비동기(Asynchronous)
+1. 팝콘을 전자레인지에 넣는다.
+2. 다른 사람들을 위해 음료수를 준비한다.
+3. 팝콘이 완성될때까지 기다린다.
+```
+
+자바스크립트는 동기와 비동기의 전환이 자유롭습니다. 만약 `팝콘에 소금을 뿌린다` 라는 요리과정이 필요하다면 반드시 팝콘이 완성 된 후에 뿌려야 될 겁니다. 이럴땐 동기적으로 처리해야 되겠죠?
+
+이렇게 대기시간이 있는 함수들은 `Promise`라고 불리는 객체를 반환합니다.
+
+```tsx
+요리
+
+동기(Synchronous)
+1. 팝콘을 전자레인지에 넣는다. -> `Promise`
+2. 팝콘이 완성될때까지 기다린다.
+3. 다른 사람들을 위해 음료수를 준비한다.
+
+```
+
+1.번이 자바스크립트 함수로 표현된다면 아마 `Promise` 기반의 함수가 될 겁니다. 프로미스(`Promise`)는 대기`pending`, 이행됨`fulfilled` 혹은 거절`reject` 도 가능합니다.
+
+그리고 이런것들 덕분에 팝콘이 완성될 경우 그 사실을 알 수 있습니다.
+
+팝콘이 메소드 일 경우, 
+
+우리가 팝콘이 다 될 때까지 기다리는건 `pending` 상태입니다. 
+
+팝콘이 다 되었다면 그건 `fulfilled` 상태일겁니다.
+
+만약 도중에 그만 두고 기다림을 멈췄다면 `reject`상태일겁니다.
+
+전자레인지에 팝콘을 넣는건 `Promise`입니다.
+이 `Promise`를 가지고, 우리는 코드에게 이렇게 말 할 수 있습니다. "팝콘이 다 될때까지 기다려줄래요? 아니면 하던거 계속 해도 괜찮아요."
+
+이제 이걸 자바스크립트로 표현해봅시다.
+
+```js
+불금 영화 세팅하기
+
+팝콘 튀기기
+음료수 따르기
+영화 틀기
+
+```
+
+먼저 수도 코드로 이를 작성해보겠습니다.
+
+```jsx
+function 불금영화세팅하기() {
+    팝콘튀기기()
+    음료수따르기()
+    영화틀기()
+}
+```
+여기서 우리는 `영화틀기()`를 `팝콘튀기기()`와 `음료수따르기()`가 완료된 후에 실행하고 싶습니다.
+
+팝콘튀기기와 음료수따르기 중 하나가 `Promise`를 반환한다면, 우리는 `불금영화세팅하기` 함수에게 기다려 달라고 팝콘을 다 튀길때까지 기다려달라고 말해야 합니다.
+때문에 팝콘튀기기는 함수는 다음과 같이 표현할 수 있습니다.
+
+```jsx
+function 불금영화세팅하기() {
+    let 상태 = 팝콘튀기기()
+    음료수따르기()
+    영화틀기()
+}
+
+function 팝콘튀기기() {
+    //팝콘튀기는 코드
+    return Promise(/*여기에 코드 입력*/)
+}
+```
+그리고 팝콘이 튀겨지는 동안에 `상태`는 `완성`이 될것입니다. 즉 팝콘이 다 튀겨지면 `fulfilled` 로 될것이고, 팝콘이 망하고, 전자레인지가 폭발했다면 `reject` 상태가 될것입니다. 그런데 여기서 우리가 움직이기 전에 `상태`가 기다리는`pending`상태로 만들기는 싫습니다. 
+
+영화가 시작되는 때는 오직 팝콘이 튀겨지고 음료수가 다 준비되었을 때 입니다.
+
+그리고 `팝콘튀기기`와`음료수따르기` 둘다 `Promise`를 반환한다고 해봅시다. 그리고 코드에게 이렇게 말해야합니다. "팝콘이 다튀겨지고 음료수를 다 준비할때까지 기다려야해"
+
+이렇게 하는 방법엔 2가지가 있습니다. 
+
+그 중 가장 쉬운 방법은 `async` 함수로 만드는 것입니다.
+async 함수를 사용한 함수 안에서는 `await`라 불리는 키워드에 접근할 수 있습니다. 
+
+`await`를 가진 함수는 모든 `Promise`기반의 함수에게 `Promise`가 `fulfilled`되거나 `reject`될 때까지 기다려야한다고 알려줍니다.
+
+여기서 await 팝콘튀기기() 함수를 fulfilled 되거나 reject 될때까지 기다리라는 뜻입니다.
+
+그러면 이렇게 표현할 수 있습니다.
+
+ 팝콘이 튀겨질때까지 기다리고 `await 팝콘튀기기()`
+
+그리고 나면 음료수가 다 준비될때까지 기다립니다. `await 음료수따르기()`
+
+그리고 나서 나머지 작업 `영화틀기`를 실행합니다.
+
+그리고 `영화틀기`는 반드시 위의 두가지 await 함수가 fulfilled 되거나 reject 되고 나서 실행됩니다.
+
+```js
+async function 불금영화세팅하기() {
+    await 팝콘튀기기()
+    await 음료수따르기()
+    영화틀기()
+}
+
+function 팝콘튀기기() {
+    //팝콘튀기는 코드
+    return Promise(/*여기에 코드 입력*/)
+}
+```
+
+이렇게 기억하면 됩니다. async 함수 안에서 만나는 await가 붙은 함수는 이 함수가 끝날때까지 다음 단계로 움직이지 않는구나. 라구요.
+
+이렇게 살펴본 이유는 우리가 사용할 대부분의 함수들이 asyncronous로 작동하기 때문입니다.
+
+예를들어, 우리가 계약을 배포할때 , 뭘 해야 하나요?
+
+```js
+async function deploy() {
+    console.log("배포시작");
+    //계약을 배포한다구? 배포가 완료될 때까지 기다려
+}
+```
+
+만약 async를 사용하지 않으면 어떻게 될까요?
+
+```js
+function deploy() {
+    console.log("배포시작");
+    //계약을 배포한다구? 배포가 완료될 때까지 기다려
+    //contract.deploy -> 배포가 끝날때까지 기다리지 않음
+}
+```
+이렇게 된다면 배포가 끝나지 않은상태에서 컨트렉트 안의 코드를 실행시키게 되고 작동하지 않게 될 겁니다.
+
+```js
+async function deploy() {
+    console.log("배포시작");
+    //계약을 배포한다구? 배포가 완료될 때까지 기다려
+    //contract.deploy -> 배포가 끝날때까지 기다림
+}
+```
+
+그리고 이제 우리의 main()함수에 코드를 적어줄겁니다.
+
+```js
+async function main() {
+    console.log("hi");
+}
+
+main().then(() => process.exit(0)).catch((error)=>{
+    console.error(error);
+    process.exit(1);
+})
+```
+
+이것이 기본적으로 완료될떄까지 기다렸다가 에러를 출력하도록 만드는 코드입니다.
+
+## Compiling our Solidity
