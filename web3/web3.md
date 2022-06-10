@@ -4646,7 +4646,7 @@ async function deploy() {
 
 ```js
 async function main() {
-    console.log("hi");
+    
 }
 
 main().then(() => process.exit(0)).catch((error)=>{
@@ -4658,3 +4658,1947 @@ main().then(() => process.exit(0)).catch((error)=>{
 이것이 기본적으로 완료될떄까지 기다렸다가 에러를 출력하도록 만드는 코드입니다.
 
 ## Compiling our Solidity
+
+모든 코드는 async function main() {} 안에서 이루어질겁니다. main 안에 들어가는 코드가 SimpleStroge를 배포하기 위한 코드입니다.
+
+리믹스에서 첫번째로 하던일이 뭐였나요?
+바로 모든 코드를 컴파일 하는 것입니다.
+
+그러니 로컬에서도 자바스크립트 코드를 컴파일 하려합니다.
+
+### solc-js
+
+solc-js: 
+https://github.com/ethereum/solc-js
+
+yarn: https://yarnpkg.com/getting-started/install
+
+yarn 설치
+
+- 노드 16.10 버전부터 별도의 설치 없이 코어팩 설정으로 사용가능 합니다.
+
+`corepack enable`
+
+`yarn --version`
+
+- 혹은 16.10 미만일때 `npm i -g corepack`
+
+- 글로벌 설치 `npm i -g yarn`
+
+solc 설치하기
+
+이 프로젝트에서는 솔리디티 0.8.7 버전을 사용할 예쩡이니 0.8.7 버전을 설치하겠습니다.
+
+```ps1
+yarn add solc@0.8.7-fixed
+```
+
+package.json
+```json
+{
+  "dependencies": {
+    "solc": "0.8.7-fixed"
+  }
+}
+```
+
+solc 로 컴파일 하려면 글로벌 설치가 필요하지만 yarn을 이용해 로컬에만 설치해도 컴파일 할 수 있습니다.
+
+solc 명령어 알아보기
+
+```ps1
+yarn solcjs --help
+```
+
+solc 로 컴파일하기
+
+```ps1
+yarn solcjs --bin --abi --include-path node_modules/ --base-path . -o . SimpleStorage.sol
+```
+- `--bin` 바이너리를 원함
+- `--abi` abi 도 원함
+- `--include-path node_module/` 노드모듈 폴더에 계약이나 파일을 포함시키겠다.
+- `--base-path .` 기본 경로는 `.`(이 폴더경로)가 될것이다.
+- `-o .` 컴파일된 바이너리와(--bin) ABI(--abi)를 산출물로 내보내겠다. `.` 현재 폴더로
+- `SimpleStorage.sol` 컴파일할 파일
+
+입력하면 다음과 같은 파일이 생성됩니다.
+
+![컴파일된계약들](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-08%20114417.png)
+
+abi는 ABI 정보를 가지고 있고,
+bin은 바이너리 코드를 가지고 있습니다.
+
+bin의 코드들은 remix에서 컴파일했을때 compilation detail을 열면 나오는 있는 bytecode의 object 값과 똑같습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-08%20114655.png)
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-08%20114926.png)
+
+abi는 마찬가지로 compiliation detail에 있는 ABI 정보와 같습니다.
+
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-08%20114844.png)
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-08%20115024.png)
+
+
+이제 방금 입력했던 solc 컴파일 코드를 더 간편하게 입력하기 위해 package.json의 스크립트 프로퍼티를 수정합니다.
+
+```json
+{
+  "dependencies": {
+    "solc": "0.8.7-fixed"
+  },
+  "scripts": {
+    "complie": "yarn solcjs --bin --abi --include-path node_modules/ --base-path . -o . SimpleStorage.sol"
+  }
+}
+```
+
+이제 `yarn compile`로 위 명령을 실행 할 수 있습니다.
+
+여기까지가 구현한 것이 remix에서 컴파일 버튼을 누르는것과 동일합니다.
+
+## Ganache & Networks
+
+이제 사실상 이걸 어떻게 배포하는지 알아보겠습니다.
+
+remix에선 2곳에 배포했었습니다. 하나는 VM 하나는 metamask를 이용한 injected web3 에 말이죠.
+
+일단 이걸 자바스크립트 가상머신에 배포하려면 먼저 페이크블록체인이 필요합니다. 나중에 Hardhat 런타임 환경을 자바스크립트 가상머신, 일명 가짜블록체인으로 쓸겁니다.
+
+하지만 지금은, Ganache라는 툴을 사용해보겠습니다.
+https://trufflesuite.com/ganache/
+
+가나슈(Ganache)는 remix의 가상머신(VM)과 비슷합니다.
+로컬로 테스트, 배포, 코드실행을 할 수 있는 가짜블록체인입니다. 또 블록체인이 어떻게 작동하고 있는지 알아보기에도 좋은 툴입니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-08%20125236.png)
+
+QUICKSTART를 누르면 페이크 블록체인을 바로 만들 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-08%20125438.png)
+
+이게 바로 여러분 컴퓨터에서 돌아가는 페이크블록체인들입니다.
+
+이 목록들은 remix 의 DEPLOY 탭에 있는 ACCOUNT와 같다고 보면 됩니다.
+
+이제 remix의 EVIORNMENT 탭처럼 배포할 가상환경을 선택 할 수 있게 만들어보겠습니다.
+
+injected web3를 선택하면 metamask가 팝업됩니다.
+이건 마법같은게 아니라 그렇게 설정해놨기 때문입니다.
+metamask에서 `네트워크 추가(add testnet)`을 눌러봅시다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-08%20130109.png)
+
+네트워크 탭으로 가보면 네트워크 마다 정보를 확인 할 수 있습니다. 공통적으로 들어가 있는 요소중에 `RPC URL`이란걸 주목해봅시다.
+
+![메타마스크네트워크추가화면](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-08%20134338.png)
+
+https://ko.wikipedia.org/wiki/%EC%9B%90%EA%B2%A9_%ED%94%84%EB%A1%9C%EC%8B%9C%EC%A0%80_%ED%98%B8%EC%B6%9C
+
+>원격 프로시저 호출(영어: remote procedure call, 리모트 프로시저 콜, RPC)은 별도의 원격 제어를 위한 코딩 없이 다른 주소 공간에서 함수나 프로시저를 실행할 수 있게하는 프로세스 간 통신 기술이다. 다시 말해, 원격 프로시저 호출을 이용하면 프로그래머는 함수가 실행 프로그램에 로컬 위치에 있든 원격 위치에 있든 동일한 코드를 이용할 수 있다.
+>
+>객체 지향의 원칙을 사용하는 소프트웨어의 경우 원격 프로시저 호출을 원격 호출(remote invocation) 또는 원격 메소드 호출(remote method invocation)이라고 일컫는다.
+>
+>가끔 ONC RPC와 DCE/RPC와 같은 비호환 대상을 수행하기 위해 쓰이는 다른 수많은 기술이 있다.
+
+`RPC`는 `Remote procedure call(원격 프로시저 호출)`의 준말입니다. `URL`은 `Uniform Resource locator`의 약자구요.
+
+`RPC URL`은 누군가가 이 URL을 실행하고 있는 블록체인 노드와의 연결을 의미하며, 이를 통해 API 호출을 하고 블록체인 노드와 상호 작용할 수 있습니다.
+
+블록체인 노드는 소프트웨어로 실행되고 , 어떤것들은 API 콜을 공개하고 있습니다. 
+
+Go-Etherium 웹사이트를 보면 나만의 블록체인을 돌리기 위한 설명이 있습니다. 실제 블록체인인 이더리움처럼 말이죠.
+
+이문서에는 RPC 앤드포인트를 공개하기 위해 대부분은 `-http.addr` 같은 플래그를 가지고 있습니다. 
+
+만약 메타마스크나 다른 프로바이더를 쓰지 않고, 진짜 블록체인노드를 만들고 싶다면 `Go-Etherium`이나 블록체인을 돌릴수 있는 다른 소프트웨어를 사용하는게 좋습니다.
+
+이 RPCURL을 가지고 가나슈와 연결해보겠습니다.
+
+가나슈 상단에 RPC server 가 보이는데 이게 현재 가나슈 노드의 엔드포인트입니다. 이걸 복사해서 deploy.js에 참고하기 위해 붙여넣겠습니다.
+
+Etherium Json-RPC Specification
+
+https://playground.open-rpc.org/?schemaUrl=https://raw.githubusercontent.com/ethereum/execution-apis/assembled-spec/openrpc.json&uiSchema%5BappBar%5D%5Bui:splitView%5D=false&uiSchema%5BappBar%5D%5Bui:input%5D=false&uiSchema%5BappBar%5D%5Bui:examplesDropdown%5D=false
+
+Axios나 fetch를 가지고 api 콜을 할 수 있습니다. 하지만 여기선 레퍼로 만들어서 노드와 상호작용하는데 사용할 겁니다. 그리고 배포나 상호작용 아님 다른것들 을 블록체인 노드로 할겁니다. 
+
+모든 세팅이 다 끝났나요?
+바로 여기에서 Ethers.js가 등장할 때입니다.
+
+## Introduction to Ethers.js
+Ethers js is one of the most popular JavaScript based tooling kits, that allows us to interact with different blockchains and has all these wrappers that make all these API calls and do all these things with Aetherium, and polygon and avalanche and any EVM compatible chain.
+
+Ethersjs는 가장 인기 있는 JavaScript 기반 툴킷 중 하나로, 다양한 블록체인과 상호 작용할 수 있으며, 이러한 API 호출을 수행하고 이더리움, 폴리곤, 아발란체, EVM 호환 체인으로 이러한 모든 작업을 수행할 수 있는 랩퍼가 있습니다.
+
+똑같은 일을 하는 다른 인기있는 패키지로는 `web3.js`가 있습니다. 이 과정중에 잠시 다뤄볼 수 있을 겁니다.
+
+The reason that we're using ethers is that ethers is the main tool that powers the hard hat environment.
+
+우리가 이더js를 사용하는 이유는 이더js가 하드햇 환경을 작동시키는 주요 도구이기 때문입니다. 
+
+### ethers 설치하기
+
+https://docs.ethers.io/v5/
+
+```ps
+/home/ricmoo> npm install --save ethers
+```
+
+```ps
+yarn add ethers
+```
+
+deploy.js에서 ethers를 불러옵니다.
+
+js일경우
+```js
+const ethers = require("ethers");
+```
+
+ts일 경우
+```ts
+import ethers from "ethers";
+```
+
+이제 main함수에 provider 객체를 만들 수 있습니다.
+그리고 이게 스크립트 기본 세팅입니다.
+```js
+const ethers = require("ethers");
+
+async function main() {
+// 솔리디티 코드를 컴파일
+// 방법 1. 여기(main)에서 컴파일하기
+// 방법 2. 따로 분리해서 컴파일하기 <- 이걸로 할거임
+// http://127.0.0.1:7545
+}
+
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+
+```
+
+이제 메인함수에 프로바이더 인스턴스를 생성합니다.
+JsonRpcProvider에 인수로 가나슈 Rpc endpoint를 보내주면 됩니다.
+
+```js
+async function main() {
+    // http://127.0.0.1:7545
+    const provider = new ethers.provider.JsonRpcProvider("http://127.0.0.1:7545");
+}
+```
+
+이말은 `"http://127.0.0.1:7545"`여기에 접속할 거란 뜻입니다.
+
+이것이 스크립트(const provider)와 로컬 블록체인("http://127.0.0.1:7545")을 연결하는 방법입니다.
+
+이제 지갑을 가져오겠습니다.
+
+Wallet함수는 한쌍의 파라미터를 갖는데 프라이빗키와 프로바이더가 그것입니다.
+
+프라이빗 키를 확인하려면 가나슈에서 해당 계정의 맨 오른쪽에 있는 열쇠아이콘을 클릭하면 됩니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-08%20142424.png)
+
+단 여기서 프라이빗키는 **절대** 이런식으로 직접적으로 넣지 않습니다. 나중에 어떻게 처리하는지 배울것입니다.
+
+```js
+async function main() {
+    //"http://127.0.0.1:7545"
+    const provider = new ethers.providers.JsonRpcProvider("http://127.0.0.1:7545");
+    const wallet = new ethers.Wallet("2a3c137e648be125443bea64ca3e3a79e6ab0014dcc9b7d72d9ce965d500e9dc", provider);
+}
+```
+
+이 두개가 블록체인과 연결하는데 필요한 모든 정보를 가지고 있습니다.
+
+provider는 블록체인과 연결하게 해주며, wallet은 프라이빗키를 이용해서 트랜잭션마다 서명(sign)을 해줄 수 있게 해줍니다.
+
+프라이빗 키가 트랜잭션을 서명하는데 사용되고 트랜잭션을 암호화 한다는걸 기억하고 계세요.
+
+이제 연결은 끝났고 계약을 가지고 오겠습니다.
+
+계약을 배포하기 위해선 ABI가 필요합니다. 그러니 아까 컴파일한 계약의 바이너리 코드를 가져오겠습니다.
+
+이제 이 두개의 파일을 읽어야 합니다.
+
+![컴파일된계약들](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-08%20114417.png)
+
+이 두개의 파일을 읽기 위해선 `fs`라는 패키지가 필요합니다.
+
+최상단에 이렇게 작성합니다.
+
+```js
+const ethers = require("ethers");
+const fs = require("fs-extra") // 그냥 ("fs") 도 가능
+
+async function main() {
+    //"http://127.0.0.1:7545"
+    const provider = ethers.providers.JsonRpcProvider("http://127.0.0.1:7545");
+    const wallet = ethers.Wallet("2a3c137e648be125443bea64ca3e3a79e6ab0014dcc9b7d72d9ce965d500e9dc", provider);
+}
+```
+
+fs-extra는 기본적으로 노드패키지에 포함되어있지만 만약 포함되어있지 않다면 `yarn add fs-extra`로 설치하세요.
+
+```js
+const ethers = require("ethers");
+const fs = require("fs-extra");
+
+async function main() {
+    //"http://127.0.0.1:7545"
+    const provider = new ethers.providers.JsonRpcProvider("http://127.0.0.1:7547");
+    const wallet = new ethers.Wallet("2a3c137e648be125443bea64ca3e3a79e6ab0014dcc9b7d72d9ce965d500e9dc", provider);
+    const abi = fs.readFileSync("./_SimpleStorage_sol_SimpleStorage.abi", "utf8");
+    const binary = fs.readFileSync("./_SimpleStorage_sol_SimpleStorage.bin", "utf8");
+
+}
+```
+
+이제 계약 공장(contract factory)이라는 걸 만들 수 있습니다.(계약 팩토리 패턴하고는 다른겁니다).
+ethers.js에서 계약을 배포할 수 있는 객체를 만들겁니다.
+
+```js
+const ethers = require("ethers");
+const fs = requrie("fs-extra");
+
+async function main() {
+    const provider = new ethers.providers.JsonRpcProvider("http://127.0.0.1:7545");
+    const wallet = new ethers.Wallet("2a3c137e648be125443bea64ca3e3a79e6ab0014dcc9b7d72d9ce965d500e9dc", provider);
+    const abi = fs.readFileSync("./_SimpleStorage_sol_SimpleStorage.abi", "utf8");
+    const binary = fs.readFileSync("./_SimpleStorage_sol_SimpleStorage.bin", "utf8");
+    const contractFactory = new ethers.ContractFactory(abi, binary, wallet);
+    const contract = await contractFactory.deploy(); // 여기서 멈춰! 계약이 배포될때까지 기다리렴
+}
+```
+
+abi를 넘김으로써 binary와 어떻게 상호작용해야하는지 알려주고, 그리고 서명하고 배포할 수 있는 프라이빗 키를 가진 지갑(wallet)에 있는 바이너리는 당연히 주요 컴파일된 코드입니다. 
+
+그리고 contract 를 만들어 컨트렉트가 배포될때까지 기다리도록 합니다.
+
+여기에서 처음으로 `await` 키워드를 사용하게 되었습니다.
+
+`await`키워드를 사용한 이유는 우리가 코드한테 "여기서 멈춰! 계약이 배포될때까지 기다리렴" 이라고 말해야 하기 때문입니다. 그리고 여기에 있는 await은 또한 contractFactory.deploy()가 Promise(contract)를 해결할 것이라는 걸 뜻합니다.
+
+contractFactory.deploy는 contract 객체를 반환합니다.
+콘솔로그로 확인해보겠습니다.
+
+이제 코드를 실행해보겠습니다.
+`Ganache`가 실행된 상태인지 확인하고, 터미널에 이렇게 입력합니다.
+```ps1
+node deploy.js
+```
+
+다음과 같은 결과가 나옵니다.
+
+```ps1
+PS C:\Dev\web3\ethersjs-simple-storage> node deploy.js
+배포중입니다. 기다려주세요...
+Contract {
+  interface: Interface {
+    fragments: [
+      [FunctionFragment],
+      [FunctionFragment],
+      [FunctionFragment],
+      [FunctionFragment],
+      [FunctionFragment]
+    ],
+    _abiCoder: AbiCoder { coerceFunc: null },
+    functions: {
+      'addPerson(string,uint256)': [FunctionFragment],
+      'nameToFavoriteNumber(string)': [FunctionFragment],
+      'people(uint256)': [FunctionFragment],
+      'retrieve()': [FunctionFragment],
+      'store(uint256)': [FunctionFragment]
+    },
+    errors: {},
+    events: {},
+    structs: {},
+    deploy: ConstructorFragment {
+      name: null,
+      type: 'constructor',
+      inputs: [],
+      payable: false,
+      stateMutability: 'nonpayable',
+      gas: null,
+      _isFragment: true
+    },
+    _isInterface: true
+  },
+  provider: JsonRpcProvider {
+    _isProvider: true,
+    _events: [],
+    _emitted: { block: -2 },
+    disableCcipRead: false,
+    formatter: Formatter { formats: [Object] },
+    anyNetwork: false,
+    _networkPromise: Promise { [Object] },
+    _maxInternalBlockNumber: 0,
+    _lastBlockNumber: -2,
+    _maxFilterBlockRange: 10,
+    _pollingInterval: 4000,
+    _fastQueryDate: 1654669229311,
+    connection: { url: 'http://127.0.0.1:7545' },
+    _nextId: 57,
+    _eventLoopCache: { detectNetwork: null, eth_chainId: null, eth_blockNumber: null },
+    _network: { chainId: 1337, name: 'unknown' },
+    _internalBlockNumber: Promise { [Object] },
+    _fastBlockNumber: 0,
+    _fastBlockNumberPromise: Promise { 0 }
+  },
+  signer: Wallet {
+    _isSigner: true,
+    _signingKey: [Function (anonymous)],
+    _mnemonic: [Function (anonymous)],
+    address: '0xE36bc43c99B529d1d367406Dd2c4837c2Df5cE0E',
+    provider: JsonRpcProvider {
+      _isProvider: true,
+      _events: [],
+      _emitted: [Object],
+      disableCcipRead: false,
+      formatter: [Formatter],
+      anyNetwork: false,
+      _networkPromise: [Promise],
+      _maxInternalBlockNumber: 0,
+      _lastBlockNumber: -2,
+      _maxFilterBlockRange: 10,
+      _pollingInterval: 4000,
+      _fastQueryDate: 1654669229311,
+      connection: [Object],
+      _nextId: 57,
+      _eventLoopCache: [Object],
+      _network: [Object],
+      _internalBlockNumber: [Promise],
+      _fastBlockNumber: 0,
+      _fastBlockNumberPromise: [Promise]
+    }
+  },
+  callStatic: {
+    'addPerson(string,uint256)': [Function (anonymous)],
+    'nameToFavoriteNumber(string)': [Function (anonymous)],
+    'people(uint256)': [Function (anonymous)],
+    'retrieve()': [Function (anonymous)],
+    'store(uint256)': [Function (anonymous)],
+    addPerson: [Function (anonymous)],
+    nameToFavoriteNumber: [Function (anonymous)],
+    people: [Function (anonymous)],
+    retrieve: [Function (anonymous)],
+    store: [Function (anonymous)]
+  },
+  estimateGas: {
+    'addPerson(string,uint256)': [Function (anonymous)],
+    'nameToFavoriteNumber(string)': [Function (anonymous)],
+    'people(uint256)': [Function (anonymous)],
+    'retrieve()': [Function (anonymous)],
+    'store(uint256)': [Function (anonymous)],
+    addPerson: [Function (anonymous)],
+    nameToFavoriteNumber: [Function (anonymous)],
+    people: [Function (anonymous)],
+    retrieve: [Function (anonymous)],
+    store: [Function (anonymous)]
+  },
+  functions: {
+    'addPerson(string,uint256)': [Function (anonymous)],
+    'nameToFavoriteNumber(string)': [Function (anonymous)],
+    'people(uint256)': [Function (anonymous)],
+    'retrieve()': [Function (anonymous)],
+    'store(uint256)': [Function (anonymous)],
+    addPerson: [Function (anonymous)],
+    nameToFavoriteNumber: [Function (anonymous)],
+    people: [Function (anonymous)],
+    retrieve: [Function (anonymous)],
+    store: [Function (anonymous)]
+  },
+  populateTransaction: {
+    'addPerson(string,uint256)': [Function (anonymous)],
+    'nameToFavoriteNumber(string)': [Function (anonymous)],
+    'people(uint256)': [Function (anonymous)],
+    'retrieve()': [Function (anonymous)],
+    'store(uint256)': [Function (anonymous)],
+    addPerson: [Function (anonymous)],
+    nameToFavoriteNumber: [Function (anonymous)],
+    people: [Function (anonymous)],
+    retrieve: [Function (anonymous)],
+    store: [Function (anonymous)]
+  },
+  filters: {},
+  _runningEvents: {},
+  _wrappedEmits: {},
+  address: '0x10af82Dbab411AB5F3f60D771f3a56503F095247',
+  resolvedAddress: Promise { '0x10af82Dbab411AB5F3f60D771f3a56503F095247' },
+  'addPerson(string,uint256)': [Function (anonymous)],
+  'nameToFavoriteNumber(string)': [Function (anonymous)],
+  'people(uint256)': [Function (anonymous)],
+  'retrieve()': [Function (anonymous)],
+  'store(uint256)': [Function (anonymous)],
+  addPerson: [Function (anonymous)],
+  nameToFavoriteNumber: [Function (anonymous)],
+  people: [Function (anonymous)],
+  retrieve: [Function (anonymous)],
+  store: [Function (anonymous)],
+  deployTransaction: {
+    nonce: 0,
+    gasPrice: BigNumber { _hex: '0x04a817c800', _isBigNumber: true },
+    gasLimit: BigNumber { _hex: '0x071342', _isBigNumber: true },
+    to: null,
+    value: BigNumber { _hex: '0x00', _isBigNumber: true },
+    data: '0x608060405234801561001057600080fd5b50610771806100206000396000f3fe608060405234801561001057600080fd5b50600436106100575760003560e01c80632e64cec11461005c5780636057361d1461007a5780636f760f41146100965780638bab8dd5146100b25780639e7a13ad146100e2575b600080fd5b610064610113565b604051610071919061052a565b60405180910390f35b610094600480360381019061008f919061046d565b61011c565b005b6100b060048036038101906100ab9190610411565b610126565b005b6100cc60048036038101906100c791906103c8565b6101b6565b6040516100d9919061052a565b60405180910390f35b6100fc60048036038101906100f7919061046d565b6101e4565b60405161010a929190610545565b60405180910390f35b60008054905090565b8060008190555050565b6001604051806040016040528083815260200184815250908060018154018082558091505060019003906000526020600020906002020160009091909190915060008201518160000155602082015181600101908051906020019061018c9291906102a0565b505050806002836040516101a09190610513565b9081526020016040518091039020819055505050565b6002818051602081018201805184825260208301602085012081835280955050505050506000915090505481565b600181815481106101f457600080fd5b906000526020600020906002020160009150905080600001549080600101805461021d9061063e565b80601f01602080910402602001604051908101604052809291908181526020018280546102499061063e565b80156102965780601f1061026b57610100808354040283529160200191610296565b820191906000526020600020905b81548152906001019060200180831161027957829003601f168201915b5050505050905082565b8280546102ac9061063e565b90600052602060002090601f0160209004810192826102c5 
+760008555610315565b82601f106102e757805160ff1916838001178555610315565b82800160010185558215610315579182015b828111156103145782518255916020019190600101906102f9565b5b5090506103229190610326565b5090565b5b8082111561033f576000816000905550600101610327565b5090565b60006103566103518461059a565b610575565b90508281526020810184848401111561037257610371610704565b5b61037d8482856105fc565b509392505050565b600082601f83011261039a576103996106ff565b5b81356103aa848260208601610343565b91505092915050565b6000813590506103c281610724565b92915050565b6000602082840312156103de576103dd61070e565b5b600082013567ffffffffffffffff8111156103fc576103fb610709565b5b61040884828501610385565b91505092915050565b600080604083850312156104285761042761070e565b5b600083013567ffffffffffffffff81111561044657610445610709565b5b61045285828601610385565b9250506020610463858286016103b3565b9150509250929050565b6000602082840312156104835761048261070e565b5b6000610491848285016103b3565b91505092915050565b60006104a5826105cb565b6104af81856105d6565b93506104bf81856020860161060b565b6104c881610713565b840191505092915050565b60006104de826105cb565b6104e881856105e7565b93506104f881856020860161060b565b80840191505092915050565b61050d816105f2565b82525050565b600061051f82846104d3565b915081905092915050565b600060208201905061053f6000830184610504565b92915050565b600060408201905061055a6000830185610504565b818103602083015261056c818461049a565b90509392505050565b600061057f610590565b905061058b8282610670565b919050565b6000604051905090565b600067ffffffffffffffff8211156105b5576105b46106d0565b5b6105be82610713565b9050602081019050919050565b600081519050919050565b600082825260208201905092915050565b600081905092915050565b6000819050919050565b82818337600083830152505050565b60005b8381101561062957808201518184015260208101905061060e565b83811115610638576000848401525b50505050565b6000600282049050600182168061065657607f821691505b6020821081141561066a576106696106a1565b5b50919050565b61067982610713565b810181811067ffffffffffffffff82111715610698576106976106d0565b5b80604052505050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052602260045260246000fd5b7f4e487b7100000000000000000000000000000000000000000000000000000000600052604160045260246000fd5b600080fd5b600080fd5b600080fd5b600080fd5b6000601f19601f8301169050919050565b61072d816105f2565b811461073857600080fd5b5056fea2646970667358221220b45b5261c3f2c329911796f4e0af49b3ce4ab7b6971f62fbfaf6ef176acf6bf664736f6c63430008070033',
+    chainId: 1337,
+    v: 2710,
+    r: '0x8790586e0c8c63783c6bc1ee5bbbba550c11e243e9e2a734ecfb1fb968f85d9f',
+    s: '0x3f4a67dfdae214e2e4a771bb9d4f2da410a7c1fc6b07612135c83155d0d0e7bf',
+    from: '0xE36bc43c99B529d1d367406Dd2c4837c2Df5cE0E',
+    hash: '0x92e80a79e33a1ae12d6a92b2dad213ea2e1f790354cdce4b862f768027e3aa02',
+    type: null,
+    confirmations: 0,
+    wait: [Function (anonymous)]
+  }
+}
+```
+
+이것이 우리가 배포한 계약 객체입니다.
+
+그리고 가나슈를 확인해봅시다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-08%20152330.png)
+
+약간의 ETH가 줄어든것을 확인 할 수 있습니다. Tx COUNT도 1로 늘었습니다.
+
+만약 트러플(truffle suite)환경에서 작업한다면 
+이곳에서 계약을 확인 할 수 있습니다. 하지만 지금은 하드햇 환경이기때문에 볼 수 없습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-08%20152446.png)
+
+하지만 TRANSACTION 탭에 가면 계약이 생성되며 발생된 트랜잭션을 볼 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-08%20152608.png)
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-08%20152635.png)
+
+이건 이더스캔하고 비슷한겁니다, 로컬에서 돌아간다는것만 빼구요.
+
+블럭도 볼 수 있습니다.
+
+우리가 트랜잭션을 한번 했기때문에 블록은 한개뿐입니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-08%20152816.png)
+
+잘했습니다! 방금 ethers.js를 이용해 당신의 로컬 블록체인에 계약을 배포한겁니다!
+
+## A note on the await keyword
+
+자 이제 await 키워드 없이 진행하면 어떻게 되는지 살펴봅시다. 
+
+await키워드가 없다면 자바스크립트는 코드를 계속 진행하게 할 것이고, 우리는 결코 이 계약이 배포되었는지 체크하지 못하고 지나갈 것입니다. 그렇게 되면 어떻게 되는지 한번 봅시다.
+
+```ps1
+PS C:\Dev\web3\ethersjs-simple-storage> node deploy.js
+배포중입니다. 기다려주세요...
+Promise { <pending> }
+```
+
+스크립트가 pending인 상태에서 끝나버렸습니다.
+
+왜냐하면 Promise가 완료되기도 전에 이미 코드실행이 끝나서 종료되었기 때문입니다.
+
+그래서 `await`이 굉장히 중요한겁니다.
+awiat키워드는 또한 Promise를 해결해줍니다. 즉, Promise를 `pending`상태에서 빠져나가게 해줍니다.
+
+https://docs.ethers.io/v5/api/contract/contract-factory/#ContractFactory-deploy
+
+```js
+contractFactory.deploy( ...args [ , overrides ] ) ⇒ Promise< Contract >
+```
+contractFactory는 Contract를 resolve(해결)하는 Promise를 반환해줍니다.
+
+그리고 await를 사용하기 위해 함수앞에 async를 붙이는 걸 잊지마세요.
+
+## Adding Transaction Overrides
+
+remix에서 배포할 때 여러 가지 것들을 트랜잭션에 실어 보낼 수 있었습니다.
+
+value 로 eth나 블록체인화폐를 보낼 수 도 있었고, gas limit 값을 설정해서 보낼 수 도 있었습니다. 또 transact 버튼을 이용해 calldata에 데이터를 넣어 보낼수도 있었습니다.
+
+또 메타마스크에서 보내기로 돈을 보낼때 gasfee와 priority fee, 등 가스요금도 조절할 수 있었습니다.
+
+ethers 에서도 이런것들이 가능합니다.
+
+vscode의 메소드나 함수에 ctrl을 누르고 클릭하면 해당 메소드의 원본소스코드로 이동할 수 있습니다. 그러면 어떻게 생긴 함수인지 알 수 있겠죠.
+
+ContractFactory가 가지고 있는 deploy 메소드를 한번 살펴봅시다.
+
+```ts
+async deploy(...args: Array<any>): Promise<Contract> {
+
+        let overrides: any = { };
+
+        // If 1 extra parameter was passed in, it contains overrides
+        if (args.length === this.interface.deploy.inputs.length + 1) {
+            overrides = args.pop();
+        }
+
+        // Make sure the call matches the constructor signature
+        logger.checkArgumentCount(args.length, this.interface.deploy.inputs.length, " in Contract constructor");
+
+        // Resolve ENS names and promises in the arguments
+        const params = await resolveAddresses(this.signer, args, this.interface.deploy.inputs);
+        params.push(overrides);
+
+        // Get the deployment transaction (with optional overrides)
+        const unsignedTx = this.getDeployTransaction(...params);
+
+        // Send the deployment transaction
+        const tx = await this.signer.sendTransaction(unsignedTx);
+
+        const address = getStatic<(tx: TransactionResponse) => string>(this.constructor, "getContractAddress")(tx);
+        const contract = getStatic<(address: string, contractInterface: ContractInterface, signer?: Signer) => Contract>(this.constructor, "getContract")(address, this.interface, this.signer);
+
+        // Add the modified wait that wraps events
+        addContractWait(contract, tx);
+
+        defineReadOnly(contract, "deployTransaction", tx);
+        return contract;
+    }
+```
+
+앞줄을 보게되면 인수가 1개 이상일 경우 마지막에 오는 인수가 객체 타입을 가지는 overrides가 되어 덮어씌워지는 걸 확인 할 수 있습니다.
+
+따라서 이렇게 쓸 수 있습니다.
+
+```js
+const contract = contractFactory.deploy({gasPrice: 1000000000 });
+```
+
+이렇게 하고 배포를 한다면 우리는 gasPrice가 1000000000인 계약을 배포하게 되는겁니다.
+
+아니면 gasLimit을 설정해도 됩니다. 다양한 값을 덮어씌울 수 (override)있습니다.
+
+## Transaction Receipts
+
+또 뭘 할 수 있을까요?
+
+우리는 계약을 끝내기 위해 특정 블록넘버를 기다릴 수 있습니다.
+
+배포할때 체인에 최소 한개의 블럭이 연결되는지 확인하고 싶을때가 있을겁니다.
+
+```js
+const deploymentReceipt = await contract.deployTransaction.wait(1);
+console.log(deploymentReceipt);
+```
+여기서 기다리고 싶은 confrimation을 특정지을 수 있습니다.
+
+그래서 우린 1 블럭이 승인(confirmation)됬다는걸 deploymentReceipt로 확실시 할 수 있습니다.
+
+그리고 deploymentReceipt를 콘솔로그로 확인해보겠습니다.
+
+`node deploy.js`
+
+```js
+{
+  to: null,
+  from: '0xE36bc43c99B529d1d367406Dd2c4837c2Df5cE0E',
+  contractAddress: '0x5dba3ce7d8Fdf6FC61Dfc92af36cb3Fa2a7EEACc',
+  transactionIndex: 0,
+  gasUsed: BigNumber { _hex: '0x071342', _isBigNumber: true },
+  logsBloom: '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
+  blockHash: '0x82d3d80b8773dcc46e0f8fc6996aff43e2fcb39a634b901ea593af7905bc106f',
+  transactionHash: '0xb29b37631e2b17cca3c6bb0559bb1cbf14b3c1aca4f14387dca7f64b5493c91d',
+  logs: [],
+  blockNumber: 3,
+  confirmations: 1,
+  cumulativeGasUsed: BigNumber { _hex: '0x071342', _isBigNumber: true },
+  status: 1,
+  type: 0,
+  byzantium: true,
+  events: []
+}
+```
+여기서 트랜잭션에 관한 모든 정보를 확인 할 수 있습니다.
+
+to는 계약을 배포했기 때문에 null 입니다.
+그리고 from은 계약이 배포된 가나슈 지갑계정의 address가 적혀있습니다. contractAddress에서 계약의 address도 볼 수 있네요. 트랜잭션 인덱스, 가스..등등
+
+이번엔 두가지로 나누어서 트랜잭션을 좀 더 잘 알아볼 수 있도록 해보겠습니다.
+또한 좀 더 명확한 표현을 위해 `transactionReceipt`로 이름을 고치겠습니다.
+
+```
+console.log("")
+```
+
+```js
+배포 트랜잭션입니다.
+{
+  nonce: 3,
+  gasPrice: BigNumber { _hex: '0x04a817c800', _isBigNumber: true },
+  gasLimit: BigNumber { _hex: '0x071342', _isBigNumber: true },
+  to: null,
+  value: BigNumber { _hex: '0x00', _isBigNumber: true },
+  data: '0x608060405234801561001057600080fd5b50610771806100206000396000f3fe608060405234801561001057600080fd5b50600436106100575760003560e01c80632e64cec11461005c5780636057361d1461007a5780636f760f41146100965780638bab8dd5146100b25780639e7a13ad146100e2575b600080fd5b610064610113565b604051610071919061052a565b60405180910390f35b610094600480360381019061008f919061046d565b61011c565b005b6100b060048036038101906100ab9190610411565b610126565b005b6100cc60048036038101906100c791906103c8565b6101b6565b6040516100d9919061052a565b60405180910390f35b6100fc60048036038101906100f7919061046d565b6101e4565b60405161010a929190610545565b60405180910390f35b60008054905090565b8060008190555050565b6001604051806040016040528083815260200184815250908060018154018082558091505060019003906000526020600020906002020160009091909190915060008201518160000155602082015181600101908051906020019061018c9291906102a0565b505050806002836040516101a09190610513565b9081526020016040518091039020819055505050565b6002818051602081018201805184825260208301602085012081835280955050505050506000915090505481565b600181815481106101f457600080fd5b906000526020600020906002020160009150905080600001549080600101805461021d9061063e565b80601f01602080910402602001604051908101604052809291908181526020018280546102499061063e565b80156102965780601f1061026b57610100808354040283529160200191610296565b820191906000526020600020905b81548152906001019060200180831161027957829003601f168201915b5050505050905082565b8280546102ac9061063e565b90600052602060002090601f0160209004810192826102ce5760008555610315565b82601f106102e757805160ff1916838001178555610315565b82800160010185558215610315579182015b828111156103145782518255916020019190600101906102f9565b5b5090506103229190610326565b5090565b5b8082111561033f576000816000905550600101610327565b5090565b60006103566103518461059a565b610575565b90508281526020810184848401111561037257610371610704565b5b61037d8482856105fc565b509392505050565b600082601f83011261039a576103996106ff565b5b81356103aa848260208601610343565b91505092915050565b6000813590506103c281610724565b92915050565b6000602082840312156103de576103dd61070e565b5b600082013567ffffffffffffffff8111156103fc576103fb610709565b5b61040884828501610385565b91505092915050565b600080604083850312156104285761042761070e565b5b600083013567ffffffffffffffff81111561044657610445610709565b5b61045285828601610385565b9250506020610463858286016103b3565b9150509250929050565b6000602082840312156104835761048261070e565b5b6000610491848285016103b3565b91505092915050565b60006104a5826105cb565b6104af81856105d6565b93506104bf81856020860161060b565b6104c881610713565b840191505092915050565b60006104de826105cb565b6104e881856105e7565b93506104f881856020860161060b565b80840191505092915050565b61050d816105f2565b82525050565b600061051f82846104d3565b915081905092915050565b600060208201905061053f6000830184610504565b92915050565b600060408201905061055a6000830185610504565b818103602083015261056c818461049a565b90509392505050565b600061057f610590565b905061058b8282610670565b919050565b6000604051905090565b600067ffffffffffffffff8211156105b5576105b46106d0565b5b6105be82610713565b9050602081019050919050565b600081519050919050565b600082825260208201905092915050565b600081905092915050565b6000819050919050565b82818337600083830152505050565b60005b8381101561062957808201518184015260208101905061060e565b83811115610638576000848401525b50505050565b6000600282049050600182168061065657607f821691505b6020821081141561066a576106696106a1565b5b50919050565b61067982610713565b810181811067ffffffffffffffff82111715610698576106976106d0565b5b80604052505050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052602260045260246000fd5b7f4e487b7100000000000000000000000000000000000000000000000000000000600052604160045260246000fd5b600080fd5b600080fd5b600080fd5b600080fd5b6000601f19601f8301169050919050565b61072d816105f2565b811461073857600080fd5b5056fea2646970667358221220b45b5261c3f2c329911796f4e0af49b3ce4ab7b6971f62fbfaf6ef176acf6bf664736f6c63430008070033',
+  chainId: 1337,
+  v: 2709,
+  r: '0x62c3c75c955f7ab7d5c5438b38e9bc4383b272132886cd54ef2cd021845a99fc',
+  s: '0x05dd3deb55d991f6be4b95d03fa629603f3fa1df4b5892b3091cff40e2bfcfb4',
+  from: '0xE36bc43c99B529d1d367406Dd2c4837c2Df5cE0E',
+  hash: '0x37b1a7041c41899dfdc7ae203da501fede43d80a9dcc2e02463212da7c32f0a3',
+  type: null,
+  confirmations: 0,
+  wait: [Function (anonymous)]
+}
+트랜잭션 영수증입니다.
+{
+  to: null,
+  from: '0xE36bc43c99B529d1d367406Dd2c4837c2Df5cE0E',
+  contractAddress: '0x9E27bdD1fdf8D48B156D540D8D3bd607b4d5ceA7',
+  transactionIndex: 0,
+  gasUsed: BigNumber { _hex: '0x071342', _isBigNumber: true },
+  logsBloom: '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
+  blockHash: '0x28648f06f7744dc2d6e017c7d5ad5d6cb5bbfbbf4358152d88b77ff0f930b0c3',
+  transactionHash: '0x37b1a7041c41899dfdc7ae203da501fede43d80a9dcc2e02463212da7c32f0a3',
+  logs: [],
+  blockNumber: 4,
+  confirmations: 1,
+  cumulativeGasUsed: BigNumber { _hex: '0x071342', _isBigNumber: true },
+  status: 1,
+  type: 0,
+  byzantium: true,
+  events: []
+}
+```
+오직 wait()로 트랜잭션을 기다렸을때만 내역(receipt)를 얻을 수 있습니다.
+
+아니라면 contract에 들어있는 deployTransaciton 오브젝트(즉, 트랜잭션 응답)에 접근하게 됩니다. 이 둘의 차이점은 매우 중요하기 때문에 나중에 가서 더 살펴볼 겁니다.
+
+## Sending a "raw" transaction in ethersjs
+
+우리가 트랜잭션 내역을 받아 출력했을때 안에 들어있는 모든걸 얻을 수 있다는걸 알게 됬습니다. 왜냐하면 전에도 말했듯이 계약을 배포하는건 사실 그냥 트랜잭션을 보내는것이기 때문입니다.
+
+so if we want to see what's really going on under the hood, we can actually create a transaction ourselves and create a contract ourselves just by specifying the transaction information. 
+
+그래서 우리가 실제로 무슨 일이 일어나고 있는지 알고 싶다면, 우리는 실제로 거래를 만들고 거래 정보를 명시하는 것만으로 계약을 만들 수 있습니다.
+
+순수 트랜잭션만 사용하여 컨트렉트를 다시 배포해보겠습니다.
+
+And this is going to be the way you can actually deploy or send transactions purely with transaction data. you can send any transaction this gives you unlimited flexibility with the transactions you want to send.
+
+그리고 이것이 실제로 트랜잭션 데이터를 사용하여 트랜잭션을 배포하거나 전송할 수 있는 방법이 될 것입니다. 원하는 아무 트랜잭션을 보낼 수 있으며, 따라서 모든 트랜잭션을 유연하게 전송할 수 있습니다.
+
+다음과 같이 트랜잭션 정보를 담을 tx 객체를 만듭니다.
+트랜잭션 정보는 유연하여 원하는 대로 정보를 넣을 수 있습니다.
+
+```js
+const tx = {
+    
+} 
+```
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-08%20210022.png)
+
+tx 카운트는 nonce값을 만드는 재료중 하나로 쓰입니다. 그리고 nonce값은 매 트랜잭션마다 증가합니다.
+넌스는 number only use once 입니다. 단 한번만 써야되요. tx 카운트가 4이므로 이전에 사용하지 않았던 nonce 값 5를 넣어줘야 할까요? 한번 넣어봅시다.
+
+```js
+const tx = {
+    nonce: 5,
+}
+```
+넌스는 지갑에도 쓰이고 서명자에겐 트랜잭션을 보내기 위해 사용됩니다. 그리고 매 트랜잭션마다 다른 논스를 사용합니다. 특정 트랜잭션과 연관된 숫자이며, 마이닝을 위한 어려운 블록체인 문제를 푸는데 사용됩니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-08%20212643.png)
+
+가스가격도 정하겠습니다. 가나슈에서 복사해오면 됩니다.
+가스한도도 정합니다.
+
+to는 계약배포시 콘솔로그에서 봤던것과 같이 `null`값으로 지정해줍니다. 
+
+그리고 `value` 아무것도 보내지 않을 것이니 `0`이 될것입니다. 
+
+`data`에는 우리가 보낼 계약의 바이너리코드를 보내면 됩니다. 보낼때는 항상 앞에 `0x`를 붙인뒤 그 뒤에 바이너리 코드를 붙이면 됩니다.
+
+이제 `chainId`를 정할 차례입니다.
+메타마스크의 네트워크 추가화면의 목록을 보면 네트워크마다 `체인ID`를 숫자값으로 가지고 있습니다.
+ex) Rinkeby:4, Kovan:42, Localhost8545: 1337
+
+가나슈에서 NETWORK ID로 찾을 수 있습니다. 
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-08%20214234.png)
+
+`chainId: 5777`을 입력해줍니다.
+
+![메타마스크네트워크추가화면](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-08%20134338.png)
+
+```js
+const tx = {
+    nonce: 5,
+    gasPrice: 20000000000,
+    gasLimit: 100000,
+    to: null,
+    value: 0,
+    data: "0x608060405234801561001057600080fd5b50610771806100206000396000f3fe608060405234801561001057600080fd5b50600436106100575760003560e01c80632e64cec11461005c5780636057361d1461007a5780636f760f41146100965780638bab8dd5146100b25780639e7a13ad146100e2575b600080fd5b610064610113565b604051610071919061052a565b60405180910390f35b610094600480360381019061008f919061046d565b61011c565b005b6100b060048036038101906100ab9190610411565b610126565b005b6100cc60048036038101906100c791906103c8565b6101b6565b6040516100d9919061052a565b60405180910390f35b6100fc60048036038101906100f7919061046d565b6101e4565b60405161010a929190610545565b60405180910390f35b60008054905090565b8060008190555050565b6001604051806040016040528083815260200184815250908060018154018082558091505060019003906000526020600020906002020160009091909190915060008201518160000155602082015181600101908051906020019061018c9291906102a0565b505050806002836040516101a09190610513565b9081526020016040518091039020819055505050565b6002818051602081018201805184825260208301602085012081835280955050505050506000915090505481565b600181815481106101f457600080fd5b906000526020600020906002020160009150905080600001549080600101805461021d9061063e565b80601f01602080910402602001604051908101604052809291908181526020018280546102499061063e565b80156102965780601f1061026b57610100808354040283529160200191610296565b820191906000526020600020905b81548152906001019060200180831161027957829003601f168201915b5050505050905082565b8280546102ac9061063e565b90600052602060002090601f0160209004810192826102ce5760008555610315565b82601f106102e757805160ff1916838001178555610315565b82800160010185558215610315579182015b828111156103145782518255916020019190600101906102f9565b5b5090506103229190610326565b5090565b5b8082111561033f576000816000905550600101610327565b5090565b60006103566103518461059a565b610575565b90508281526020810184848401111561037257610371610704565b5b61037d8482856105fc565b509392505050565b600082601f83011261039a576103996106ff565b5b81356103aa848260208601610343565b91505092915050565b6000813590506103c281610724565b92915050565b6000602082840312156103de576103dd61070e565b5b600082013567ffffffffffffffff8111156103fc576103fb610709565b5b61040884828501610385565b91505092915050565b600080604083850312156104285761042761070e565b5b600083013567ffffffffffffffff81111561044657610445610709565b5b61045285828601610385565b9250506020610463858286016103b3565b9150509250929050565b6000602082840312156104835761048261070e565b5b6000610491848285016103b3565b91505092915050565b60006104a5826105cb565b6104af81856105d6565b93506104bf81856020860161060b565b6104c881610713565b840191505092915050565b60006104de826105cb565b6104e881856105e7565b93506104f881856020860161060b565b80840191505092915050565b61050d816105f2565b82525050565b600061051f82846104d3565b915081905092915050565b600060208201905061053f6000830184610504565b92915050565b600060408201905061055a6000830185610504565b818103602083015261056c818461049a565b90509392505050565b600061057f610590565b905061058b8282610670565b919050565b6000604051905090565b600067ffffffffffffffff8211156105b5576105b46106d0565b5b6105be82610713565b9050602081019050919050565b600081519050919050565b600082825260208201905092915050565b600081905092915050565b6000819050919050565b82818337600083830152505050565b60005b8381101561062957808201518184015260208101905061060e565b83811115610638576000848401525b50505050565b6000600282049050600182168061065657607f821691505b6020821081141561066a576106696106a1565b5b50919050565b61067982610713565b810181811067ffffffffffffffff82111715610698576106976106d0565b5b80604052505050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052602260045260246000fd5b7f4e487b7100000000000000000000000000000000000000000000000000000000600052604160045260246000fd5b600080fd5b600080fd5b600080fd5b600080fd5b6000601f19601f8301169050919050565b61072d816105f2565b811461073857600080fd5b5056fea2646970667358221220b45b5261c3f2c329911796f4e0af49b3ce4ab7b6971f62fbfaf6ef176acf6bf664736f6c63430008070033",
+    chainId:5777,
+}
+```
+
+그러나 이 트랜잭션은 서명되지 않았기때문에 아무도 이 트랜잭션을 전송한게 아니게 됩니다. 여기엔 그저 트랜잭션 정보만 있을 뿐입니다. 우리는 이 트랜잭션에  서명해야 합니다. 그리고 블록체인에 보내야 합니다.  
+
+다음과 같이 작성합니다.
+
+```js
+const signedTxResponse = await wallet.signTransaction(tx);
+console.log(signedTxResponse);
+```
+
+자 이렇게 하고 이렇게 3줄을 주석처리하고 실행해보겠습니다.
+
+```js
+const ethers = require("ethers");
+const fs = require("fs-extra");
+
+async function main() {
+  // 솔리디티 코드를 컴파일
+  // 방법 1. 여기(main)에서 컴파일하기
+  // 방법 2. 따로 분리해서 컴파일하기 <- 이걸로 할거임
+  // http://127.0.0.1:7545
+  const provider = new ethers.providers.JsonRpcProvider(
+    "http://127.0.0.1:7545"
+  );
+  const wallet = new ethers.Wallet(
+    "2a3c137e648be125443bea64ca3e3a79e6ab0014dcc9b7d72d9ce965d500e9dc",
+    provider
+  );
+  const abi = fs.readFileSync("./_SimpleStorage_sol_SimpleStorage.abi", "utf8");
+  const binary = fs.readFileSync(
+    "./_SimpleStorage_sol_SimpleStorage.bin",
+    "utf8"
+  );
+  // const contractFactory = new ethers.ContractFactory(abi, binary, wallet);
+  // console.log("배포중입니다. 기다려주세요...");
+  // const contract = await contractFactory.deploy(); // 여기서 멈춰! 계약이 배포될때까지 기다리렴
+  // console.log(contract);
+  // const transactionReceipt = await contract.deployTransaction.wait(1);
+
+  // console.log("배포 트랜잭션입니다.")
+  // console.log(contract.deployTransaction);
+  // console.log("트랜잭션 내역입니다.")
+  // console.log(transactionReceipt);
+
+  console.log("트랜잭션 데이터만 가지고 배포하기!");
+  const tx = {
+    nonce: 5,
+    gasPrice: 20000000000,
+    gasLimit: 6721975,
+    to:null,
+    value:0,
+    data: "0x608060405234801561001057600080fd5b50610771806100206000396000f3fe608060405234801561001057600080fd5b50600436106100575760003560e01c80632e64cec11461005c5780636057361d1461007a5780636f760f41146100965780638bab8dd5146100b25780639e7a13ad146100e2575b600080fd5b610064610113565b604051610071919061052a565b60405180910390f35b610094600480360381019061008f919061046d565b61011c565b005b6100b060048036038101906100ab9190610411565b610126565b005b6100cc60048036038101906100c791906103c8565b6101b6565b6040516100d9919061052a565b60405180910390f35b6100fc60048036038101906100f7919061046d565b6101e4565b60405161010a929190610545565b60405180910390f35b60008054905090565b8060008190555050565b6001604051806040016040528083815260200184815250908060018154018082558091505060019003906000526020600020906002020160009091909190915060008201518160000155602082015181600101908051906020019061018c9291906102a0565b505050806002836040516101a09190610513565b9081526020016040518091039020819055505050565b6002818051602081018201805184825260208301602085012081835280955050505050506000915090505481565b600181815481106101f457600080fd5b906000526020600020906002020160009150905080600001549080600101805461021d9061063e565b80601f01602080910402602001604051908101604052809291908181526020018280546102499061063e565b80156102965780601f1061026b57610100808354040283529160200191610296565b820191906000526020600020905b81548152906001019060200180831161027957829003601f168201915b5050505050905082565b8280546102ac9061063e565b90600052602060002090601f0160209004810192826102ce5760008555610315565b82601f106102e757805160ff1916838001178555610315565b82800160010185558215610315579182015b828111156103145782518255916020019190600101906102f9565b5b5090506103229190610326565b5090565b5b8082111561033f576000816000905550600101610327565b5090565b60006103566103518461059a565b610575565b90508281526020810184848401111561037257610371610704565b5b61037d8482856105fc565b509392505050565b600082601f83011261039a576103996106ff565b5b81356103aa848260208601610343565b91505092915050565b6000813590506103c281610724565b92915050565b6000602082840312156103de576103dd61070e565b5b600082013567ffffffffffffffff8111156103fc576103fb610709565b5b61040884828501610385565b91505092915050565b600080604083850312156104285761042761070e565b5b600083013567ffffffffffffffff81111561044657610445610709565b5b61045285828601610385565b9250506020610463858286016103b3565b9150509250929050565b6000602082840312156104835761048261070e565b5b6000610491848285016103b3565b91505092915050565b60006104a5826105cb565b6104af81856105d6565b93506104bf81856020860161060b565b6104c881610713565b840191505092915050565b60006104de826105cb565b6104e881856105e7565b93506104f881856020860161060b565b80840191505092915050565b61050d816105f2565b82525050565b600061051f82846104d3565b915081905092915050565b600060208201905061053f6000830184610504565b92915050565b600060408201905061055a6000830185610504565b818103602083015261056c818461049a565b90509392505050565b600061057f610590565b905061058b8282610670565b919050565b6000604051905090565b600067ffffffffffffffff8211156105b5576105b46106d0565b5b6105be82610713565b9050602081019050919050565b600081519050919050565b600082825260208201905092915050565b600081905092915050565b6000819050919050565b82818337600083830152505050565b60005b8381101561062957808201518184015260208101905061060e565b83811115610638576000848401525b50505050565b6000600282049050600182168061065657607f821691505b6020821081141561066a576106696106a1565b5b50919050565b61067982610713565b810181811067ffffffffffffffff82111715610698576106976106d0565b5b80604052505050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052602260045260246000fd5b7f4e487b7100000000000000000000000000000000000000000000000000000000600052604160045260246000fd5b600080fd5b600080fd5b600080fd5b600080fd5b6000601f19601f8301169050919050565b61072d816105f2565b811461073857600080fd5b5056fea2646970667358221220b45b5261c3f2c329911796f4e0af49b3ce4ab7b6971f62fbfaf6ef176acf6bf664736f6c63430008070033",
+    chainId: 5777
+  };
+  const signedTxResponse = await wallet.signTransaction(tx);
+  console.log(signedTxResponse);
+}
+
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+
+```
+
+`node deploy.js`
+
+이러한 거대한 값이 나옵니다.
+
+```ps1
+트랜잭션 데이터만 가지고 배포하기!
+0xf907e6058504a817c800836691b78080b90791608060405234801561001057600080fd5b50610771806100206000396000f3fe608060405234801561001057600080fd5b50600436106100575760003560e01c80632e64cec11461005c5780636057361d1461007a5780636f760f41146100965780638bab8dd5146100b25780639e7a13ad146100e2575b600080fd5b610064610113565b604051610071919061052a565b60405180910390f35b610094600480360381019061008f919061046d565b61011c565b005b6100b060048036038101906100ab9190610411565b610126565b005b6100cc60048036038101906100c791906103c8565b6101b6565b6040516100d9919061052a565b60405180910390f35b6100fc60048036038101906100f7919061046d565b6101e4565b60405161010a929190610545565b60405180910390f35b60008054905090565b8060008190555050565b6001604051806040016040528083815260200184815250908060018154018082558091505060019003906000526020600020906002020160009091909190915060008201518160000155602082015181600101908051906020019061018c9291906102a0565b505050806002836040516101a09190610513565b9081526020016040518091039020819055505050565b6002818051602081018201805184825260208301602085012081835280955050505050506000915090505481565b600181815481106101f457600080fd5b906000526020600020906002020160009150905080600001549080600101805461021d9061063e565b80601f01602080910402602001604051908101604052809291908181526020018280546102499061063e565b80156102965780601f1061026b57610100808354040283529160200191610296565b820191906000526020600020905b81548152906001019060200180831161027957829003601f168201915b5050505050905082565b8280546102ac9061063e565b90600052602060002090601f0160209004810192826102ce5760008555610315565b82601f106102e757805160ff1916838001178555610315565b82800160010185558215610315579182015b828111156103145782518255916020019190600101906102f9565b5b5090506103229190610326565b5090565b5b8082111561033f576000816000905550600101610327565b5090565b60006103566103518461059a565b610575565b90508281526020810184848401111561037257610371610704565b5b61037d8482856105fc565b509392505050565b600082601f83011261039a576103996106ff565b5b81356103aa848260208601610343565b91505092915050565b6000813590506103c281610724565b92915050565b6000602082840312156103de576103dd61070e565b5b600082013567ffffffffffffffff8111156103fc576103fb610709565b5b61040884828501610385565b91505092915050565b600080604083850312156104285761042761070e565b5b600083013567ffffffffffffffff81111561044657610445610709565b5b61045285828601610385565b9250506020610463858286016103b3565b9150509250929050565b6000602082840312156104835761048261070e565b5b6000610491848285016103b3565b91505092915050565b60006104a5826105cb565b6104af81856105d6565b93506104bf81856020860161060b565b6104c881610713565b840191505092915050565b60006104de826105cb565b6104e881856105e7565b93506104f881856020860161060b565b80840191505092915050565b61050d816105f2565b82525050565b600061051f82846104d3565b915081905092915050565b600060208201905061053f6000830184610504565b92915050565b600060408201905061055a6000830185610504565b818103602083015261056c818461049a565b90509392505050565b600061057f610590565b905061058b8282610670565b919050565b6000604051905090565b600067ffffffffffffffff8211156105b5576105b46106d0565b5b6105be82610713565b9050602081019050919050565b600081519050919050565b600082825260208201905092915050565b600081905092915050565b6000819050919050565b82818337600083830152505050565b60005b8381101561062957808201518184015260208101905061060e565b83811115610638576000848401525b50505050565b6000600282049050600182168061065657607f821691505b6020821081141561066a576106696106a1565b5b50919050565b61067982610713565b810181811067ffffffffffffffff82111715610698576106976106d0565b5b80604052505050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052602260045260246000fd5b7f4e487b7100000000000000000000000000000000000000000000000000000000600052604160045260246000fd5b600080fd5b600080fd5b600080fd5b600080fd5b6000601f19601f8301169050919050565b61072d816105f2565b811461073857600080fd5b5056fea2646970667358221220b45b5261c3f2c329911796f4e0af49b3ce4ab7b6971f62fbfaf6ef176acf6bf664736f6c63430008070033822d45a01b0590ba797b4ca4d256ac47cb4dd76a4a10af98c70e8ca3d0047bc813b019b2a04138c49fe916bdcedb84166c05b1612069f5ca3718efa7cceaaf852556bbcc43
+
+```
+
+그리고 가나슈를 보면 블록이 추가되지도 않았습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-08%20220151.png)
+
+이유는 우리가 서명만 해놓고 블럭을 보내지 않았기 때문입니다.
+
+signedTxResponse 부분을 고쳐보겠습니다.
+사인대신 send로 트랜잭션을 보내고,
+트랜잭션이 보내져서 블록에 추가될때까지 wait(1) 기다리라고 작성합니다.
+
+```js
+const sentTxResponse = await wallet.sendTransaction(tx);
+await sentTxResponse.wait(1);
+console.log(sentTxResponse);
+```
+
+에러가 발생했습니다.
+
+```ps1
+Error: chainId address mismatch
+```
+
+위로 올려서 배포한 계약의 체인아이디를 다시 확인해보면 1337로 되어있습니다. chainId를 1337로 바꾸어 다시 시도합니다.
+
+또다시 에러가 발생했습니다.
+
+```ps1
+"error: Error: the tx doesn't have the correct nonce. account has nonce of: 4 tx has nonce of: 5"
+
+...
+...
+
+ data: {
+      stack: "TXRejectedError: the tx doesn't have the correct nonce. account has nonce of: 4 tx has nonce of: 5\n"
+```
+
+즉 계정은 넌스값을 4를 가져야하는데 트랜잭션이 5값을 가지고 있다는 뜻입니다.
+
+넌스값도 4로 바꾸어 다시 시도합니다.
+
+여기서 넌스값을 가장 쉽게 구하는 방법은 지갑으로부터 트랜잭션 카운트 값을 받아오는 것입니다.
+
+https://docs.ethers.io/v5/api/signer/#Wallet
+
+여기 이더리움 문서에 트랜잭션 카운트를 받아오는 모범예시가 적혀있습니다.
+```js
+await wallet.getTransactionCount();
+```
+
+그럼 이렇게 적어줄 수 있습니다.
+
+```js
+const nonce = await wallet.getTransactionCount();
+
+const tx = {
+    nonce: nonce,
+    ...
+    ...
+}
+```
+
+다시 배포해봅시다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-08%20222042.png)
+
+블록이 성공적으로 추가되었습니다!
+
+그리고 node deploy.js로 한번 더 트랜잭션해도 넌스값을 걱정할 필요가 없습니다. 매번마다 넌스값을 구해서 갖고오기 때문입니다.
+
+`sendTransaction`도 ctrl를 눌러 원본소스를 확인해봅시다.
+
+```ts
+    // Populates all fields in a transaction, signs it and sends it to the network
+    async sendTransaction(transaction: Deferrable<TransactionRequest>): Promise<TransactionResponse> {
+        this._checkProvider("sendTransaction");
+        const tx = await this.populateTransaction(transaction);
+        const signedTx = await this.signTransaction(tx);
+        return await this.provider.sendTransaction(signedTx);
+    }
+```
+
+우리가 sign없이 트랜잭션이 가능한 이유가 있었습니다.
+중간에 signedTx 가 트랜잭션 서명작업을 해주고 있습니다.
+
+앞서 체험해본 과정이 바로 remix에서 DEPLOY 탭으로 값을 보내고 함수를 호출하는 방식이였습니다.
+
+하지만 이렇게 작업한다면 아주아주 번거롭기 때문에 ethers와 hardhat을 이용하여 이런 작업을 훨씬 쉽게 진행하는 겁니다.
+
+다시 ethers를 이용한 코드로 바꿔놓겠습니다.
+
+## Interacting with Contracts in Ethersjs
+
+리믹스 함수버튼처럼 함수를 호출 할 수 있도록 만들어보겠습니다.
+
+```js
+const currentFavoriteNumber = await contract.retrieve();
+```
+
+우리가 가지고 있는 계약 오브젝트는 계약 공장(contractFactory)에서 반환된 것으로, 계약 오브젝트는 ABI에 설명된 모든 함수와 함께 제공될 예정입니다. 그래서 우리는 계약 공장에 ABI를 전달해야 했습니다.
+
+SimpleStorage를 solc로 컴파일하여 나온 ABI 파일을 살펴보면 retrieve에 대한 설명을 찾을 수 있습니다. ABI에는 함수가 어떤 타입이여야 하는지 설명해줍니다.
+
+```
+{"inputs":[],"name":"retrieve","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+```
+
+지금은 읽기 힘들지만 확장자를 json으로 변경 후 포메터로 정리하면 훨씬 읽기 쉬워집니다.
+
+```json
+  {
+    "inputs": [],
+    "name": "retrieve",
+    "outputs": [{ "internalType": "uint256", "name": "", "type": "uint256" }],
+    "stateMutability": "view",
+    "type": "function"
+  },
+```
+
+이 상태로 다시 확장자를 abi파일로 바꾸면 가독성을 높이면서도 사용하는데는 지장이 없습니다.
+
+전에도 말했듯이, ABI(Application Binary Interface)는 컨트렉트 작업에 있어서 무척 중요합니다.
+
+우리가 만약 bin파일 처럼 거대한 바이트코드만 전달해준다면 어떤 프로세서든지간에 바이너리 코드안에 어떤 함수가 어떤 일을 하는지 이해하기 위해 디컴파일하는것은 힘든 일입니다.
+
+etherVM.io 같은 걸로도 디컴파일 할 수 있습니다. 이 컴파일러는 바이트코드를 솔리디티로 디컴파일 할 수 있습니다. 다만 제대로 된 컴파일결과를 얻기 어려운 편입니다.
+
+그래서 그냥 ABI를 통해 이 바이트코드가 어떤 함수인지 함수 정보를 설명해 주는 편이 낫습니다.
+
+바이트코드를 블록체인에 배포하면, 그리고 거기에서 함수를 호출하면, 코드가 코드안에 그 함수가 존재하면 자동적으로 그 함수를 호출할 수 있게 해줍니다. 
+
+하지만 코드에게 함수가 존재한다고 알려주려면, ABI 정보를 주는것이 훨씬 쉽습니다. 
+
+그래서 favoriteNumber를 얻고싶다면 이렇게 하는것이 좋습니다.
+
+currentFavoriteNumber 를 콘솔로그로 살펴보겠습니다.
+
+```js
+const currentFavoriteNumber = await contract.retrieve();
+console.log(currentFavoriteNumber);
+```
+
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-09%20081141.png)
+
+코드를 다시 살펴보겠습니다.
+
+provider를 가나슈 인스턴스에 연결했습니다.
+```js
+const provider = new ethers.providers.JsonRpcServer(RPCURL);
+```
+그리고 프라이빗 키를 이용하여 가나슈의 맨 위에 있는 지갑계정과 연결했습니다.
+```js
+const wallet = new ethers.Wallet(PRIVATE_KEY,provider)
+```
+파일시스템을(fs) 이용해서 abi와 binary 값을 가져왔습니다.
+```js
+const abi = fs.readFileSync(ABI_FILE_PATH,"utf8");
+const binary = fs.readFileSync(BINARY_FILE_PATH,"utf8");
+```
+가져온 abi와 binary 그리고 연결한 wallet을 이용하여 contractFactory를 만들었습니다.
+```js
+const contractFactory = new ethers.ContractFactory(abi, bianary, wallet);
+```
+contractFactory를 배포했습니다.
+```js
+const contract = await contractFactory.deploy();
+```
+트랜잭션에서 블록 하나가 추가될때까지 기다리고 완료되면 내역을 얻을 수 있게 만들었습니다.
+```js
+const txReceipt = await contract.deployTransaction.wait(1);
+```
+배포된 계약에서 retrieve 함수를 호출해 favortieNumber를 얻었습니다.
+```js
+const currentFavoriteNumber = await contract.retrieve();
+```
+
+배포 후 currentFavoriteNumber 값을 콘솔로그로 확인하면 이런 객체가 들어옵니다.
+
+```ps1
+# console.log("좋아하는 숫자",currentFavoriteNumber);
+좋아하는 숫자 BigNumber { _hex: '0x00', _isBigNumber: true }
+```
+
+여기서 `BigNumber` 란 무엇일까요?
+
+https://docs.ethers.io/v5/api/utils/bignumber/#BigNumber
+
+`BigNumber`는 ethers.js 어플리케이션에서 제공하는 라이브러리로 숫자로 하는 작업을 도와줍니다.
+
+bigNumber 문서를 읽다보면 이런 항목이 있습니다.
+
+Why can't I just use Number?
+https://docs.ethers.io/v5/api/utils/bignumber/#BigNumber--notes-safenumbers
+
+처음에는 아마 반환값이 0일거라 생각했을겁니다. 그러나 이상한 hex값과 함께 _isBigNumber: true 를 갖는 bigNumber 를 얻었습니다.
+
+So solidity can't use decimal places, and JavaScript has a hard time with decimal places.
+
+And this is kind of the more specific rationale for why not to use numbers, what you'll see a lot of the time instead of numbers is you'll see strings like zero, you'll see JavaScript use strings like this, or big numbers.
+
+솔리디티는 소수점을 사용할 수 없고, 자바스크립트는 소수점을 사용하기 어렵습니다.
+
+이것은 왜 숫자를 사용하지 않는지에 대한 더 구체적인 근거입니다. 숫자 대신 여러분이 종종 보게 될 것은 자바스크립트가 `("1000000000")` 와같은  문자열을 사용하는 것을 볼 수 있거나 `bigNumber`를 사용한다는 것입니다.
+
+자바스크립트는 `100000000000000000000000000000` 같은 숫자를 너무 커서 이해하지 못합니다. 그래서  ethers로 작업할땐 bigNumber나 string을 사용합니다.
+
+반환 받은 currentFavoriteNumber 객체를 더 쉽게 읽는방법은 `toString()`을 이용해 문자열로 변환시키는것입니다.
+
+```js
+console.log(`좋아하는 숫자 : ${currentFavoriteNumber.toString()}`);
+```
+
+
+이제 다시 실행시켜보면 
+
+숫자로 `0`을 출력합니다.
+
+이제 store함수를 호출해 좋아하는 숫자를 업데이트 해보겠습니다.
+
+```js
+const transactionResponse = await contract.store("7")
+```
+
+물론 숫자 `7`을 넘겨도 작동하지만 만약 숫자가 `10000000000000000000000000000`처럼 커진다면 방금 살펴봤던 예시와 같이 부정확한 결과가 나올 수 있기 때문에 문자열 `"7"`로 넘겨주는 것이 가장 좋습니다.
+ethers는 `"7"`이 숫자 7이라는걸 알 정도로 충분히 스마트합니다.
+
+```js
+const transactionResponse = await contract.store("7");
+const transactionRecipet = await contract.transactionResponse.wait(1);
+```
+store 함수의 결과값을 받을때까지 기다렸다가 transactionResponse 값을 받으면, 트랜잭션 블록이 하나 추가될때까지 기다리고 그 내역을 transactionRecipet 에 저장합니다.
+
+이제 업데이트 된 숫자를 받아보겠습니다.
+
+```js
+const transactionResponse = await contract.store("7");
+const transactionReceipt = await transactionResponse.wait(1);
+const updatedFavoriteNumber = await contract.retrieve();
+console.log(`업데이트 된 좋아하는 숫자: ${updatedFavoriteNumber.toString()}`);
+```
+
+```ps1
+좋아하는 숫자 0
+업데이트 된 좋아하는 숫자: 7
+```
+
+이제 가나슈로 가보면 TRANSACTIONS에 컨트렉트 콜이 생성된걸 확인 할 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-09%20104643.png)
+
+또한 트랜잭션 데이터(TX DATA)가 들어있는걸 확인 할 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-09%20104715.png)
+
+이 트랜잭션 데이터가 트랜잭션 객체에 들어가는 값들입니다. ethers.js가 백엔드에서 우리 대신 해주기 때문에 우리가 트랜잭션 데이터 객체를 일일이 작성하지 않아도 됩니다.
+
+## Enviroment Variables
+
+다시 코드로 돌아가보면 RPCURL 과 노출되지 말아야 할 프라이빗 키가 노출되어 있습니다. 이 값을 숨기는 방법을 알아보겠습니다.
+
+```ps1
+echo $CAT
+```
+이 코드는 CAT 환경변수를 보여줍니다.
+
+현재는 CAT 변수가 비어있기 때문에 아무값도 나오지 않습니다.
+
+```ps1
+export CAT=dog
+echo $CAT
+# dog
+```
+이렇게 dog를 넣어주면 dog를 출력합니다.
+
+이것이 스크립트나 터미널환경에 들어있는 환경변수입니다.
+.env 파일을 이용하는 이유는 
+`PRIVATE_KEY = 1513421313...` 이런식으로 일일이 배쉬에 입력하기 번거롭기 때문입니다.
+
+```
+PRIVATE_KEY=2a3c137e648be125443bea64ca3e3a79e6ab0014dcc9b7d72d9ce965d500e9dc
+```
+어떤 툴들은 0x로 시작하는 프라이빗 키를 받야야 하는 경우가 있습니다. 
+ex)`0x2a3c137e648be125443bea64ca3e3a79e6ab0014dcc9b7d72d9ce965d500e9dc`
+
+하지만 Ethers와 hardhat에선 자동으로 변환하니 그대로 넣어도 됩니다.
+
+그리고 이 변수를 환경에 갖다 붙이기 위해 dotenv 패키지가 필요합니다.
+
+https://www.npmjs.com/package/dotenv
+
+```ps1
+yarn add dotenv
+```
+
+env안의 변수를 환경변수로 만들어주는 역할을 하는 코드입니다.
+
+```js
+require('dotenv').config()
+```
+이제 이런식으로 dotenv안의 환경변수에 접근할 수 있습니다.
+
+```js
+require('dotenv').config();
+const provider = new ether.providers(process.env.RPC_URL);
+const wallet = new ether.Wallet(process.env.PRIVATE_KEY, provieder);
+```
+
+### .gitignore
+
+```
+.env
+node_modules
+```
+
+## Better Private Key Management
+
+혹시나 실수로 .env파일을 push해서 프라이빗키가 노출되거나 기타 다른 이유로 .env파일이 걱정된다면, 
+
+대안 중 하나가 바로 RPC URL안에 커맨드라인에서 환경변수로 private key를 집어넣는 방법입니다.
+
+그러니 배포하기 전 bash에서
+
+```bash
+RPC_URL=http://127.0.0.1:7545 PRIVATE_KEY=2a3c137e648be125443bea64ca3e3a79e6ab0014dcc9b7d72d9ce965d500e9dc node deploy.js
+```
+
+이렇게 입력해주세면 됩니다.
+노드 실행 명령 전에 RPC_URL과 RPIVATE_KEY 를 설정하는 것은 .env 변수를 만드는것과 똑같습니다.
+
+아직 테스트빌드나 배우는 시점에서 .env 에 프라이빗 키를 보관하는건 그렇게 신경쓰이진 않습니다.
+
+하지만 좀 더 전문적인 분야로 들어간다면, 조금은 걱정될겁니다.
+
+어떻게 하면 보안을 더 강화할 수 있을까요?
+
+바로 프라이빗 키를 암호화 하여 로컬에 보관하는 것입니다. 그렇게 하면 누군가 내 프라이빗 키를 탈취하였다면, 탈취된 프라이빗 키는 일반적인 플레인 텍스트로 존재하진 않을겁니다. 암호화되었으니까요.
+
+그리고 값을 알아내기 위한 나만이 아는 비밀번호를 설정해야할겁니다.
+
+먼저, 새파일 `encryptKey.js`를 만듭니다.
+프라이빗 키 플레인 텍스트 대신 이 파일을 로컬에 보관할겁니다. 이 방법이 프라이빗 키를 날것으로 돌아다니게 두는 것보다 안전합니다.
+
+시작은 `deploy.js`와 똑같이 하면 됩니다.
+
+그 후 ethers, fs, dotenv 패키지를 불러와줍니다.
+```js
+const ethers = require("ethers");
+const fs = require("fs-extra");
+require("dotenv").config();
+
+async function main() {}
+
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.log(error);
+    process.exit(1);
+  });
+
+```
+
+이제 지갑을 만들겠습니다, 그러나 저번 지갑과는 다른방법으로 만들겁니다.
+
+```js
+const ethers = require("ethers");
+const fs = require("fs-extra");
+require("dotenv").config();
+
+async function main() {
+    const wallet = new ethers.Wallet(process.env.PRIVATE_KEY);
+    const encryptedJsonKey = await wallet.encrypt();
+}
+
+main().then(() => process.exit(0)).catch((error) => {
+    console.log(error);
+    process.exit(1);
+});
+```
+`ethers.encrypt()` 는 암호화된 JSON 키를 반환하며 반환된 키를 로컬에 보관해 오직 비밀번호로만 풀 수 있게 만들 수 있습니다.
+
+`ethers.encrypt()`는 두가지 파라미터를 받습니다.하나는 프라이빗키를 해독하기 위한 패스워드, 나머지 하나는 프라이빗 키를 받습니다. 
+
+그러므로 `.env` 파일로 가서 PRIVATE_KEY_PASSWORD 변수를 만들고 비밀번호를 설정합니다.
+
+```
+PRIVATE_KEY=2a3c137e648be125443bea64ca3e3a79e6ab0014dcc9b7d72d9ce965d500e9dc
+RPC_URL=http://127.0.0.1:7545
+PRIVATE_KEY_PASSWORD=mypassword
+```
+
+여기선 예시를 위해 간단한 `mypassword`로 설정했습니다.
+crypto 패키지 등으로 암호화해시를 생성해서 값을 주는것이 좋아보입니다.
+
+```js
+const ether = require("ether");
+const fs = require("fs-extra");
+require("dotenv").config();
+
+async function main() {
+    const wallet = new ethers.Wallet(process.env.PRIVATE_KEY);
+    const encryptedJsonKey = await wallet.encrypt(process.env.PRIVATE_KEY_PASSWORD, process.env.PRIVATE_KEY);
+    console.log(encryptedJsonKey)
+}
+
+main()
+    .then(() => process.exit(0))
+    .catch((error) => {
+        console.log(error);
+        process.exit(1);
+    })
+```
+
+`node encryptKey.js`로 실행하면
+
+다음과 같은 JSON객체를 반환받습니다.
+
+```ps1
+{
+  "address": "e36bc43c99b529d1d367406dd2c4837c2df5ce0e",
+  "id": "e114a8a6-d58b-411f-a349-e0c8c6cbcaa7",
+  "version": 3,
+  "Crypto": {
+    "cipher": "aes-128-ctr",
+    "cipherparams": {
+      "iv": "417642ebf5bf290595059258e8c875f2"
+    },
+    "ciphertext": "96313370a1de7affe12e2362ee43e82e2d38e00136d6aba5c1549634c0fb624f",
+    "kdf": "scrypt",
+    "kdfparams": {
+      "salt": "75aa9a30a25724605177525168a470ce03d3a36893bfb88fe1542869b143686c",
+      "n": 131072,
+      "dklen": 32,
+      "p": 1,
+      "r": 8
+    },
+    "mac": "a9e36b5c1b5c4c7bd6dbebe74e2093d4b902516678f430598408af84e90b2ec1"
+  }
+}
+```
+이것은 나의 계정정보 즉 월렛정보가 암호화 된 것으로 누군가 내 비밀번호를 탈취해서 계정에 접근하더라도 해독 비밀번호가 없다면 암호화된 정보를 볼 수 없습니다.
+
+이제 파일시스템이 이것을 JSON 파일 형태로 저장하도록 만듭니다.
+
+```js
+const encryptedJsonKey = await wallet.encrypt(
+    process.env.PRIVATE_KEY_PASSWORD,
+    process.env.PRIVATE_KEY
+)
+fs.writeFileSync("./.encryptedKey.json", encryptedJsonKey);
+```
+`writeFilesSync` 로 첫번째 인수에는 새로만들 파일이름과 경로, 그리고 두번째 인수에는 파일에 들어갈 값을 전달해줍니다.
+
+다시 `node encryptedKey.js`를 실행합니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-09%20133350.png)
+
+새 json파일 `.encryptedKey.json`이 생성되었습니다.
+
+이제 `.gitignore`에도 해당 항목을 추가해줍니다.
+
+```
+.env
+node_modules
+.encryptedKey.json
+```
+
+.env 파일 안의 프라이빗 키와 프라이빗 키 패스워드도 삭제합니다. 이미 json파일로 만들었으니까요.
+
+```
+RPC_URL
+```
+
+이제 다시 `deploy.js`로 돌아가서 암호화된 키를 적용해서 프라이빗 키를 넘겨보겠습니다.
+
+https://docs.ethers.io/v5/api/signer/#Wallet-fromEncryptedJson
+
+```js
+const encryptedJson = fs.readFileSync("./.encryptedKey.json","utf8");
+let wallet = new ethers.Wallet.fromEncryptedJsonSync(encryptedJson, process.env.PRIVATE_KEY_PASSWORD);
+```
+그리고 다시 프로바이더와 연결해주기 위해 다음과 같이 작성합니다.
+
+```js
+const encryptedJson = fs.readFileSync("./.encryptedKey.json","utf8");
+let wallet = new ether.Wallet.fromEncryptedJsonSync(encryptedJson, porcess.env.PRIVATE_KEY_PASSWORD);
+wallet = await wallet.connect(provider);
+```
+
+자 이제 이 계약이 배포되려면 새로운 PRIVATE_KEY_PASSWORD를 환경변수로 주입시킨 뒤 실행시켜야합니다.
+
+좀 이상한 실행방법이지만 일단 해보겠습니다.
+
+```bash
+PRIVATE_KEY_PASSWORD=mypassword node deploy.js
+```
+
+```bash
+좋아하는 숫자 0
+업데이트 된 좋아하는 숫자: 7
+```
+
+제대로 작동합니다. 환경변수에 PRIVATE_KEY_PASSWORD와 PRIVATE_KEY를 두지 않고 작동시키는데 성공했습니다!
+
+추가로, 터미널에 `history`를 입력하면 내가 커맨드라인 배쉬에 입력한 명령어 기록이 나오게 됩니다.
+
+사실 해커가 이걸 추적할 수 도 있습니다.
+따라서 `history -c` 명령어를 입력하면 배쉬명령어 기록이 사라집니다.
+
+이런 사소한 문제를 대비하는게 우스꽝스러울지 몰라도, 프로젝트가 점점 거대해질수록 프라이빗 키 보안과 같은 보안문제는 정말 중요해집니다.
+
+이 과정에서는 최소한의 정보를 제공하고 키를 암호화하는 방법과 여기서 조금 더 안전하게 사용하는 방법을 보여드렸습니다. 
+
+나머지 과정에서는 dotenv 파일을 사용하겠습니다.
+
+그리고 만약 미래에 실제 돈을 다룰 일이 있다면 이 링크를 꼭 읽어보고 진행하세요!
+
+https://github.com/smartcontractkit/full-blockchain-solidity-course-js/discussions/5
+
+## Optional Prettier Formatting
+
+다른 사람들도 포맷된 코드를 볼 수 있도록 만들어봅시다.
+
+https://github.com/prettier-solidity/prettier-plugin-solidity
+
+`npm install --save-dev prettier prettier-plugin-solidity`
+
+`yarn add prettier prettier-plugin-solidity`
+
+노드 환경에서 작동되는 프리티어와 솔리디티 프리티어 플러그인을 설치합니다.
+
+`.prettierrc` 파일을 만들고 다음과 같이 설정할 수 있습니다. 그렇게 하면 앞으로 이 파일이 default setting을 대신할 겁니다.
+
+```
+{
+    "tabWitdh": 4,
+    "semi": false,
+    "useTabs": false,
+    "singleQuote": false,
+}
+```
+
+`README.md` 파일을 만들어보세요
+
+## Deploying to a Testnet or a Mainnet
+
+마지막으로 해볼것은 이 코드를 테스트넷에 배포해보는 겁니다.
+
+Rinkeby 테스트넷을 사용할 겁니다.
+
+### Alchemy
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-10%20115817.png)
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-10%20120450.png)
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-10%20120528.png)
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-10%20120602.png)
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-10%20120741.png)
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-10%20121129.png)
+
+
+알케미 대시보드는 테스트넷이나 실제 메인넷에 연결된 앱의 상태를 보여줍니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-10%20121329.png)
+
+새로 만든 앱 이름을 클릭해서 들어가보겠습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-10%20121409.png)
+
+View Key를 확인해봅니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-10%20121511.png)
+
+우리가 여기서 신경쓸건 HTTP 엔드포인트 입니다.
+
+이것이 사용할 RPC URL이 될겁니다.
+
+이 URL을 복사해서 .env의 RPC_URL을 교체해줍니다.
+
+```
+RPC_URL=https://eth-rinkeby.alchemyapi.io/v2/liDyftmlXDHrSl5L8ZbgejY-boPgGKB9
+```
+
+이제 테스트넷에 사용할 프라이빗 키를 메타마스크에서 가지고 올겁니다.
+
+계정세부정보 -> 비공개키 내보내기 -> .env에 포함
+
+```
+PRIVATE_KEY: yourprivatekey
+RPC_URL=https://eth-rinkeby.alchemyapi.io/v2/liDyftmlXDHrSl5L8ZbgejY-boPgGKB9
+```
+
+`node deploy.js` 로 실행합니다.
+
+이 작업은 실제로 운용되는 테스트넷과 트랜잭션하는 작업이기 때문에 시간이 조금 걸립니다.
+
+```bash
+$ node deploy.js
+배포중입니다. 기다려주세요...
+컨트렉트 주소 : 0xE2511d49c2F5B779d629737A11749E4b1a387c6f
+좋아하는 숫자 0
+업데이트 된 좋아하는 숫자: 7
+```
+
+이제 해당 컨트렉트 주소를 이더스캔에서 검색하면 계약을 확인 할 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-10%20130358.png)
+
+테스트넷에 배포를 성공했습니다!
+
+## Verifying on Block Explorers - From the UI
+
+이더스캔에선 내 계약코드를 검증(verify) 하고 발행(publish) 할 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-10%20130740.png)
+
+그래서 내 코드를 검증하고 발행한다는게 무슨뜻일까요?
+
+여기 보면 바이트코드가 뒤섞여있는걸 볼 수 있습니다.
+Decomplie ByteCode를 누르면 solidity코드로 디컴파일 할 수 있지만 보통 시간과 자원을 많이 잡아먹습니다. 
+
+그래서 Verify and Publish 링크를 눌러 우리스스로 이 작업을 할 수 있습니다.
+
+스크롤을 내려 컴파일 정보를 추가하고 이더스캔 같은 블록탐색기에서 이것을 컴파일 할 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-10%20141757.png)
+
+argument로 넣어줄 게 없으므로 비워둬도 됩니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-10%20141902.png)
+
+계약이 성공적으로 컴파일되었습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-10%20142404.png)
+
+이제 다시 돌아가봅시다.
+
+그리고 이더스캔 검색창에 계약주소를 다시 검색하고 Contract 탭을 다시 보면 체크표시가 되어있습니다.
+
+이제 누구나 이 소스코드를 볼 수 있습니다.
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-10%20142404.png)
+
+Read Contract를 누르면 remix에서 봤던 함수버튼도 볼 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-10%20145912.png)
+
+Write Contract를 보면 ,remix의 주황,빨강 함수를 볼 수 있습니다.
+
+그런데 이렇게 하나하나 이더스캔에 들어가서 검증을 받기는 번거롭습니다. 나중에 로컬코드에서 이를 작성하는법을 알아볼겁니다.
+
+그리고 Alchemy의 RPC_URL은 다른 테스트넷과 메인넷등으로 손쉽게 변경하고 사용할 수 있습니다.
+Phantom, avalanche 등등 기타 블록체인네트워크에 연결하고 싶다면 Alchemy에서 네트워크를 변경한 후 HTTP 엔드포인트를 RPC_URL로 가지고 오면 됩니다.
+
+## Alchemy Dashboard & The Mempool 8:08:00
+
+알케미는 이외에도 트랜잭션에 대해서 많은 걸 가르쳐줍니다. 그리고 그 뒤에서 벌어지는 일들도 알 수 있죠. `Mempool`이라 불리는 개념을포함해서요
+
+
+메타마스크에서 가스량을 최소로 조절해서 마이너가 피킹하지 않도록 하고 Alchemy의 Mempool 탭을 확인해보겠습니다.
+
+Mempool은 일종의 홀딩그라운드 입니다. 마치 레스토랑의 웨이팅 룸과 같습니다. 트랜잭션 보내면 마이닝 될때까지 기다려야겠죠. 그 기다리는 동안의 공간을 Mempool이 시각적으로 보여줍니다.
+
+모든 노드는 홀딩그라운드를 가지고 있습니다.
+
+블록체인은 노드 네트워크로 작동하고, 노드는 블록체인 복사본으로 유지되고 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-10%20153059.png)
+
+개발자들은 블록체인에 요청을 보내기 위해 노드를 사용합니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-10%20153128.png)
+
+여기에서 노드는 전체 블록체인 상태의 복사본을 갖고있습니다. 또한 로컬메모리에 트랜잭션 정보를 담고 있는데, 이를 `Mempool`이라 부릅니다.
+
+그래서 마이닝 되기를 기다리는 pending상태의 트랜잭션은 `Mempool`에 위치해 있다고 생각하면 됩니다.
+
+가스값이 너무 낮아 팬딩된 트랜잭션은 메타마스크에서 `가속화`를 눌러 가스요금을 `High`등으로 설정해서 트랜잭션을 성공시킬 수 있습니다.
+
+`Mempool`에서 트랜잭션의 과정을 확인할 수 있습니다. 참고로 가속화된 트랜잭션은 취소되었다가 다시 트랜잭션을 보내게 됩니다.
+
+## Lesson 5 Recap
+
+1. node.js로 프로젝트를 만드는 방법에 대해 배웠습니다.
+    1. `node abcd` 명령어로 노드 실행
+    2. `package.json`에서 `dependenies` 관리하는법
+    3. `script` 관리하기 `soclc` complie 명령어
+    4. async `main` 함수 와 후열에 붙는 main실행 후 exit 함수
+    5. `await` 키워드 이게 붙은 작업이 끝날때까지 기다려줘
+    6. `RPC_URL` 사용해서 `provider` 만들기
+    7. `wallet`에 프라이빗키로 provider(RPC) 연결하기
+    8. `PRIVATE_KEY` 암호화 방법
+        1. .env 사용하기
+        2. .env에 PRIVATE_KEY_PASSWORD 만들어서 encryptedKey.json 생성 후 .env에 있는 PRIVATE_KEY와 PRIVATE_KEY_PASSWORD를 지우고 .gitignore 설정 후 
+        ehters.Wallet.fromEncryptedJsonSync(암호화제이슨문서,process.env.PRIVATE_KEY_PASSWORD)로 지갑과 연결,
+        그리고 실행할때 터미널에 아래와 같이 PRIVATE_KEY_PASSWORD를 터미널에서 설정해주고 실행
+        ```
+        PRIVATE_KEY_PASSWORD=내비밀번호 node deploy.js
+        ```
+    9. 솔리디티 계약코드를 solc로 application binary interface 파일과 바이너리 파일을 컴파일 해서 추출 한 후에 deploy.js에 fs.readFileSync("파일경로","utf8")로 들여오기
+    10. 배포된 컨트렉트와 상호작용하기 
+    11. 포멧터 세팅하기
+    12. 실제 네트워크에 계약 배포하고 수동으로 검증(verify)하기 (나중에 솔리디티에서 처리하는법을 배울겁니다.)
+
+## Optional: TypeScript
+
+require를 es6 import 모듈로 바꿔주고 실행하면 다음과 같은 에러가 발생합니다.
+
+```
+SyntaxError: Cannot use import statement outside a module
+```
+자바스크립트에서 모듈을 사용할려면  `package.json`에 "type": "module" 이런식으로 무언갈 만들어야 하지만 타입스크립트는 그럴 필요가 없습니다.
+
+노드 타입스크립트를 설치하면 됩니다.
+
+```
+yarn add typescript ts-node
+```
+
+ts-node로 실행하려면 반드시 `yarn ts-node deploy.ts` 이런식으로 실행해야합니다.
+
+실행하면 타입스크립트용 fs-extra가 없으므로 에러가 납니다.
+
+`@types/fs-extra` 도 설치해줍니다.
+
+`yarn ts-node deploy.ts`로 다시 실행하면 또 에러가 발생합니다.
+
+```ps1
+deploy.ts:15:36 - error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'BytesLike | ExternallyOwnedAccount | SigningKey'.
+  Type 'undefined' is not assignable to type 'BytesLike | ExternallyOwnedAccount | SigningKey'.
+
+15   const wallet = new ethers.Wallet(process.env.PRIVATE_KEY, provider);
+```
+타입스크립트는 PRIVATE_KEY를 string | undefined로 인식하는데,
+우리가 가진 PRIVATE_KEY가 바이트코드로 되어있기때문에 PRIVATE_KEY의 타입을 지정해줘야 합니다.
+
+먼저 process.env를 사용하는 모든 곳에 `!`를 붙여서 `PRIVATE_KEY`가 `undefined`가 될일이 없다는걸 알려줍니다.
+
+```ts
+const wallet = new ethers.Wallet(process.env.PRIVATE_KEY!);
+const encryptedJsonKey = ethers.wallet.encrypt(
+    process.env.PRIVATE_KEY_PASSWORD!,
+    process.env.PRIVATE_KEY!
+)
+fs.writeFileSync("./.encryptedKey.json", encryptedJsonKey);
+
+```
+```ts
+const provider = new ethers.providers(process.env.RPC_URL!);
+const wallet = new ethers.wallet(PRIVATE_KEY, provider!);
+
+const abi = fs.readFileSync(COMPILED_ABI,"utf8");
+const binary = fs.readFileSync(COMPIED_BIN,"utf8");
+
+const contractFactory = new ehters.ContractFactory(abi, binary, wallet);
+
+const contract = await contractFactory.deploy()
+await contract.deployTransaction.wait(1);
+
+console.log(`contract address : ${contract.address}`);
+
+const favoriteNumber = await contract.retrieve();
+console.log(favoriteNumber);
+const transactionResponse = await contract.store("7");
+console.log(transactionResponse);
+const transactionReceipt = await transactionResponse.wait(1);
+console.log(transactionReceipt);
+const updatedFavoriteNumber = await contract.retrieve();
+console.log(updatedFavoriteNumber);
+
+```
+
+
+```
+배포중입니다. 기다려주세요...
+컨트렉트 주소 : 0x1a3Fb3730089C3957aF735F5bb7B33F651603e81
+좋아하는 숫자 0
+업데이트 된 좋아하는 숫자: 7
+Done in 27.65s.
+```
+
+`yarn ts-node encryptedKey.ts` 로 새 encryptedKey를 얻을 수 도 있습니다.
+
+# Lesson 6 Hardhat Simple Storage
+
+>https://hardhat.org/
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-10%20230527.png)
+
+하드햇은 개발환경입니다.
+
+- 컴파일, 배포, 테스트 및 EVM 기반 스마트 컨트렉트 디버그가 유연한 자바스크립트 기반 개발환경을 제공합니다.
+
+- 코드 와 외부툴의 간편하게 통합할 수 있습니다.
+
+- 이더리움을 시뮬레이션 할 수 있는 로컬 하드햇 네트워크를 제공합니다.
+
+- 확장가능한 플러그인 기능들이 있습니다.
+
+- 고수준의 디버깅이 가능합니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-10%20232713.png)
+
+## Hardhat Setup
+
+>https://hardhat.org/getting-started
+하드햇 문서는 경이롭습니다. 모르는 부분이 있다면 하드햇 문서를 꼭 읽어보세요!
+
+>https://hardhat.org/tutorial
+혼자 해보시고 싶다면 잠시 멈추고 튜토리얼 문서로 시작하시는것도 권장하는 바 입니다.
+
+설치부터 시작해보겠습니다.
+
+```bash
+# npm init
+yarn init
+```
+질문이 귀찮다면 이렇게 하셔도 됩니다.
+```
+yarn init -y
+```
+
+package.json 이 생성되는데 `main` 프로퍼티를 지워줍니다.
+
+```json
+{
+  "name": "hardhat-simple-storage",
+  "version": "1.0.0",
+  //"main": "index.js",
+  "license": "MIT"
+}
+```
+
+이제 하드햇 프레임워크를 설치해줍니다.
+
+```bash
+# npm install --dev hardhat
+yarn add --dev hardhat
+```
+
+yarn 에서 npm 명령어는 다음과 같이 대응됩니다.
+```
+yarn = npm
+yarn = npx
+```
+hardhat 프로젝트를 시작하면 프로젝트 준비를 위한 설정 프롬프트가 실행됩니다.
+
+```bash
+# npx hardhat
+yarn hardhat
+```
+
+```bash
+888    888                      888 888               888
+888    888                      888 888               888
+888    888                      888 888               888
+8888888888  8888b.  888d888 .d88888 88888b.   8888b.  888888
+888    888     "88b 888P"  d88" 888 888 "88b     "88b 888
+888    888 .d888888 888    888  888 888  888 .d888888 888
+888    888 888  888 888    Y88b 888 888  888 888  888 Y88b.
+888    888 "Y888888 888     "Y88888 888  888 "Y888888  "Y888
+
+Welcome to Hardhat v2.9.9
+
+? What do you want to do? ...
+> Create a basic sample project
+  Create an advanced sample project
+  Create an advanced sample project that uses TypeScript
+  Create an empty hardhat.config.js
+  Quit
+
+```
+`Create a basic sample project`를 선택합니다.
+모든 간단한 하드햇 보일러플레이트를 생성해줍니다.
+
+```ps
+888    888                      888 888               888
+888    888                      888 888               888
+888    888                      888 888               888
+8888888888  8888b.  888d888 .d88888 88888b.   8888b.  888888
+888    888     "88b 888P"  d88" 888 888 "88b     "88b 888
+888    888 .d888888 888    888  888 888  888 .d888888 888
+888    888 888  888 888    Y88b 888 888  888 888  888 Y88b.
+888    888 "Y888888 888     "Y88888 888  888 "Y888888  "Y888
+
+Welcome to Hardhat v2.9.9
+
+√ What do you want to do? · Create a basic sample project
+√ Hardhat project root: · C:\Users\ESO\Desktop\Dev\web3\hardhat-simple-storage
+√ Do you want to add a .gitignore? (Y/n) · y
+
+You need to install these dependencies to run the sample project:
+  yarn add --dev "hardhat@^2.9.9" "@nomiclabs/hardhat-waffle@^2.0.0" "ethereum-waffle@^3.0.0" "chai@^4.2.0" "@nomiclabs/hardhat-ethers@^2.0.0" "ethers@^5.0.0"
+
+Project created
+See the README.md file for some example tasks you can run.
+```
+
+추가 디팬던시 패키지를 설치해줘야 합니다.
+
+```bash
+yarn add --dev "hardhat@^2.9.9" "@nomiclabs/hardhat-waffle@^2.0.0" "ethereum-waffle@^3.0.0" "chai@^4.2.0" "@nomiclabs/hardhat-ethers@^2.0.0" "ethers@^5.0.0"
+```
+
+설치 후 `package.json` 의 `devDependencies`는 다음과 같습니다.
+
+```json
+{
+  "name": "hardhat-simple-storage",
+  "version": "1.0.0",
+  "license": "MIT",
+  "devDependencies": {
+    "@nomiclabs/hardhat-ethers": "^2.0.0",
+    "@nomiclabs/hardhat-waffle": "^2.0.0",
+    "chai": "^4.2.0",
+    "ethereum-waffle": "^3.0.0",
+    "ethers": "^5.0.0",
+    "hardhat": "^2.9.9"
+  }
+}
+```
+
+`ethers`는 익숙하지만 나머지 낯선 패키지에 대해선 나중에 설명하겠습니다.
+
+훌륭합니다. 이로써 하드햇 프로젝트를 시작하기 위한 보일러 플레이트를 설치했습니다.
+
+이제 무엇이 설치되었는지 살펴봅시다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-11%20005750.png)
+
+첫번째로 `contract` 폴더입니다.
+`Greeter.sol`이란 파일이 이미 생성되어있습니다.
+자그마한 계약코드입니다.
+
+다음은, `node_modules`입니다.
+당연하게도 JavaScript 의존성(dependecies)가 설치된 폴더입니다. 그런데 여기서 특이한 점이 있습니다. 어떤 폴더는 `@`로 시작하고 어떤폴더는 그렇지 않습니다. 무슨차이일까요?
+
+`@`로 시작되는 폴더는 `scoped package`라고 부릅니다.
+이는 외부모듈이며 범위패키지입니다. 이러한 외부모듈은 npm 패키지나 yarn 패키지가 namespace가 될 수 있도록 허락해줍니다. 이로써 개발조직에서 이 패키지를 공식적으로 만들었는지 아닌지 표기 할 수 있고 구분이 용이합니다.
+
+예를들어 패키지가 범위(scope)를 `@angular` 가지고 있다면 이는 앵귤러 코어 팀에서 발행한것임을 알 수 있습니다.
+
+우리가 가진 패키지에서도 `@ensdomains` 은 ens팀에서 만들었고, `@nomiclabs`는 하드햇을 만든 노믹랩에서 배포한 패키지임을 알 수 있습니다.
+
+다음은 `scripts` 폴더 입니다.
+이곳에 코드를 작성해서 계약을 배포하거나 계약과 상호작용 할 수 있습니다.
+
+그리고 다음은 `test`폴더입니다.
+지금까지 테스트코드를 작성해본적이 없지만 스마트 컨트렉트에서 테스트는 굉장히 중요합니다.
+이 `sample-test.js`에선 매우 간단한 테스트를 해볼 수 있는 샘플 코드를 제공하고 있습니다.
+
+다음 `.gitignore` 에는 몇몇 미리 지정된 중요한 파일이름들이 적혀있습니다.
+
+그리고 가장 큰 변화점인 `hardhat.config.js` 파일입니다.
+이 파일은 지금당장은 단순하지만, 우리가 작성한 모든 스크립트를 실행시키는 진입점(entry point)이라 볼 수 있습니다. 이 파일은 설정 파일로 어떻게 나머지 코드들이 블록체인과 상호작용하고 작동하는지 결정합니다.
+
+이제 다시 `yarn hardhat`을 해보면 템플릿 설치가 아닌 hardhat 명령어에 대해서 출력합니다.
+
+```bash
+Hardhat version 2.9.9
+
+Usage: hardhat [GLOBAL OPTIONS] <TASK> [TASK OPTIONS]
+
+GLOBAL OPTIONS:
+
+  --config              A Hardhat config file.
+  --emoji               Use emoji in messages.
+  --help                Shows this message, or a task's help if its name is provided
+  --max-memory          The maximum amount of memory that Hardhat can use.
+  --network             The network to connect to.
+  --show-stack-traces   Show stack traces.
+  --tsconfig            A TypeScript config file.
+  --verbose             Enables Hardhat verbose logging
+  --version             Shows hardhat's version.
+
+
+AVAILABLE TASKS:
+
+  accounts      Prints the list of accounts
+  check         Check whatever you need
+  clean         Clears the cache and deletes all artifacts
+  compile       Compiles the entire project, building all artifacts
+  console       Opens a hardhat console
+  flatten       Flattens and prints contracts and their dependencies
+  help          Prints this message
+  node          Starts a JSON-RPC server on top of Hardhat Network
+  run           Runs a user-defined script after compiling the project
+  test          Runs mocha tests
+
+To get help for a specific task run: npx hardhat help [task]
+```
+
+## Hardhat Setup Troubleshooting 8:30:00
+
+`npx hardhat`이나 `yarn hardhat`으로 보일러 플레이트 설치 후 다시 해당 명령어를 입력해도 위에서 살펴본 출력결과가 나오지 않고 에러가 생긴다면, 먼저 폴더 구조가 잘못되었는지 살펴보세요.
+
+잘못된 `dependencie` 설치시 `npx hardhat --verbose`를 입력하면 어디에서 디펜던시를 가져오는지 알려주고 이를 수정할 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-11%20012549.png)
+
+그 후 hardhat.config.js 파일을 삭제한 후에 다시 npx harhat을 실행시킵니다.
+
+또 한가지 자주 하는 실수는 `npm install`을 누락한 경우입니다. 다른 리포지토리나 다른 사람이 작업한 코드를 `pull`로 다운받았을때 해당 package.json에 있는 dependencie를 설치하기 위해 `npm install`을 해줘야 작동합니다.
+
+## Hardhat Setup Continued
+
+아무것도 없는 날것의 상태에서 hardhat 명령어를 실행해서 할 수 있는 또 다른 일은 무엇일까요?
+
+```bash
+AVAILABLE TASKS:
+
+  accounts      Prints the list of accounts
+  check         Check whatever you need
+  clean         Clears the cache and deletes all artifacts
+  compile       Compiles the entire project, building all artifacts
+  console       Opens a hardhat console
+  flatten       Flattens and prints contracts and their dependencies
+  help          Prints this message
+  node          Starts a JSON-RPC server on top of Hardhat Network
+  run           Runs a user-defined script after compiling the project
+  test          Runs mocha tests
+
+To get help for a specific task run: npx hardhat help [task]
+```
+
+여기에 있는 `TASKS`가 보이시나요 이것이 hardhat을 통해 실행할 수 있는 다른 tasks(일)이 혹은  다른 명령어입니다.
+
+예를들어 `yarn hardhat account`를 입력하면 우리가 사용할 수 있는 가짜 계정을 생성해서 출력합니다.
+
+```bash
+0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC
+0x90F79bf6EB2c4f870365E785982E1f101E93b906
+0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65
+0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc
+0x976EA74026E726554dB657fA54763abd0C3a0aa9
+0x14dC79964da2C08b23698B3D3cc7Ca32193d9955
+0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f
+0xa0Ee7A142d267C1f36714E4a8F75612F20a79720
+0xBcd4042DE499D14e55001CcbB24a551F3b954096
+0x71bE63f3384f5fb98995898A86B02Fb2426c5788
+0xFABB0ac9d68B0B445fB7357272Ff202C5651694a
+0x1CBd3b2770909D4e10f157cABC84C7264073C9Ec
+0xdF3e18d64BC6A983f673Ab319CCaE4f1a57C7097
+0xcd3B766CCDd6AE721141F452C550Ca635964ce71
+0x2546BcD3c84621e976D8185a91A922aE77ECEc30
+0xbDA5747bFD65F08deb54cb465eB87D40e51B197E
+0xdD2FD4581271e230360230F9337D5c0430Bf44C0
+0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199
+```
+가나슈의 가상계정과 똑같은 역할입니다.
+
+`yarn hardhat compile`로 컴파일도 진행할 수 있습니다.
+우리가 ethers.js와 solc.js 로 솔리디티 코드를 컴파일 한 작업과 똑같습니다.
+
+```
+Downloading compiler 0.8.4
+Compiled 2 Solidity files successfully
+```
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-11%20013821.png)
+
+artifacts와 cache 폴더가 생성되었습니다.
+
+cache 폴더안의 파일을 이용해 솔리디티 계약파일에 빠르게 엑세스할 수 있습니다.
+artifacts 폴더는 컴파일된 코드의 모든 정보를 담고 있습니다. 
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-11%20014101.png)
+
+build-info를 보면 계약에 대한 많은 정보를 포함하고 있습니다.
+
+저수준(lower-level)에서 무슨일이 일어나는지 확인하고 싶다면, artifact 폴더에 그 정보들이 다 담겨있습니다.
+
+다른 명령어도 실행할 수 있지만 좀 나중에 알아보겠습니다.
+
+## Deploying SimpleStorage From Hardhat
+
+이제 저번시간에 ethers.js를 가지고 배포했던것처럼 이번엔 hardhat 환경에서 배포를 해보겠습니다.
