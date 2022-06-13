@@ -6602,3 +6602,2843 @@ build-info를 보면 계약에 대한 많은 정보를 포함하고 있습니다
 ## Deploying SimpleStorage From Hardhat
 
 이제 저번시간에 ethers.js를 가지고 배포했던것처럼 이번엔 hardhat 환경에서 배포를 해보겠습니다.
+
+먼저 계약과의 상호작용을 해봅시다.
+
+`contracts`폴더 안의 `Greeter.sol`파일을 이전에 만든 계약인 `SimpleStorage.sol`로 대체합니다.
+
+`ctrl+p`를 눌러 `hardhat.config.js` 파일을 열고 솔리디티 컴파일러 버전을 솔리디티 파일에 맞게 변경해줍니다.
+
+맨 아랫줄 module.exports 부분을 수정해주면 됩니다.
+
+```js
+require("@nomiclabs/hardhat-waffle");
+
+// This is a sample Hardhat task. To learn how to create your own go to
+// https://hardhat.org/guides/create-task.html
+task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
+  const accounts = await hre.ethers.getSigners();
+
+  for (const account of accounts) {
+    console.log(account.address);
+  }
+});
+
+// You need to export an object to set up your config
+// Go to https://hardhat.org/config/ to learn more
+
+/**
+ * @type import('hardhat/config').HardhatUserConfig
+ */
+module.exports = {
+  solidity: "0.8.8",
+};
+```
+
+이제 컴파일을 해보겠습니다.
+
+```bash
+yarn hardhat compile
+```
+
+버전이 맞다면 정상적으로 컴파일 됩니다.
+
+```bash
+Compiled 1 Solidity file successfully
+Done in 1.42s.
+```
+
+컴파일 된 파일은 `artifacts` 폴더에서 찾을 수 있습니다. 저수준 정보를 얻고 싶다면 artifact/buildinfo 폴더를 보면 됩니다.
+
+솔리디티 코드를 예쁘게 정리하기 위한 프리티어를 추가합니다.
+
+```
+yarn add --dev prettier prettier-plugin-solidity
+```
+
+프로젝트 폴더에 `.prettierrc`파일을 생성하고 포맷터 세팅을 해줍니다.
+
+```
+{
+    "tabWidth": 4,
+    "useTabs": false,
+    "semi": false,
+    "singleQuote": false
+}
+```
+
+포멧터 예외 설정을 위한 `.prettierignore`도 작성합니다.
+
+```
+node_modules
+package.json
+img
+artifacts
+cache
+coverage
+.env
+.*
+README.md
+coverage.json
+```
+
+이제 배포스크립트를 작성해봅시다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-11%20115852.png)
+
+`scripts`폴더 안의 `sample-script.js` 파일의 이름을 `deploy.js`로 변경합니다.
+
+먼저 전체적인 구조는 ethers로 배포하는 방식과 비슷합니다.
+
+```js
+//imports
+
+
+//async main
+async function main() {}
+
+// main
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.log(error);
+    process.exit(1);
+  });
+
+```
+
+하지만 달라진 점이 있는데 불러들여오는 패키지가 다릅니다.
+ethers를 직접 불러오는 대신 depencencies 에 표기되어 있는 `@nomiclabs/hardat-ethers`를 불러옵니다.
+
+```js
+const { ethers } = require("hardhat");
+```
+
+즉 하드헷 안의 ethers를 불러오면 됩니다.
+
+이는 하드헷이 서로다른 스크립트와 배포등을 자동으로 추적하여 관리해주는 장점이 있습니다.
+
+심지어 ethers를 이용해 즉시 컨트렉트팩토리를 생성할 수 있습니다.
+
+```js
+const {ethers} = require("hardhat");
+
+async function main() {
+    const simpleStorageFactory = await ehters.getContractFactory("SimpleStorage");
+}
+
+```
+
+만약 hardhat에서 ethers를 불러오지 않고 ethers에서 가져왔다면
+
+ethers가 contract 폴더의 존재를 모르기때문에 전에 했던 작업과 같이 contract에 대한 정보와 컴파일 된 파일을 다 넘겨줘야 했을겁니다. 하지만 하드햇은 컴파일정보가 어디있는지 알기 때문에 간편하게 컨트렉트 팩토리를 만들 수 있습니다.
+
+```js
+const {ethers} = require("hardhat");
+
+async function main() {
+    const SimpleStorageFactory = await ehters.getContractFactory("SimpleStorage");
+    console.log("계약을 배포중입니다...")
+    const simpleStorage = await SimpleStorageFactory.deploy();
+    await simpleStorage.deployed();
+}
+
+```
+또한 deployed 메소드를 사용하면 deployTransaction.wait(1) 처럼 작성하지 않아도 됩니다.
+
+또 한가지 더. RPCURL 로 프로시저에 연결하지도, private 키를 이용해 지갑에도 연결하지 않았습니다. 이 상태에서 실행해보겠습니다.
+
+어떤 블록체인에 배포할건지(RPCURL) 정하지 않았으니 작동하지 않을까요? 게다가 프라이빗 키 값을 넘겨주지도 않았습니다.
+
+아무튼 실행해봅시다.
+다음과 같이 입력하여 실행합니다. tab으로 자동완성시킬 수 있습니다.
+```bash
+yarn hardhat run scripts/deploy.js
+```
+```bash
+Done in 2.79s.
+```
+무슨일이 일어난 걸까요?
+
+콘솔로그를 추가해보겠습니다.
+
+```js
+const {ethers} = require("hardhat");
+
+//async main
+async function main() {
+  const simpleStorageFactory = await ethers.getContractFactory("SimpleStorage");
+  const simpleStorage = await simpleStorageFactory.deploy();
+  console.log("계약을 배포중입니다...")
+  await simpleStorage.deployed();
+  // private key ㅇㄷ? rpc url ㅇㄷ?
+  console.log(`이곳에 배포되었습니다: ${simpleStorage.address}`)
+}
+
+// main
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.log(error);
+    process.exit(1);
+  });
+```
+
+```bash
+이곳에 배포되었습니다: 0x5FbDB2315678afecb367f032d93F642f64180aa3
+Done in 2.70s.
+```
+??? 계약주소를 얻었습니다.
+
+## Networks in Hardhat
+
+하드햇은 `Hardhat Network`라는 빌트인 툴이 있습니다.
+
+>https://hardhat.org/hardhat-network#hardhat-network
+Hardhat은 Ganache, 'geth --dev' 등과 유사하게 개발을 위해 설계된 로컬 이더리움 네트워크 노드인 Hardhat Network와 함께 내장되어 있다. 계약을 배포하고, 테스트를 실행하고, 코드를 디버깅할 수 있습니다.
+
+우리가 `command hardhat`이나 `script hardhat` 또는 `task hardhat`을 실행할때마다. 우리는 이를 페이크 하드햇 네트워크에 배포하게 됩니다.
+
+하드햇 네트워크는 가나슈(Ganache)와 매우 유사합니다. 가나슈같은 UI는 없지만 스크립트를 위해 백그라운드에서 실행됩니다.
+
+사실 `hardhat.config.js`의 `module.exports` 부분에서 우리가 사용하는 네트워크를 설정 할 수 있습니다.
+
+우리가 아무것도 exports하지 않는다면 기본적으로 이렇게 작성되어있는것과 같습니다.
+
+```js
+module.exports = {
+    defaultNetwork: "hardhat",
+    solidity: "0.8.8",
+}
+```
+
+특정 네트워크를 설정하지 않고 하드햇 스크립틀 실행시키면 언제나 hardhat 페이크 네트워크를 사용하며, 하드햇 네트워크는 사용자를 위한 RPCURL과 private key를 자동으로 제공합니다. 그래서 그것들을 넣지 않아도 되는겁니다.
+
+이것이 하드햇을 사용하는 주요이점입니다.
+
+또한 CLI실행시 이렇게 직접적으로도 표현할 수 있습니다.
+
+```bash
+yarn run hardhat scripts/deploy.js --network hardhat
+```
+
+이러한 방식의 네트워크 플래그는 서로 다른 체인이나 블록체인, 프라이빗 키를 굉장히 쉽게 변경하며 넘나 들 수 있습니다. 
+
+여기에 더해 네트워크를 추가할 수 있습니다.
+
+```js
+module.exports = {
+    defaultNetwork: "hardhat",
+    Network: {
+        rinkeyby: {
+            url: RINKEBY_RPC_URL,
+        },
+    },
+    solidity:"0.8.8",
+}
+```
+.env 파일을 만들어서 링크비 RPCURL을 가지고옵시다.
+
+```bash
+yarn add --dev dotenv
+```
+
+그리고 이번엔 하드햇 네트워크가 아니기때문에 해당 네트워크에서 사용할 프라이빗 키가 필요합니다. 따라서 메타마스크에서 이를 가져올겁니다. .env에 입력합니다.
+
+프라이빗 키는 account로 배열로 저장합니다.
+
+```js
+const RINKEBY_RPC_URL = process.env.RINKEBY_RPC_URL;
+const PRIVATE_KEY = process.env.PRIVATE_KEY
+
+module.exports = {
+    defaultNetwork: "hardhat",
+    Network: {
+        rinkeyby: {
+            url: RINKEBY_RPC_URL,
+            account: [PRIVATE_KEY],
+        },
+    },
+    solidity:"0.8.8",
+}
+```
+
+한가지 더 추가할 것은 네트워크의 `chainId`입니다.
+링크비 체인의 아이디가 될 값이죠.
+
+https://chainlist.org
+
+이곳에 가보면 각 네트워트 마다 가진 고유한 chainId를 볼 수 있습니다.
+
+```js
+const RINKEBY_RPC_URL = process.env.RINKEBY_RPC_URL;
+const PRIVATE_KEY = process.env.PRIVATE_KEY
+
+module.exports = {
+    defaultNetwork: "hardhat",
+    Network: {
+        rinkeyby: {
+            url: RINKEBY_RPC_URL,
+            account: [PRIVATE_KEY],
+            chainId: 4,
+        },
+    },
+    solidity:"0.8.8",
+}
+```
+링크비는 4이므로 4를 넣었습니다.
+
+```bash
+yarn hardhat run scripts/deploy.js --network rinkeby
+```
+이상태로 실행하며 이러한 에러가 발생합니다.
+
+```bash
+TypeError: Cannot read properties of null (reading 'sendTransaction')
+```
+
+https://ethereum.stackexchange.com/questions/102390/how-to-fix-typeerror-cannot-read-property-sendtransaction-of-null-when-depl
+
+맨 마지막 답변을 보면 account 가 아니라 accounts 가 되어야 함을 알 수 있습니다.
+
+다시 실행하면 에러가 또 뜹니다.
+
+```bash
+Error HH100: Network rinkeby doesn't exist
+```
+
+찾아보니 객체구조를 잘못 입력하였습니다.
+
+module.exports안의 
+`Network` -> `networks` 로 고쳐써야 합니다.
+
+```js
+const RINKEBY_RPC_URL = process.env.RINKEBY_RPC_URL;
+const PRIVATE_KEY = process.env.PRIVATE_KEY;
+
+module.exports = {
+  defaultNetwork: "hardhat",
+  networks: {
+    rinkeby: {
+      url: RINKEBY_RPC_URL,
+      accounts: [PRIVATE_KEY],
+      chainId: 4,
+    },
+  },
+  solidity: "0.8.8",
+};
+```
+
+다시 시도해보겠습니다.
+
+```bash
+계약을 배포중입니다...
+이곳에 배포되었습니다: 0xF045a64686Ae25eC3A829449e5B73d5BD4BAA6b4
+Done in 18.17s.
+```
+
+성공적으로 계약이 배포되었습니다. 이더스캔도 확인해보겠습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-12%20220956.png)
+
+## Programatic Verification
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-12%20221237.png)
+
+보시는 바와 같이 배포된 계약이 검증이 되지 않은 상태입니다.
+
+이전처럼 배포 후 일일이 수동으로 검증하지 않고, 배포스크립트에 검증용 코드를 작성해보겠습니다.
+
+verify 라는 함수를 작성합니다.
+
+simplestorage에 constructor가 없기 때문에 simplestorage를 위한 argument는 빈값이 될겁니다. 그러나 나중에, constructor가 존재하는 계약에서는, arguments가 입력될 것이고, 넘겨받는 인수에 대해선 그 때 가서 설명드리겠습니다.
+
+이 자동 검증 프로세스는 이더스캔같은 블록익스플로러에서 작동하는것과 같습니다. 만약 다른 블록익스플로러에서 검증을 하고 싶다면, 해당 블록익스플로러의 API를 참조하시기 바랍니다.
+
+https://docs.etherscan.io/tutorials/verifying-contracts-programmatically
+
+이더스캔에는 `프로그래매틱하게 계약을 검증하는 방법`이라는 튜토리얼도 가지고 있습니다. API를 통해서 요청하여 검증받는 방식입니다.
+
+이런 방법도 가능하지만 훨씬 쉬운방법이 있습니다.
+
+하드햇은 '확장가능한' 프레임워크입니다.
+
+이 말은 플러그인을 추가할 수 있다는 뜻입니다. 심지어 문서에는 `Building Plugin`이라는 섹션도 있습니다.
+
+https://hardhat.org/advanced/building-plugins#building-plugins
+
+좀 더 스크롤을 내려보면 노믹스 하드햇팀에서 생성한 유명 플러그인들이 있습니다. 그 중에 `@nomiclabs/hardhat-etherscan` 항목을 찾을 수 있습니다. 
+
+https://hardhat.org/plugins/nomiclabs-hardhat-etherscan
+
+이더스캔 계약 검증을 훨씬 쉽게 만들어주는 플러그인입니다.
+
+설치
+```bash
+# npm install --save-dev @nomiclabs/hardhat-etherscan
+yarn add --dev @nomiclabs/hardhat-etherscan
+```
+
+`hardhat.config.js`파일을 열고 최상단에 플러그인을 불러옵니다.
+
+```js
+require("@nomiclabs/hardhat-etherscan");
+
+```
+
+이 기능을 이용하기 위해선 etherscan API가 필요합니다.
+
+etherscan에 가입합니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-12%20230033.png)
+
+대시보드에서 API keys 탭을 선택합니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-12%20230108.png)
+
++Add 버튼을 눌러 key를 추가합니다.
+
+이 API키 또한 비밀번호처럼 취급해주어야 합니다.
+
+.env 파일 혹은 기타 보안조치를 취해서 보관해줍시다.
+
+이제 다시 `hardhat.config.js`로 돌아와서 `module.exports`에 새로운 엔트리를 추가합니다.
+
+```js
+const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY;
+
+module.exports = {
+    defaultNetwork: "hardhat",
+    networks: {
+        rinkeby: {
+            url: RPC_URL,
+            accounts: [PRIVATE_KEY],
+            chainId: 4,
+        }
+    },
+    solidity: "0.8.8",
+    etherscan: {
+        apiKey: ETHERSCAN_API_KEY,
+    }
+}
+
+```
+
+이제 하드햇 문서로 돌아오면 새로운 task를 이용해서 검증을 해야 한다고 명시되어있습니다.
+
+```bash
+npx hardhat verify --network mainnet DEPLOYED_CONTRACT_ADDRESS "Constructor argument 1"
+```
+
+여기서 `yarn hardhat`으로 task를 살펴봅시다.
+
+```bash
+Hardhat version 2.9.9
+
+Usage: hardhat [GLOBAL OPTIONS] <TASK> [TASK OPTIONS]
+
+GLOBAL OPTIONS:
+
+  --config              A Hardhat config file.      
+  --emoji               Use emoji in messages.      
+  --help                Shows this message, or a task's help if its name is provided
+  --max-memory          The maximum amount of memory that Hardhat can use.
+  --network             The network to connect to.  
+  --show-stack-traces   Show stack traces.
+  --tsconfig            A TypeScript config file.   
+  --verbose             Enables Hardhat verbose logging
+  --version             Shows hardhat's version.    
+
+
+AVAILABLE TASKS:
+
+  accounts      Prints the list of accounts
+  check         Check whatever you need
+  clean         Clears the cache and deletes all artifacts
+  compile       Compiles the entire project, building all artifacts
+  console       Opens a hardhat console
+  flatten       Flattens and prints contracts and their dependencies
+  help          Prints this message
+  node          Starts a JSON-RPC server on top of Hardhat Network
+  run           Runs a user-defined script after compiling the project
+  test          Runs mocha tests
+
+To get help for a specific task run: npx hardhat help [task]
+
+Done in 1.11s.
+```
+
+수정된 harhat.config.js 파일을 저장하고 다시 `yarn hardhat`을 입력하면 `AVAILABLE TASKS:`에 `verify`항목이 새로 생긴걸 볼 수 있습니다.
+
+
+```bash
+Hardhat version 2.9.9
+
+Usage: hardhat [GLOBAL OPTIONS] <TASK> [TASK OPTIONS]
+
+GLOBAL OPTIONS:
+
+  --config              A Hardhat config file.      
+  --emoji               Use emoji in messages.      
+  --help                Shows this message, or a task's help if its name is provided
+  --max-memory          The maximum amount of memory that Hardhat can use.
+  --network             The network to connect to.  
+  --show-stack-traces   Show stack traces.
+  --tsconfig            A TypeScript config file.   
+  --verbose             Enables Hardhat verbose logging
+  --version             Shows hardhat's version.    
+
+
+AVAILABLE TASKS:
+
+  accounts      Prints the list of accounts
+  check         Check whatever you need
+  clean         Clears the cache and deletes all artifacts
+  compile       Compiles the entire project, building all artifacts
+  console       Opens a hardhat console
+  flatten       Flattens and prints contracts and their dependencies
+  help          Prints this message
+  node          Starts a JSON-RPC server on top of Hardhat Network
+  run           Runs a user-defined script after compiling the project
+  test          Runs mocha tests
+  verify        Verifies contract on Etherscan      
+
+To get help for a specific task run: npx hardhat help [task]
+
+Done in 1.10s.
+```
+
+hardhat 명령어를 입력할 때 hardhat에서 config에 plugin을 확인하고 추가된 것이 있으면 추가합니다.
+
+```bash
+npx hardhat verify --network mainnet DEPLOYED_CONTRACT_ADDRESS "Constructor argument 1"
+```
+
+물론 이런 명령어로 수동으로 계약으 검증 할 수도 있습니다.
+
+그러나 이것보다 더 프로그래메틱한 방법으로 접근해보겠습니다.
+
+그러니 다시 deploy.js로 돌아거서 verify 함수를 마저 작성해봅시다.
+
+```js
+async function verify(contractAddress, args) {
+  console.log("계약을 검증하고 있습니다...");
+}
+```
+
+그리고 사실 hardhat을 입력했을때 출력되는 run package에 있는 실행명령어를 스크립트에서도 실행할 수 있습니다.
+
+```bash
+AVAILABLE TASKS:
+
+  accounts      Prints the list of accounts
+  check         Check whatever you need
+  clean         Clears the cache and deletes all artifacts
+  compile       Compiles the entire project, building all artifacts
+  console       Opens a hardhat console
+  flatten       Flattens and prints contracts and their dependencies
+  help          Prints this message
+  node          Starts a JSON-RPC server on top of Hardhat Network
+  run           Runs a user-defined script after compiling the project
+  test          Runs mocha tests
+  verify        Verifies contract on Etherscan  
+```
+
+최상단에 `run` 패키지를 가져와줍니다.
+
+```js
+const { ethers, run } = require("hardhat");
+
+```
+`run`은 hardhat task를 실행할 수 있도록 허용해줍니다.
+
+따라서 이렇게 작성할 수 있습니다.
+
+```js
+async function verify(contractAddress, args) {
+  console.log("계약을 검증하고 있습니다...");
+  await run("verify");
+}
+```
+
+또한 `run`에게 파라미터를 넘겨줄 수 있습니다.
+
+다음 명령어로 verify에 대한 도움말을 살펴보겠습니다.
+
+```bash
+yarn hardhat verify --help
+```
+```bash
+Hardhat version 2.9.9
+
+Usage: hardhat [GLOBAL OPTIONS] verify [--constructor-args <INPUTFILE>] [--contract <STRING>] [--libraries <INPUTFILE>] [--list-networks] [address] [...constructorArgsParams]
+
+OPTIONS:
+
+  --constructor-args    File path to a javascript module that exports the list of arguments.
+  --contract            Fully qualified name of the 
+contract to verify. Skips automatic detection of the contract. Use if the deployed bytecode matches more than one contract in your project.
+  --libraries           File path to a javascript module that exports the dictionary of library addresses for your contract. Use if there are undetectable library addresses in your contract. Library addresses are undetectable if they are only used in the constructor for your contract.
+  --list-networks       Print the list of supported 
+networks
+
+POSITIONAL ARGUMENTS:
+
+  address               Address of the smart contract to verify
+  constructorArgsParams Contract constructor arguments. Ignored if the --constructor-args option is used. (default: [])
+
+verify: Verifies contract on Etherscan
+
+For global options help run: hardhat help
+
+Done in 1.12s.
+```
+
+`verify: Verifies contract on Etherscan`
+
+verify 객체를 넘겨줍시다.
+
+```js
+async function verify(contractAddress, args) {
+  console.log("계약을 검증하고 있습니다...");
+  await run("verify:verify");
+}
+```
+
+하드햇 깃허브에 가면 verify 이외에 가능한 것도 확인 할 수 있습니다.
+
+https://github.com/NomicFoundation/hardhat/blob/767f68dee84d6a47cd40153a8ab8552f41a95d5e/packages/hardhat-etherscan/src/constants.ts
+
+```ts
+export const pluginName = "@nomiclabs/hardhat-etherscan";
+export const TASK_VERIFY = "verify";
+export const TASK_VERIFY_GET_MINIMUM_BUILD = "verify:get-minimum-build";
+export const TASK_VERIFY_GET_CONSTRUCTOR_ARGUMENTS =
+  "verify:get-constructor-arguments";
+export const TASK_VERIFY_GET_COMPILER_VERSIONS = "verify:get-compiler-versions";
+export const TASK_VERIFY_GET_ETHERSCAN_ENDPOINT =
+  "verify:get-etherscan-endpoint";
+export const TASK_VERIFY_GET_CONTRACT_INFORMATION =
+  "verify:get-contract-information";
+export const TASK_VERIFY_VERIFY_MINIMUM_BUILD = "verify:verify-minimum-build";
+export const TASK_VERIFY_VERIFY = "verify:verify";
+export const TASK_VERIFY_GET_LIBRARIES = "verify:get-libraries";
+```
+verify뿐만아니라 verify minimum build 등 다양한 명령이 수행가능합니다.
+
+그리고 여기서 사용할 것은 `export const TASK_VERIFY_VERIFY = "verify:verify";` 이 부분입니다.
+
+첫번째 파라미터가 테스크(verify)의 서브테스크를 결정한다면, 두번째 파라미터에는 실제 파라미터를 가지고 있는 객체를 받습니다.
+
+```js
+function verify(contractAddress, args) {
+    console.log("계약을 검증하고 있습니다...");
+    await run("verify:verify", {
+        address: contractAddress,
+        constructorArguments: args,
+    })
+} 
+
+```
+
+이정도만 해도 검증을 하는데 문제가 없지만 좀 더 배워보기 위해 에러케이스에 대해 알아보겠습니다.
+
+에러케이스 중 한가지는 계약이 이미 검증이 완료된 상태일때입니다.
+이는 매우 반가운 상황이기도 한데, 자동적으로 etherscan에서 검증을 마쳤고, 이 계약코드가 etherscan에서 검증한 계약코드(바이트코드)와 같다는걸 인식함을 알 수 있기 때문입니다.
+
+One of the errors that often comes up when running 'await' is that the contract has already been verified. And you'll actually likely run into this, because 'Ether Scan' will get smart enough by seeing enough byte-code that is exactly 'simple-storage' that it will start to just automatically verify any byte-code that looks like 'simple-storage'.
+
+'await'을 실행할 때 자주 나타나는 오류 중 하나는 계약이 이미 검증됐다는 점입니다. EtherScan은 'SimpleStorage'로 보이는 바이트 코드를 자동으로 확인하기 시작할 정도로 충분히 똑똑해지기 때문에 실제로 이 문제에 부딪힐 가능성이 높습니다.
+
+즉 이더스캔이 코드 일부만 보고 검증해버리는 상황을 피하기 위해서 피하기 위해서, try catch 문을 사용할 수 있습니다.
+
+hardhat도 자체적으로 에러를 캐치하여 메시지를 출력하지만 
+catch문 안의 에러객체를 이용해 이를 처리해 보겠습니다.
+
+이렇게 처리하는 이유는 try 안의 코드에서 에러가 발생할 경우 모든 스크립트가 끝나기 종료되기 때문입니다. 지금은 스크립트가 끝나지 않고 검증이 안되어도(별 문제가 없기 때문에) 계속 진행시키고 싶기 때문입니다.
+
+verify 함수를 부르기 전 해야할 일이 있습니다.
+main() 함수에 마지막 줄에서 생각해봅시다.
+1. 만약 하드햇 네트워크에 배포했다면 어떻게 될까요?
+
+하드햇네트워크에 배포한 계약을 이더스캔네트워크에서 검증한다. 말이 안됩니다. 물론 hardhat.etherscan.io 라는 하드햇 테스트넷도 없을 것입니다.
+
+그러므로 하드햇 네트워크에 배포했을때르 조건으로 처리해주어야 합니다.
+
+이 때 config에 설정해놓은 chainId를 유용하게 사용할 수 있습니다.
+네트워크 상태를 network 패키지를 가져와서 확인 할 수 있습니다.
+
+```js
+const {ethers, run, netwrok} = require("hardhat");
+
+async function main() {
+    const contractFactory = await ethers.getContractFactory("SimpleStorage");
+    console.log("배포중...")
+    const contract = await contractFactory.deploy();
+    await contract.deployed();
+    console.log("계약주소: ",contract.address);
+    // 하드햇네트워크에 배포했을때
+    console.log(network.config);
+}
+
+```
+
+이 상태에서 네트워크 안의 객체들에 무엇이 있는지 살펴보겠습니다.
+```bash
+ yarn hardhat run scripts/deploy.js
+```
+```bash
+계약을 배포중입니다...
+이곳에 배포되었습니다: 0x5FbDB2315678afecb367f032d93F642f64180aa3
+{
+  hardfork: 'arrowGlacier',
+  blockGasLimit: 30000000,
+  gasPrice: 'auto',
+  chainId: 31337,
+  throwOnTransactionFailures: true,
+  throwOnCallFailures: true,
+  allowUnlimitedContractSize: false,
+  mining: { auto: true, interval: 0, mempool: { order: 'priority' } },
+  accounts: {
+    initialIndex: 0,
+    count: 20,
+    path: "m/44'/60'/0'/0",
+    passphrase: '',
+    mnemonic: 'test test test test test test test test test test test junk',
+    accountsBalance: '10000000000000000000000'      
+  },
+  loggingEnabled: false,
+  gasMultiplier: 1,
+  minGasPrice: <BN: 0>,
+  chains: Map(4) {
+    1 => { hardforkHistory: [Map] },
+    3 => { hardforkHistory: [Map] },
+    4 => { hardforkHistory: [Map] },
+    42 => { hardforkHistory: [Map] }
+  },
+  gas: 30000000,
+  initialDate: '2022-06-12T15:19:16.651Z'
+}
+Done in 3.12s.
+
+```
+
+네트워크 객체는 이처럼 많은 정보를 담고 있습니다.
+또한 chainId가 31337 이란 사실도 알 수 있습니다.
+
+chainId는 매우중요한데 이 값으로 메인넷과 테스트넷을 구별해 줄 수 있기 때문입니다.
+
+위 결과는 아래와 같이 실행했을때와 동일합니다.
+```bash
+yarn hardhat run scripts/deploy.js --network hardhat
+```
+default network를 hardhat으로 설정했기 때문입니다.
+
+다시 deploy.js로 와서 조건문을 작성해보겠습니다.
+
+```js
+async function main() {
+    const SimpleStorageFactory = await ethers.getContractsFactory("SimpleStorage");
+    console.log("배포중...")
+    const simpleStorage = await SimpleStorageFactory.deploy();
+    await simpleStorage.deployed();
+    console.log("이곳에 배포되었습니다", simpleStorage.address);
+    // 하드햇네트워크에 배포했을때
+    // chainId === 4 -> rinkeby 즉 링크비에 배포했을때 처리할 코드
+    if(network.config.chainId === 4 && process.env.ETHERSCAN_API_KEY) {
+        await simpleStorage.deployTransaction.wait(6);
+        await verify(simpleStorage.address, [])
+    }
+}
+
+```
+
+링크비이고 이더스캔API키가 존재하는 경우 verify 함수를 작동시킵니다.
+인수로는 simpleStorage.address로 계약주소를 넘겨주고, 두번째 인수 constructor는 없으므로 빈([])을 넣어줍니다.
+또한 verify는 async 함수이므로 await을 사용해줍니다.
+
+또한 배포가 될때 이더스캔이 이것의 트랜잭션을 알아차리는데 시간이 ㅇ걸립니다. 그러므로 이에 대한 모범사례는 전에 했던것처럼 블록이 추가될때까지 기다리는겁니다. 단 이번엔 6번째 블록이 추가될때입니다.
+
+## Interaction with Contracts in Hardhat
+
+이제 검증과정 작성이 끝난 코드를 가지고 계약안의 함수들을 작동시켜보겠습니다.
+
+```js
+async function main() {
+    const SimpleStorageFactory = await ethers.getContractFactory("SimpleStorage");
+    const simpleStorage = await SimpleStorageFactory.deploy();
+    await simpleStorage.deployed();
+    console.log(`배포주소: ${simpleStorage.address}`);
+    //하드햇으로 배포했을 때
+    if(simpleStorage.network.chainId === 4 && process.env.ETHERSCAN_API_KEY) {
+        console.log("블록 트랜잭션 대기중...")
+        await simpleStorage.deployTransaction.wait(6);
+        await verify(simpleStorage.address, []);
+    }
+
+    const currentValue = await simpleStorage.retrieve();
+    console.log(`현재 좋아하는 숫자: ${currentValue}`);
+    const transactionResponse = await simpleStorage.store(7);
+    await transactionResponse.wait(1);
+    const updatedValue = await simpleStorage.retrieve();
+    console.log(`업데이트 된 좋아하는 숫자: ${updatedValue}`);
+    
+}
+
+async function verify(contractAddress, args) {
+    try {
+        await run("verify:verify", {
+            address:contractAddress,
+            constructorArguments: args,
+        })
+    } catch(e) {
+        if(e.message.toLowerCase().includes("already verified")) {
+            console.log("이미 검증된 계약입니다.");
+        } else {
+            console.log(e);
+        }
+    }
+}
+
+```
+
+```bash
+yarn hardhat run scripts/deploy.js
+```
+```bash
+계약을 배포중입니다...
+이곳에 배포되었습니다: 0x5FbDB2315678afecb367f032d93F642f64180aa3
+{
+  hardfork: 'arrowGlacier',
+  blockGasLimit: 30000000,
+  gasPrice: 'auto',
+  chainId: 31337,
+  throwOnTransactionFailures: true,
+  throwOnCallFailures: true,
+  allowUnlimitedContractSize: false,
+  mining: { auto: true, interval: 0, mempool: { order: 'priority' } },
+  accounts: {
+    initialIndex: 0,
+    count: 20,
+    path: "m/44'/60'/0'/0",
+    passphrase: '',
+    mnemonic: 'test test test test test test test test test test test junk',
+    accountsBalance: '10000000000000000000000'      
+  },
+  loggingEnabled: false,
+  gasMultiplier: 1,
+  minGasPrice: <BN: 0>,
+  chains: Map(4) {
+    1 => { hardforkHistory: [Map] },
+    3 => { hardforkHistory: [Map] },
+    4 => { hardforkHistory: [Map] },
+    42 => { hardforkHistory: [Map] }
+  },
+  gas: 30000000,
+  initialDate: '2022-06-13T03:34:11.461Z'
+}
+현재 좋아하는 숫자: 0
+업데이트 된 좋아하는 숫자 7
+Done in 2.96s.
+```
+
+
+
+```bash
+yarn hardhat run scripts/deploy.js --network rinkeby
+```
+```bash
+계약을 배포중입니다...
+이곳에 배포되었습니다: 0x909f0c4C5cf36cb05A29B1bfA18bd57668812D49
+{
+  accounts: [
+    '0x1fcf5044cf30d6def697a4011f6ed3cd18a4cb868052ec7c0df251194aad1657'
+  ],
+  gas: 'auto',
+  gasPrice: 'auto',
+  gasMultiplier: 1,
+  httpHeaders: {},
+  timeout: 20000,
+  url: 'https://eth-rinkeby.alchemyapi.io/v2/liDyftmlXDHrSl5L8ZbgejY-boPgGKB9',
+  chainId: 4
+}
+블록 트랜잭션 대기중...
+계약을 검증하고 있습니다...
+Nothing to compile
+[Error: ENOENT: no such file or directory, open 'C:\Users\ESO\Desktop\Dev\web3\hardhat-simple-storage\artifacts\build-info\f6d72e584f9c6e176d0b340e8f9097a9.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\ESO\\Desktop\\Dev\\web3\\hardhat-simple-storage\\artifacts\\build-info\\f6d72e584f9c6e176d0b340e8f9097a9.json'
+}
+[Error: ENOENT: no such file or directory, open 'C:\Users\ESO\Desktop\Dev\web3\hardhat-simple-storage\artifacts\build-info\f6d72e584f9c6e176d0b340e8f9097a9.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\ESO\\Desktop\\Dev\\web3\\hardhat-simple-storage\\artifacts\\build-info\\f6d72e584f9c6e176d0b340e8f9097a9.json'
+}
+현재 좋아하는 숫자: 0
+업데이트 된 좋아하는 숫자 7
+Done in 104.98s.
+```
+
+그런데 rinkeby 네트워크에 배포시 에러가 발생하게 됩니다.
+
+## Artifacts Troubleshooting
+
+```bash
+Nothing to compile
+[Error: ENOENT: no such file or directory, open 'C:\Users\ESO\Desktop\Dev\web3\hardhat-simple-storage\artifacts\build-info\f6d72e584f9c6e176d0b340e8f9097a9.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\ESO\\Desktop\\Dev\\web3\\hardhat-simple-storage\\artifacts\\build-info\\f6d72e584f9c6e176d0b340e8f9097a9.json'
+}
+[Error: ENOENT: no such file or directory, open 'C:\Users\ESO\Desktop\Dev\web3\hardhat-simple-storage\artifacts\build-info\f6d72e584f9c6e176d0b340e8f9097a9.json'] {
+  errno: -4058,
+  code: 'ENOENT',
+  syscall: 'open',
+  path: 'C:\\Users\\ESO\\Desktop\\Dev\\web3\\hardhat-simple-storage\\artifacts\\build-info\\f6d72e584f9c6e176d0b340e8f9097a9.json'
+}
+```
+
+이렇게 해결하겠습니다. artifact 디렉토리와 cache 디렉토리를 모두 삭제합니다.
+
+다시 `yarn hardhat run scripts/deploy.js --network rinkeby` 를 실행하면, hardhat이 자동으로 솔리디티 코드를 컴파일하고 폴더를 만들어서 보관합니다.
+
+```bash
+Compiled 1 Solidity file successfully
+계약을 배포중입니다...
+이곳에 배포되었습니다: 0x78103D5E763947947b18AbAE195b3D9f36fc29Ca
+{
+  accounts: [
+    '0x1fcf5044cf30d6def697a4011f6ed3cd18a4cb868052ec7c0df251194aad1657'
+  ],
+  gas: 'auto',
+  gasPrice: 'auto',
+  gasMultiplier: 1,
+  httpHeaders: {},
+  timeout: 20000,
+  url: 'https://eth-rinkeby.alchemyapi.io/v2/liDyftmlXDHrSl5L8ZbgejY-boPgGKB9',
+  chainId: 4
+}
+블록 트랜잭션 대기중...
+계약을 검증하고 있습니다...
+Nothing to compile
+Successfully submitted source code for contract
+contracts/SimpleStorage.sol:SimpleStorage at 0x78103D5E763947947b18AbAE195b3D9f36fc29Ca
+for verification on the block explorer. Waiting for 
+verification result...
+
+Successfully verified contract SimpleStorage on Etherscan.
+https://rinkeby.etherscan.io/address/0x78103D5E763947947b18AbAE195b3D9f36fc29Ca#code
+현재 좋아하는 숫자: 0
+업데이트 된 좋아하는 숫자 7
+Done in 144.21s.
+```
+
+성공적으로 검증이 완료되었습니다.
+검증 후 나오는 주소를 통해 검증사항을 자세히 확인할 수 있습니다.
+
+https://rinkeby.etherscan.io/address/0x78103D5E763947947b18AbAE195b3D9f36fc29Ca#code
+
+## Custom Hardhat Tasks
+
+이제 검증하고 검증한 코드와 상호작용하는 방법까지 알게되었습니다.
+훌륭합니다.
+
+하드햇으로 할 수 있는 다른건 뭐가 있을까요?
+
+```
+yarn hardhat
+```
+을 입력한 후 `AVAILABLE TASKS:`에 주목해봅시다.
+
+```
+AVAILABLE TASKS:
+
+  accounts      Prints the list of accounts
+  check         Check whatever you need
+  clean         Clears the cache and deletes all artifacts
+  compile       Compiles the entire project, building all artifacts
+  console       Opens a hardhat console
+  flatten       Flattens and prints contracts and their dependencies
+  help          Prints this message
+  node          Starts a JSON-RPC server on top of Hardhat Network
+  run           Runs a user-defined script after compiling the project
+  test          Runs mocha tests
+  verify        Verifies contract on Etherscan      
+
+To get help for a specific task run: npx hardhat help [task]
+
+```
+
+하드햇 TASKS는 hardhat.config.js 파일에서 커스텀으로 만들 수 있습니다.
+
+기본적으로 제공되는 커스텀 테스크중에는 accounts가 있습니다.
+```js
+// This is a sample Hardhat task. To learn how to create your own go to
+// https://hardhat.org/guides/create-task.html
+task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
+  const accounts = await hre.ethers.getSigners();
+
+  for (const account of accounts) {
+    console.log(account.address);
+  }
+});
+
+```
+
+하지만 일반적으로 `tasks`라는 폴더를 만들어 그 안에 테스크들을 보관합니다.
+
+따라서 accounts 테스크를 지우고 tasks 폴더에 따로 만들겠습니다.
+
+hardhat.config.js 안의 account를 지웠을 경우 `yarn hardhat`을 하면 사용가능한 테스크 목록에 account가 사라진것으 확인할 수 있습니다.
+
+```bash
+AVAILABLE TASKS:       
+
+  check         Check whatever you need       
+  clean         Clears the cache and deletes all artifacts
+  compile       Compiles the entire project, building all artifacts  
+  console       Opens a hardhat console       
+  flatten       Flattens and prints contracts and their dependencies 
+  help          Prints this message
+  node          Starts a JSON-RPC server on top of Hardhat Network   
+  run           Runs a user-defined script after compiling the project
+  test          Runs mocha tests
+  verify        Verifies contract on Etherscan
+
+To get help for a specific task run: npx hardhat help [task]
+
+Done in 1.15s.
+```
+
+이제 새로운 task를 task폴더에 만들어보겠습니다.
+`block-number.js` 파일을 만들어줍니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-13%20132734.png)
+
+이것을 사용하여 현재 블록넘버를 식별하거나 현재 사용하고있는 블록체인을 확인 할 수 있습니다. 
+
+첫번째로 task 함수를 불러옵니다.
+
+그 후 테스크이름과 설명을 정해주고 setAction으로 할일을 정해줍니다.
+
+task가 수행할 일은 taskArgs( 아까 빈값([])으로 보내는 인수)와 hre 라는 인수를 받는 익명함수로 작성합니다.
+
+hre 란 hardhat runtime enviornment 를 뜻합니다.
+즉, deploy에서 불러왔던 `require("hardhat")`과 같은겁니다. 하드햇의 패키지에 접근할 수 있습니다.
+
+그럼 `hre.ethers`로 `ethers`에 접근도 가능합니다.
+ehters.provider.getBlocknumber 로 블록넘버를 얻은 후
+
+이 함수를 exports 해줍니다.
+
+```js
+const {task} = require("hardhat/config");
+
+task("block-number", "현재 블록넘버 출력하기").setAction(
+    // const blockTask = async function() => {}
+    // async function blockTask() {}
+    async (taskArgs, hre) => {
+        const blockNumber = await hre.ethers.provider.getBlockNumber();
+        console.log(`현재 블록넘버: ${blockNumber}`);
+    }
+)
+
+module.exports = {}
+
+```
+
+이제 이 block-number 테스크를 하드햇이 인식할 수 있도록 만들어보겠습니다.
+
+`hardhat.config.js`파일로 이동해서 tasks 파일에 있는 blcok-number를 불러옵니다.
+
+```js
+require("./tasks/block-number");
+```
+
+다시 `yarn hardhat`으로 테스크목록을 불러와보겠습니다.
+
+```bash
+AVAILABLE TASKS:
+
+  block-number  현재 블록넘버 확인하기
+  check         Check whatever you need
+  clean         Clears the cache and deletes all artifacts
+  compile       Compiles the entire project, building all artifacts
+  console       Opens a hardhat console
+  flatten       Flattens and prints contracts and their dependencies
+  help          Prints this message
+  node          Starts a JSON-RPC server on top of Hardhat Network
+  run           Runs a user-defined script after compiling the project
+  test          Runs mocha tests
+  verify        Verifies contract on Etherscan      
+
+To get help for a specific task run: npx hardhat help [task]
+
+Done in 1.15s.
+```
+
+`block-number  현재 블록넘버 확인하기`로 테스크가 등록된걸 확인 할 수 있습니다.
+
+한번 사용해보겠습니다.
+
+```bash
+yarn hardhat block-number
+```
+
+`await`을 붙이지 않게되면 프로미스가 해결되지 않아 프로미스 객체를 받게됩니다.
+
+```bash
+현재 블록 넘버: [object Promise]
+Done in 2.03s.
+```
+
+수정 후 다시 실행해보겠습니다.
+
+```bash
+현재 블록 넘버: 0
+Done in 2.08s.
+```
+
+왜 0이냐면 이것을 하드햇 네트워크에서 실행시켰고 하드햇 네트워크에서 실행시킬시 하드햇 네트워크를 디폴팅 하기때문입니다.
+
+반면에 링크비 테스트넷으로 테스트해보면
+
+```bash
+yarn hardhat block-number --network rinkeby
+```
+```bash
+현재 블록 넘버: 10843030
+Done in 3.20s.
+```
+
+엄청나게 높은 블록 넘버를 받을 수 있습니다.
+이것이 링크비의 실제 블록넘버입니다.
+
+다시 하드햇 네트워크로 실행해보면 `0`을 출력하는데 이는 하드햇 네트워크를 실행할때마다 리셋되기때문입니다.
+
+스크립트와 테스크는 둘다 같은 일을 할 수 있습니다. 둘다 계약과 상호작용 가능하고 스마트 계약을 배포할 수 도 있습니다. 
+
+지금은 스크립트로 처리하는것이 권장할만합니다. 특별히 다른 요소를 CLI로 일일이 입력하는것이 말이 안되기 떄문입니다.
+
+그렇지만 다른 외부패키지 등에서 많은 tasks를 볼 수 있고 특정한 부분에서 유용하게 사용됩니다. 하지만 항상 스크립트를 우선으로 합시다.
+
+테스크는 플러그인에 좋고, 스크립트는 로컬 환경에 좋다고 생각됩니다.
+
+## Hardhat Localhost Node
+
+hardhat.config.js 의 module.exports 부분을 보면
+우리가 매번 hardhat 네트워크를 실행할때마다 초기화 되는데
+
+이를 가나슈처럼 네트워크를 초기화 시키지 않고 특정 블럭과 계속 상호작용하는 방법에 대해 알아보겠습니다.
+
+다음과 같은 명령어를 입력해봅시다.
+
+```bash
+yarn hardhat node
+```
+```bash
+Started HTTP and WebSocket JSON-RPC server at http://127.0.0.1:8545/
+
+Accounts
+========
+
+WARNING: These accounts, and their private keys, are publicly known.
+Any funds sent to them on Mainnet or any other live 
+network WILL BE LOST.
+
+Account #0: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 (10000 ETH)
+Private Key: 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+
+Account #1: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8 (10000 ETH)
+Private Key: 0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
+
+Account #2: 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC (10000 ETH)
+Private Key: 0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a
+
+Account #3: 0x90F79bf6EB2c4f870365E785982E1f101E93b906 (10000 ETH)
+Private Key: 0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6
+
+Account #4: 0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65 (10000 ETH)
+Private Key: 0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a
+
+Account #5: 0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc (10000 ETH)
+Private Key: 0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba
+
+Account #6: 0x976EA74026E726554dB657fA54763abd0C3a0aa9 (10000 ETH)
+Private Key: 0x92db14e403b83dfe3df233f83dfa3a0d7096f21ca9b0d6d6b8d88b2b4ec1564e
+
+Account #7: 0x14dC79964da2C08b23698B3D3cc7Ca32193d9955 (10000 ETH)
+Private Key: 0x4bbbf85ce3377467afe5d46f804f221813b2bb87f24d81f60f1fcdbf7cbf4356
+
+Account #8: 0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f (10000 ETH)
+Private Key: 0xdbda1821b80551c9d65939329250298aa3472ba22feea921c0cf5d620ea67b97
+
+Account #9: 0xa0Ee7A142d267C1f36714E4a8F75612F20a79720 (10000 ETH)
+Private Key: 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6
+
+Account #10: 0xBcd4042DE499D14e55001CcbB24a551F3b954096 (10000 ETH)
+Private Key: 0xf214f2b2cd398c806f84e317254e0f0b801d0643303237d97a22a48e01628897
+
+Account #11: 0x71bE63f3384f5fb98995898A86B02Fb2426c5788 (10000 ETH)
+Private Key: 0x701b615bbdfb9de65240bc28bd21bbc0d996645a3dd57e7b12bc2bdf6f192c82
+
+Account #12: 0xFABB0ac9d68B0B445fB7357272Ff202C5651694a (10000 ETH)
+Private Key: 0xa267530f49f8280200edf313ee7af6b827f2a8bce2897751d06a843f644967b1
+
+Account #13: 0x1CBd3b2770909D4e10f157cABC84C7264073C9Ec (10000 ETH)
+Private Key: 0x47c99abed3324a2707c28affff1267e45918ec8c3f20b8aa892e8b065d2942dd
+
+Account #14: 0xdF3e18d64BC6A983f673Ab319CCaE4f1a57C7097 (10000 ETH)
+Private Key: 0xc526ee95bf44d8fc405a158bb884d9d1238d99f0612e9f33d006bb0789009aaa
+
+Account #15: 0xcd3B766CCDd6AE721141F452C550Ca635964ce71 (10000 ETH)
+Private Key: 0x8166f546bab6da521a8369cab06c5d2b9e46670292d85c875ee9ec20e84ffb61
+
+Account #16: 0x2546BcD3c84621e976D8185a91A922aE77ECEc30 (10000 ETH)
+Private Key: 0xea6c44ac03bff858b476bba40716402b03e41b8e97e276d1baec7c37d42484a0
+
+Account #17: 0xbDA5747bFD65F08deb54cb465eB87D40e51B197E (10000 ETH)
+Private Key: 0x689af8efa8c651a91ad287602527f3af2fe9f6501a7ac4b061667b5a93e037fd
+
+Account #18: 0xdD2FD4581271e230360230F9337D5c0430Bf44C0 (10000 ETH)
+Private Key: 0xde9be858da4a475276426320d5e9262ecfc3ba460bfac56360bfa6c4c28b4ee0
+
+Account #19: 0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199 (10000 ETH)
+Private Key: 0xdf57089febbacf7ba0bc227dafbffa9fc08a93fdc68e1e42411a14efcf23656e
+
+WARNING: These accounts, and their private keys, are publicly known.
+Any funds sent to them on Mainnet or any other live 
+network WILL BE LOST.
+```
+
+마치 가나슈의 계정목록처럼 로컬네트워크의 노드들을 한번 순회하였습니다. 차이점이라면 터미널에서 말이죠.
+
+다음 문장을 봅시다.
+
+```bash
+Started HTTP and WebSocket JSON-RPC server at http://127.0.0.1:8545/
+```
+
+알아차리셨나요? 이 노드들은 하드햇 네트워크 상에 존재하고 있지 않습니다. 
+
+새 터미널을 연다면 이 노드들과 상호작용 할 수 있습니다.
+
+새 터미널을 추가하고 연 뒤 `yarn hardhat run scripts/deploy.js` 로 계약을 배포해보겠습니다.
+
+```bash
+계약을 배포중입니다...
+이곳에 배포되었습니다: 0x5FbDB2315678afecb367f032d93F642f64180aa3
+{
+  hardfork: 'arrowGlacier',
+  blockGasLimit: 30000000,
+  gasPrice: 'auto',
+  chainId: 31337,
+  throwOnTransactionFailures: true,
+  throwOnCallFailures: true,
+  allowUnlimitedContractSize: false,
+  mining: { auto: true, interval: 0, mempool: { order: 'priority' } },
+  accounts: {
+    initialIndex: 0,
+    count: 20,
+    path: "m/44'/60'/0'/0",
+    passphrase: '',
+    mnemonic: 'test test test test test test test test test test test junk',
+    accountsBalance: '10000000000000000000000'      
+  },
+  loggingEnabled: false,
+  gasMultiplier: 1,
+  minGasPrice: <BN: 0>,
+  chains: Map(4) {
+    1 => { hardforkHistory: [Map] },
+    3 => { hardforkHistory: [Map] },
+    4 => { hardforkHistory: [Map] },
+    42 => { hardforkHistory: [Map] }
+  },
+  gas: 30000000,
+  initialDate: '2022-06-13T05:08:15.247Z'
+}
+현재 좋아하는 숫자: 0
+업데이트 된 좋아하는 숫자 7
+Done in 3.03s.
+```
+
+배포 후 다시 노드목록이 있는 터미널을 살펴보면 이 목록에 있는 계정과 상호작용한 것 같지는 않습니다...
+
+하드햇 네트워크는 터미널에 출력된 로컬 네트워크와 사실상 다릅니다.
+
+이 로컬에서 작동중인 네트워크는 로컬호스트(http://127.0.0.1:8545/)로 하여금 작동되는 네트워크입니다.
+
+그래서 하드햇 네트워크와는 약간 다릅니다. 물론 지금 `하드햇 환경`을 사용하고 있지만 `하드햇 네트워크`상에는 존재하고 있지 않습니다. 따라서 이것은 분리된 네트워크로 취급되어집니다.
+
+그래서 이것을 hardhat.config.js에 추가하면 이 노드들과 상호작용을 할 수 있습니다.
+
+체인아이디는 하드햇과 다른 네트워크상에 있지만 같은 chainId를 지니고 있습니다.
+
+또한 accounts는 하드햇이 자동으로 로컬호스트 노드목록중 10개의 가계정을 뽑아서 입력해줍니다.
+
+```js
+module.exports = {
+  defaultNetwork: "hardhat",
+  networks: {
+    rinkeby: {
+      url: RINKEBY_RPC_URL,
+      accounts: [PRIVATE_KEY],
+      chainId: 4,
+    },
+    localhost: {
+      url:"http://127.0.0.1:8545/",
+      //acounts: 하드햇이 자동으로 노드목록에 있는 프라이빗키를 잡아줍니다!
+      chainId: 31337,
+    }
+  },
+  solidity: "0.8.8",
+  etherscan: {
+    apiKey: ETHERSCAN_API_KEY,
+  }
+};
+```
+
+이제 이렇게 로컬호스트를 네트워크로 잡고 실행해봅시다.
+이렇게하면 localhost를 가르키게 됩니다.
+
+```bash
+yarn hardhat run scripts/deploy.js --network localhost
+```
+```bash
+계약을 배포중입니다...
+이곳에 배포되었습니다: 0x5FbDB2315678afecb367f032d93F642f64180aa3
+{
+  accounts: 'remote',
+  gas: 'auto',
+  gasPrice: 'auto',
+  gasMultiplier: 1,
+  httpHeaders: {},
+  timeout: 40000,
+  url: 'http://127.0.0.1:8545/',
+  chainId: 31337
+}
+현재 좋아하는 숫자: 0
+업데이트 된 좋아하는 숫자 7
+Done in 2.57s.
+```
+
+완료되었다면 이제 노드목록이 있는 터미널 창을 확인해보겠습니다.
+
+```bash
+web3_clientVersion (2)
+eth_chainId (2)
+eth_accounts
+eth_chainId
+eth_blockNumber
+eth_chainId (2)
+eth_estimateGas
+eth_getBlockByNumber
+eth_feeHistory
+eth_sendTransaction
+  Contract deployment: SimpleStorage
+  Contract address:    0x5fbdb2315678afecb367f032d93f642f64180aa3
+  Transaction:         0xe5ef9ac3156f8cebe5239371c93d0a0239fd43e9c6d7e397ec25c3dd693fe477
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  Value:               0 ETH
+  Gas used:            463682 of 463682
+  Block #1:            0x0f7101bbea0d8bd14e6a9fe94bf5a364ec9d53b37f357daa6671c2ce229b3a29
+
+eth_chainId
+eth_getTransactionByHash
+eth_chainId
+eth_getTransactionReceipt
+eth_chainId
+eth_call
+  Contract call:       SimpleStorage#retrieve       
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0x5fbdb2315678afecb367f032d93f642f64180aa3
+
+eth_chainId
+eth_estimateGas
+eth_feeHistory
+eth_sendTransaction
+  Contract call:       SimpleStorage#store
+  Transaction:         0x7705d6421a42c95a0e34825319c8d7d6d632512a564a27f94f91c343a652357f
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0x5fbdb2315678afecb367f032d93f642f64180aa3
+  Value:               0 ETH
+  Gas used:            43724 of 43724
+  Block #2:            0x22bd0c899b0c1dafe6cb99defc6ecb89bafe4ef219e51a2b7c0d47eebc4d2bca
+
+eth_chainId
+eth_getTransactionByHash
+eth_chainId
+eth_getTransactionReceipt
+eth_chainId
+eth_call
+  Contract call:       SimpleStorage#retrieve       
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0x5fbdb2315678afecb367f032d93f642f64180aa3
+```
+
+우리가 실행한 배포트랜잭션, 그리고 함수호출 트랜잭션 등 정보들이 로깅되어 출력되었습니다!
+
+이 방식은 작성한 스크립트가 제대로 작동되는지, 계약과 상호작용은 제대로 되는지 테스트하는데 굉장히 유용합니다. 무엇보다, 실제 테스트넷에서 배포후 테스트하는것보다 훨씬 빠릅니다.
+
+로컬호스트 노드들을 중단하거나 재실행 하고 싶다면 `ctrl+c`를 눌러 실행을 종료하고 다시 `yarn hardhat node`를 입력하거나 해당 터미널을 쓰레기통 아이콘을 눌러 종료하고 새 터미널을 열어 명령어를 입력하면 됩니다.
+
+## The Hardhat Console
+
+만약 전체 스크립트를 건드리지 않고, 블록체인을 조작해야 한다면 어떻게 해야할까요? 
+
+하드햇에는 `console`이라는 패키지가 있습니다.
+`console`은 블록체인과 소통할 수 있는 자바스크립트코드를 실행할 수 있는 자바스크립트 환경으로, 다음과 같이 실행할 수 있습니다. 
+
+```bash
+yarn hardhat console # --네트워크 플래그 ex) --network localhost
+```
+
+로컬 호스트에서 실행해보겠습니다.
+
+```bash
+yarn hardhat console --network localhost
+```
+```bash
+Welcome to Node.js v16.15.1.
+Type ".help" for more information.
+>
+```
+쉘 안에 쉘이 들어가서 실행됩니다!
+
+이 셸 안에서는 우리가 deploy.js 스크립트에서 했던 모든걸 할 수 있습니다.
+
+우리는 import나 require를 사용해 패키지를 가져올 필요도 없습니다.
+모든 하드햇 패키지가 콘솔안에 있기 때문입니다.
+
+deploy.js 안에 있는 스크립트를 복사해서 붙여넣어보겠습니다.
+
+```bash
+Welcome to Node.js v16.15.1.
+Type ".help" for more information.
+> const simpleStorageFactory = await ethers.getContractFactory("SimpleStorage");
+undefined
+> const simpleStorage = await simpleStorageFactory.deploy();
+undefined
+>
+```
+
+그리고 다시 노드목록이 있는 터미널로 돌아와서 로그를 확인해보겠습니다.
+
+```bash
+web3_clientVersion
+eth_chainId (2)
+eth_accounts
+eth_blockNumber
+eth_chainId (2)
+eth_estimateGas
+eth_getBlockByNumber
+eth_feeHistory
+eth_sendTransaction
+  Contract deployment: SimpleStorage
+  Contract address:    0x5fbdb2315678afecb367f032d93f642f64180aa3
+  Transaction:         0xe5ef9ac3156f8cebe5239371c93d0a0239fd43e9c6d7e397ec25c3dd693fe477
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  Value:               0 ETH
+  Gas used:            463682 of 463682
+  Block #1:            0xc2572244d7e52a24b205496664858cd946c2ab23d719beefc24be2074d3c1cc0
+
+eth_chainId
+eth_getTransactionByHash
+
+```
+
+새 simpleStorage가 배포된걸 확인 할 수 있습니다.
+계약안의 함수도 실행해보겠습니다.
+
+```bash
+> await simpleStorage.retrieve();
+BigNumber { value: "0" }
+> await simpleStorage.store(9);
+{
+  hash: '0x14a058663d6f366fb9e46eb2a56acfae4b07eddee24c49b79c2b6b37e8f20b9d',
+  type: 2,
+  accessList: [],
+  blockHash: '0x3a7bfe8f89c9a6519dd488eab487b78744b09416b5282afb33200619ead785c4',
+  blockNumber: 2,
+  transactionIndex: 0,
+  confirmations: 1,
+  from: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+  gasPrice: BigNumber { value: "769006015" },       
+  maxPriorityFeePerGas: BigNumber { value: "0" },   
+  maxFeePerGas: BigNumber { value: "973273237" },   
+  gasLimit: BigNumber { value: "43724" },
+  to: '0x5FbDB2315678afecb367f032d93F642f64180aa3', 
+  value: BigNumber { value: "0" },
+  nonce: 1,
+  data: '0x6057361d0000000000000000000000000000000000000000000000000000000000000009',
+  r: '0x5efb81e851fc75ac12e1b5743f3677f3da264e1b0329b5221b56a5e722e56dc0',
+  s: '0x466031505e9d890b183ef025e29d4911c7de6df71e9aeacfb8b6a15cd47750de',
+  v: 0,
+  creates: null,
+  chainId: 31337,
+  wait: [Function (anonymous)]
+}
+> await simpleStorage.retrieve();
+BigNumber { value: "9" }
+```
+
+함수 실행도 가능한걸 확인 할 수 있습니다.
+
+이처럼 스크립트 작성없이 빠르게 블록체인과 상호작용테스트를 할 수 있습니다.
+
+이 콘솔은 어떤 네트워크에서도 사용가능합니다. hardhat, rinkeby
+```bash
+await ethers.provider.getBlockNumber();
+> 10468453
+```
+
+## Running Tests
+
+이전에 artifact와 cache 를 지울때 폴더를 수동으로 직접 지웠지만, 커맨드라인으로 지우는 방법도 있습니다.
+
+```bash
+yarn hardhat clean
+```
+
+이 밖에도 다른 유용한 테스크들이 있지만 그 중 가장 뛰어난 기능을 자랑하는 테스크가 바로 `test`입니다.
+
+test 운용(running test)은 스마트 컨트렉트 개발여정 에 있어서 핵심사항인 부분입니다. 그리고 이 과정에서도 앞으로도 좋은 테스트 코드를 작성할 수 있도록 많은 시간을 투자할 것입니다.
+
+테스트를 작성하는 이유는 코드가 내 의도되로 작동되는지 확인하기 위해서입니다.
+
+especially in the defi, and the decentralized, smart contract world, all of our code is going to be open source for anybody to interact with, and potentially exploit.
+
+특히 'defi'와 분산된 스마트 계약 세계에서 우리의 모든 코드는 누구나 상호 작용하고 잠재적으로 이용할 수 있는 오픈 소스가 될 것입니다.
+
+`rekt.news` 라는 사이트는, 이전의 해킹에 대한 많은 정보가 있고, 어떻게 해킹되었는지, 그리고 스마트컨트랙트가 어떻게 이것을 해킹되게 만들었는지에 대한 정보가 나와있습니다.
+
+그래서 테스트는, 강력한 테스트를 작성하는것이 바로 해킹방어의 첫 걸음이 될것입니다.
+
+그리고 우리가 가지고 있는 test폴더 안의 sample-test를 이름을 바꿀 것입니다. 
+
+`test-deploy.js`
+
+그리고 안의 내용을 모두 지오고 처음부터 시작해보겠습니다.
+
+자, 이제 SimpleStorage.sol의 테스트 코드를 작성해봅시다.
+
+하드햇 테스팅은 `Mocha`프레임워크를 통해 작동됩니다. 모카는 자바스크립트 기반의 테스트 프레임워크이며, 원한다면 solidity 안에서 직접 테스트를 할 수 있습니다. 
+
+https://remix-ide.readthedocs.io/en/latest/unittesting_examples.html
+
+순수 solidity 코드로 테스트하는 것이 나은지 모던 프로그래밍 언어로 테스트하는게 나은지에 대해서는 약간의 장단점이 있습니다.
+
+이 논쟁은 모던 프로그래밍 언어로 테스트하는것이, 계약과 상호작용하는데 있어서 더 많은 기능을 테스트 해볼 수 있기 때문입니다. 반면에 솔리디티로 테스트해야 한다는 측의 주장은, 가능한 코드 그대로 남아있어야 한다는 의견입니다.
+
+현재는 대부분의 프로젝트는 자바스크립트 같은 현대 프로그래밍 언어로 테스트의 대부분을 수행하고 있습니다. 그래서 여기서는 자바스크립틀 가지고 테스팅 할 것입니다.
+
+첫번째로 `describe`함수를 호출합니다.
+describe는 인수로 두가지를 받습니다.
+
+첫번째는 계약이름 그리고 두번째는 함수입니다.
+
+이 함수는 따로 작성해서 기명함수로 넣을 수 있지만 대부분 익명함수로 작성합니다.
+
+```js
+describe("SimpleStorage", function () {})
+describe("SimpleStorage", () => {})
+```
+
+다음은 우리는 `describe` 블럭마다 `beforeEach`라는 함수를 호출해줘야 합니다. 그리고 `it`이라는 함수와 같이 말이죠.
+
+`beforeEach`함수는 `it`에 돌입하기전 해야할 일을 말합니다.
+
+이 여러개의 `it`마다 사실상 우리가 테스트할 코드가 들어가는 곳입니다.
+
+심지어 `describe`블록 안에서 `describe`를 호출해 `beforeEach`와 `it`을 또 다시 호출 할 수 있습니다.
+
+```js
+describe("SimpleStorage", function () {
+    beforeEach();
+    it();
+    it();
+    describe("SimpleStorage", function () {
+        beforeEach();
+        it();
+        it();
+        it();
+    })
+    it();
+})
+```
+
+이런 `describe` 네스팅 방법은 테스트를 분리하거나 모듈화 하는데 도움이 됩니다.
+
+하지만 이번시간에는 하나의블럭만 사용할 것이고, it도 하나만 사용해보겠습니다.
+
+그렇다면 우리가 코드를 테스트하기 전에 (it문을 작동시키기 전에) 
+beforeEach에서 할일은 코드를 배포하는 일입니다.
+
+```js
+const { ethers } = require("hardhat");
+
+// describe("SimpleStorage", () => {});
+describe("SimpleStorage", function () {
+  beforeEach(async function () {
+    const simpleStorageFactory = await ethers.getContractFactory("SimpleStorage");
+    const simpleStorage = await simpleStorageFactory.deploy();
+  })
+
+  it()
+})
+```
+
+지금 상태에선 simpleStorageFactory와 simpleStorage가 beforeEach 스코프 안에 들어있어서 it()이 이것들을 테스트 할 수 있도록 바깥으로 꺼내주어야 합니다.
+
+따라서 let으로 해당 변수들을 선언한 뒤 재할당 되도록 바꿉니다.
+
+```js
+const { ethers } = require("hardhat");
+
+describe("SimpleStorage", function () {
+    // let simpleStorageFactory;
+    // let simpleStorage;
+    let simpleStorageFactory, simpleStorage;
+    beforeEach(async function () {
+      simpleStorageFactory = await ethers.getContractFactory("SimpleStorage");
+      simpleSotrage = await simpleStorageFactory.deploy();  
+    })
+
+    it()
+})
+
+```
+
+다음은 it문에서 새로 배포된 계약과 상호작용 할 수 있도록 만들어 주어야 합니다.
+
+먼저 it의 인수로 테스트가 무엇을 수행해야 하는지 설명을 적어줍니다. 그다음 두번째 인수로 async 함수를 전달해줍니다.
+전달된 async 함수가 첫번재 인수에서 설명하고 있는 일을 수행하는 코드여야 합니다.
+
+그 다음 해당 테스트 코드가 내놔야 할 결과값을 정해줍니다.
+
+`const expectedValue = "0";`
+
+```js
+const { ethers } = require("hardhat");
+
+describe("SimpleStorage", function () {
+    // let simpleStorageFactory;
+    // let simpleStorage;
+    let simpleStorageFactory, simpleStorage;
+    beforeEach(async function () {
+      simpleStorageFactory = await ethers.getContractFactory("SimpleStorage");
+      simpleSotrage = await simpleStorageFactory.deploy();  
+    })
+
+    it("favorite number가 0으로 시작되야 합니다.", async function () {
+        const currentValue = await simpleStorage.retrieve();
+        const expectedValue = "0";
+    })
+})
+
+```
+
+그 다음은 `assert` 와 `expect`키워드를 사용할 겁니다. 이 함수들은 `chai`라는 패키지에서 가져옵니다. `chai`패키지는 하드햇을 설치할때 함께 설치되어 들어옵니다.
+
+assert를 사용하는 편이 신텍스가 좀 더 말이 되어 좋습니다. 하지만 expect를 사용해야할 경우도 있습니다.
+
+assert는 많은 함수들이 들어있는 메소드로써, 이 값이 뭐가 되어야 하는지 정하는걸 도와줍니다.
+
+`aseert.equal` 을 사용해서 첫번째 인수로는 테스트 코드 결과값 두번째 인수로는 나와야할 기대값을 정해줍니다.
+
+
+```js
+const { ethers } = require("hardhat");
+const { assert, expect } = require("chai");
+
+describe("SimpleStorage", function () {
+    // let simpleStorageFactory;
+    // let simpleStorage;
+    let simpleStorageFactory, simpleStorage;
+    beforeEach(async function () {
+      simpleStorageFactory = await ethers.getContractFactory("SimpleStorage");
+      simpleSotrage = await simpleStorageFactory.deploy();  
+    })
+
+    it("favorite number가 0으로 시작되야 합니다.", async function () {
+    const currentValue = await simpleStorage.retrieve();
+    const expectedValue = "0";
+    assert.equal(currentValue.toString(), expectedValue);
+  })
+})
+
+```
+
+이제 터미널에서 `yarn hardhat test`를 입력해보겠습니다.
+
+```bash
+
+
+  SimpleStorage
+    ✔ favorite number가 0으로 시작되야 합니다.
+
+
+  1 passing (962ms)
+
+Done in 2.15s.
+```
+
+테스트를 정상적으로 통과했습니다.
+
+이번엔 기대값을 다르게 넣고 오답일 경우를 테스트해보겠습니다.
+`const expectedValue = "1"`로 고치고 테스트해보겠습니다.
+
+```bash
+
+
+  SimpleStorage
+    1) favorite number가 0으로 시작되야 합니다.
+
+
+  0 passing (974ms)
+  1 failing
+
+  1) SimpleStorage
+       favorite number가 0으로 시작되야 합니다.:    
+
+      AssertionError: expected '0' to equal '1'     
+      + expected - actual
+
+      -0
+      +1
+
+      at Context.<anonymous> (test\test-deploy.js:15:12)
+
+
+
+error Command failed with exit code 1.
+info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command.
+
+```
+
+테스트 통과를 실패했습니다. `1`값을 기대했지만 `0`값을 얻었다고 나옵니다. 
+
+```bash
+      AssertionError: expected '0' to equal '1'     
+      + expected - actual
+```
+
+이번엔 it()문을 추가해서 테스트 문을 하나 더 작성해보겠습니다.
+store 함수를 호출했을때 값이 업데이트 되었는지 체크해보는 테스트코드를 작성하겠습니다.
+먼저 기대값을 변수로 store 함수에 인수로 전달하여 기대값을 저장합니다.
+그리고 결과값을 변수로 retrieve 함수를 호출하여 이 둘을 assert로 비교합니다.
+
+
+```js
+const { ethers } = require("hardhat");
+const { assert, expect } = require("chai"); 
+
+// describe("SimpleStorage", () => {});
+describe("SimpleStorage", function () {
+  let simpleStorageFactory, simpleStorage;
+  beforeEach(async function () {
+    simpleStorageFactory = await ethers.getContractFactory("SimpleStorage");
+    simpleStorage = await simpleStorageFactory.deploy();
+  })
+
+  it("favorite number가 0으로 시작되야 합니다.", async function () {
+    const currentValue = await simpleStorage.retrieve();
+    const expectedValue = "0";
+    assert.equal(currentValue.toString(), expectedValue);
+  })
+
+  it("store를 호출했을 때 업데이트 되어야 합니다.", async function () {
+    const expectedValue = "7";
+    const transactionResponse = await simpleStorage.store(expectedValue);
+    await transactionResponse.wait(1);
+
+    const currentValue = await simpleStorage.retrieve();
+    assert(currentValue.toString(), expectedValue);
+  })
+})
+
+```
+
+테스트를 위와 마찬가지로 `yarn hardhat test`로 시행하면 두 테스트가 모두 테스트됩니다.
+
+```bash
+
+
+  SimpleStorage
+    ✔ favorite number가 0으로 시작되야 합니다.
+    ✔ store를 호출했을 때 업데이트 되어야 합니다. (39ms)
+
+
+  2 passing (1s)
+
+Done in 2.23s.
+
+```
+
+만약 테스트 중 일부만을 테스트하고 싶다면 `--grep` 키워드를 사용해 it문의 첫번째 인수안에 들어있는 설명문의 문장을 키워드로 넣어서 해당 키워드가 문장에 포함되어 있다면, 그 테스트를 실행합니다. 여기서는 store를 넣어보겠습니다.
+
+```bash
+yarn hardhat test --grep store
+```
+```bash
+
+
+  SimpleStorage
+    ✔ store를 호출했을 때 업데이트 되어야 합니다.
+
+
+  1 passing (980ms)
+
+Done in 2.14s.
+
+```
+
+아니면 스크립트에 .only 를 추가하면 해당 메소드가 붙은 테스트만 실행됩니다.
+
+```js
+it.only("store를 호출했을때 값이 업데이트 되어야 합니다.", async function () {
+    const expectedValue = "7";
+    const transactionResponse = simpleStorage.store(currentValue);
+    await transactionResponse.wait(1);
+    const currentValue = simpleStorage.retrieve();
+    assert(currentValue.toStirng(), expectedValue);
+})
+
+```
+
+다음은 `expect`키워드를 사용하는 방법입니다.
+
+```js
+  it("favorite number가 0으로 시작되야 합니다.", async function () {
+    const currentValue = await simpleStorage.retrieve();
+    const expectedValue = "0";
+    assert.equal(currentValue.toString(), expectedValue);
+    expect(currentValue.toStirng().to.equal(expectedValue))
+  })
+```
+
+위 코드에 작성된 expect 코드는 바로 위의 assert 코드와 똑같이 작동됩니다. 원하는 것을 사용하면 됩니다.
+
+## Hardhat Gas Reporter
+
+가스 소모량이 얼만큼 드는지 테스트할 수 도 있습니다.
+
+`hardhat-gas-reporter`
+
+이 패키지는 테스트코드마다 가스사용량을 표로 정리해서 보여줍니다.
+
+https://www.npmjs.com/package/hardhat-gas-reporter
+
+![](59982003-c30a4380-95c0-11e9-9d93-e3af979df227.png)
+
+함수 중 하나의 가스소모량이 대략 어느정도인지 알려줍니다.
+
+```bash
+yarn add hardhat-gas-reporter --dev
+```
+
+패키지가 설치되었다면 `hardhat.config.js`파일로 가서 gas pit을 통해 작업할 수 있습니다.
+
+etherScan 아래에 섹션을 하나 추가해줍니다.
+```js
+require("hardhat-gas-reporter");
+
+  gasReporter: {
+    enabled:true,
+  }
+```
+
+
+```js
+require("hardhat-gas-reporter");
+
+module.exports = {
+  defaultNetwork: "hardhat",
+  networks: {
+    rinkeby: {
+      url: RINKEBY_RPC_URL,
+      accounts: [PRIVATE_KEY],
+      chainId: 4,
+    },
+    localhost: {
+      url:"http://127.0.0.1:8545/",
+      //acounts: 하드햇이 자동으로 노드목록에 있는 프라이빗키를 잡아줍니다!
+      chainId: 31337,
+    }
+  },
+  solidity: "0.8.8",
+  etherscan: {
+    apiKey: ETHERSCAN_API_KEY,
+  },
+  gasReporter: {
+    enabled:true,
+  }
+};
+```
+
+추가했다면 테스트코드를 실행해봅시다.
+
+```bash
+yarn hardhat test
+```
+```bash
+
+  SimpleStorage
+    √ favorite number가 0으로 시작되야 합니다.
+    √ store를 호출했을 때 업데이트 되어야 합니다.
+
+·----------------------------|----------------------------|-------------|-----------------------------·
+|    Solc version: 0.8.8     ·  Optimizer enabled: false  ·  Runs: 200  ·  Block limit: 30000000 gas  │
+·····························|····························|·············|······························
+|  Methods                                                                                            │
+··················|··········|··············|·············|·············|···············|··············
+|  Contract       ·  Method  ·  Min         ·  Max        ·  Avg        ·  # calls      ·  eur (avg)  │
+··················|··········|··············|·············|·············|···············|··············
+|  SimpleStorage  ·  store   ·           -  ·          -  ·      43724  ·            2  ·          -  │
+··················|··········|··············|·············|·············|···············|··············
+|  Deployments               ·                                          ·  % of limit   ·             │
+·····························|··············|·············|·············|···············|··············
+|  SimpleStorage             ·           -  ·          -  ·     463682  ·        1.5 %  ·          -  │
+·----------------------------|--------------|-------------|-------------|---------------|-------------·
+
+  2 passing (1s)
+
+Done in 4.18s.
+```
+
+store 함수는 43724 가스를
+SimpleStorage가 배포되는데 463682 가스를 썼음을 대략적으로 알 수 있습니다. 이러한 정보는 가스 최적화를 할때 아주 유용합니다.
+
+조금 더 발전시켜서 사용해봅시다.
+결과물을 파일로 저장해보겠습니다.
+
+컬러를 출력할시 내용이 깨질 수 도 있기때문에 noColor를 true로 설정하고, currency 로 화폐단위를 원(KRW)로 바꿔보겠습니다.
+이렇게 하면 각각의 가스마다 원으로 환산해서 가스값을 얻을 수 있습니다.
+
+이 기능을 이용하려면 coinmarketcap API가 필요합니다.
+
+https://coinmarketcap.com/api/
+
+`.env` 파일에 `COINMARKETCAP_API_KEY`로 coinmarketcap api키를 추가해줍니다.
+
+```js
+const COINMARKETCAP_API_KET = process.env.COINMARKETCAP_API_KEY;
+
+gasReporter: {
+    enabled: true,
+    outputFile: "gas-report.txt",
+    noColors: true,
+    currency: "KRW",
+    coinmarketcap: COINMARKETCAP_API_KEY,
+}
+```
+
+`.gitignore`에 `gas-rpeort.txt`파일을 추가해줍시다.
+
+위와 같이 coinmarketcap 프로퍼티를 추가하면 gas repoter를 실행할때마다 코인마켓캡 api를 호출하게 됩니다. 앞으로 이 부분을 주석처리할때가 가끔있을텐데 지속적인 api 호출을 방지하기 위함입니다.
+
+이제 테스트를 실시합니다.
+
+```bash
+yarn hardhat test
+```
+ 
+```txt
+·----------------------------|----------------------------|-------------|-----------------------------·
+|    Solc version: 0.8.8     ·  Optimizer enabled: false  ·  Runs: 200  ·  Block limit: 30000000 gas  │
+·····························|····························|·············|······························
+|  Methods                   ·               139 gwei/gas               ·     1546487.91 krw/eth      │
+··················|··········|··············|·············|·············|···············|··············
+|  Contract       ·  Method  ·  Min         ·  Max        ·  Avg        ·  # calls      ·  krw (avg)  │
+··················|··········|··············|·············|·············|···············|··············
+|  SimpleStorage  ·  store   ·           -  ·          -  ·      43724  ·            2  ·    9398.99  │
+··················|··········|··············|·············|·············|···············|··············
+|  Deployments               ·                                          ·  % of limit   ·             │
+·····························|··············|·············|·············|···············|··············
+|  SimpleStorage             ·           -  ·          -  ·     463682  ·        1.5 %  ·   99673.93  │
+·----------------------------|--------------|-------------|-------------|---------------|-------------·
+```
+
+달러로도 해보겠습니다.
+
+```txt
+·----------------------------|----------------------------|-------------|-----------------------------·
+|    Solc version: 0.8.8     ·  Optimizer enabled: false  ·  Runs: 200  ·  Block limit: 30000000 gas  │
+·····························|····························|·············|······························
+|  Methods                   ·               150 gwei/gas               ·       1196.70 usd/eth       │
+··················|··········|··············|·············|·············|···············|··············
+|  Contract       ·  Method  ·  Min         ·  Max        ·  Avg        ·  # calls      ·  usd (avg)  │
+··················|··········|··············|·············|·············|···············|··············
+|  SimpleStorage  ·  store   ·           -  ·          -  ·      43724  ·            2  ·       7.85  │
+··················|··········|··············|·············|·············|···············|··············
+|  Deployments               ·                                          ·  % of limit   ·             │
+·····························|··············|·············|·············|···············|··············
+|  SimpleStorage             ·           -  ·          -  ·     463682  ·        1.5 %  ·      83.23  │
+·----------------------------|--------------|-------------|-------------|---------------|-------------·
+```
+
+이번엔 암호화폐(토큰)종류를 바꿔보겠습니다.
+폴리곤(MATIC)으로 바꿔봅시다.
+
+```js
+gasReporter: {
+    enabled: true,
+    outputFile: "gas-reports.txt",
+    noColors: true,
+    currency: "KRW"
+    coinmarketcap: COINMARKETCAP_API_KEY,
+    token: "MATIC",
+}
+```
+
+```txt
+·----------------------------|----------------------------|-------------|-----------------------------·
+|    Solc version: 0.8.8     ·  Optimizer enabled: false  ·  Runs: 200  ·  Block limit: 30000000 gas  │
+·····························|····························|·············|······························
+|  Methods                   ·               86 gwei/gas                ·       0.42 usd/matic        │
+··················|··········|··············|·············|·············|···············|··············
+|  Contract       ·  Method  ·  Min         ·  Max        ·  Avg        ·  # calls      ·  usd (avg)  │
+··················|··········|··············|·············|·············|···············|··············
+|  SimpleStorage  ·  store   ·           -  ·          -  ·      43724  ·            2  ·       0.00  │
+··················|··········|··············|·············|·············|···············|··············
+|  Deployments               ·                                          ·  % of limit   ·             │
+·····························|··············|·············|·············|···············|··············
+|  SimpleStorage             ·           -  ·          -  ·     463682  ·        1.5 %  ·       0.02  │
+·----------------------------|--------------|-------------|-------------|---------------|-------------·
+```
+
+원(KRW)단위로 살펴보겠습니다.
+
+```txt
+·----------------------------|----------------------------|-------------|-----------------------------·
+|    Solc version: 0.8.8     ·  Optimizer enabled: false  ·  Runs: 200  ·  Block limit: 30000000 gas  │
+·····························|····························|·············|······························
+|  Methods                   ·               89 gwei/gas                ·      537.36 krw/matic       │
+··················|··········|··············|·············|·············|···············|··············
+|  Contract       ·  Method  ·  Min         ·  Max        ·  Avg        ·  # calls      ·  krw (avg)  │
+··················|··········|··············|·············|·············|···············|··············
+|  SimpleStorage  ·  store   ·           -  ·          -  ·      43724  ·            2  ·       2.09  │
+··················|··········|··············|·············|·············|···············|··············
+|  Deployments               ·                                          ·  % of limit   ·             │
+·····························|··············|·············|·············|···············|··············
+|  SimpleStorage             ·           -  ·          -  ·     463682  ·        1.5 %  ·      22.18  │
+·----------------------------|--------------|-------------|-------------|---------------|-------------·
+```
+
+ETH 보다 훨씬 싸네요.
+
+만약 가스리포트를 끄고싶다면 `enalbed:false`로 설정하면됩니다.
+
+### 환경변수 예외처리
+
+모종의 이유로 환경변수값을 읽어오지 못하거나 존재하지 않을때 핸들링해줄 코드가 필요합니다. 다음과 같이 `||` 연산자를 사용해 값이 존재하지 않을시 사용할 값이나 행동을 처리합니다.
+
+```js
+const RINKEBY_RPC_URL = process.env.RINKEBY_RPC_URL; || "https://rinkeby.ethereum.com"
+const PRIVATE_KEY = process.env.PRIVATE_KEY || "0xkey"
+...
+...
+```
+
+## Solidiy Coverage
+
+타입스크립트 버전으로 넘어가기 전에 Test Coverage 에 대해서 짚고 넘어가겠습니다. 앞으로의 과정에서 계약을 배포할때 해킹으로 부터 안전과 보안을 위한 좀 더 많은 툴을 다루게 될 것입니다.
+
+그 중 한가지가 `Solidity Coverage`라는 툴입니다. 이것은 harhat 플러그인이기도 합니다.
+
+coverage is a project that goes through all of our tests and sees exactly how many lines of code in our 'Simpestorage.sol' are actually covered.
+
+커버리지(coverage)는 모든 테스트를 거치고 '심플스토리지솔'에서 실제로 커버되는 코드 라인의 수를 정확하게 확인하는 프로젝트입니다.
+
+즉, 테스트 되어지지 않은 코드들을 찾아내어 테스트하라고 권유합니다.
+
+설치
+```bash
+yarn add --dev solidity-coverage
+```
+
+마찬가지로 `hardhat.config.js`파일에서 불러와줍니다.
+
+```js
+require("solidity-coverage");
+```
+
+이 패키지 또한 마찬가지로 module.exports 부분에서 다양한 옵션을 설정할 수 있지만 이번에는 아무것도 사용하지 않고 기본설정으로 실행해보겠습니다.
+
+```bash
+yarn hardhat coverage
+```
+
+```bash
+
+Version
+=======
+> solidity-coverage: v0.7.21
+
+Instrumenting for coverage...
+=============================
+
+> SimpleStorage.sol
+
+Compilation:
+============
+
+Compiled 1 Solidity file successfully
+
+Network Info
+============
+> HardhatEVM: v2.9.9
+> network:    hardhat
+
+
+
+  SimpleStorage
+    ✔ favorite number가 0으로 시작되야 합니다.
+    ✔ store를 호출했을 때 업데이트 되어야 합니다. (38ms)
+
+
+  2 passing (294ms)
+
+--------------------|----------|----------|----------|----------|----------------|
+File                |  % Stmts | % Branch |  % Funcs |  % Lines |Uncovered Lines |
+--------------------|----------|----------|----------|----------|----------------|
+ contracts\         |       50 |      100 |    66.67 |       50 |                |
+  SimpleStorage.sol |       50 |      100 |    66.67 |       50 |          29,30 |
+--------------------|----------|----------|----------|----------|----------------|
+All files           |       50 |      100 |    66.67 |       50 |                |
+--------------------|----------|----------|----------|----------|----------------|
+
+> Istanbul reports written to ./coverage/ and ./coverage.json
+Done in 3.56s.
+
+```
+
+이 밖에도 coverage.json 파일이 생성됩니다. `.gitignore`에 이것도 추가해줍시다. 또 `coverage`를 추가해 coverage 폴더도 같이 추가해줍니다.
+
+이 표를 보면, SimpleStorage.sol 안의 50%의 코드가 커버되고 있습니다. 3분의2의(66.67%)함수와 50%의 줄이 커버되고 있고, 현재 정확히 어떤 코드줄이 테스트 되어지지 않았는지 알려줍니다.
+
+여기선 SimpleStorage.sol의 31,32 줄이 테스트로 커버되지 않았다고 나옵니다.
+
+말이 되는군요. 왜냐하면 31에서 32는 `AddPerson`함수인데, 호출도 하지 않았고 테스트에도 추가하지 않았으니까요.
+
+이제 잠시 멈추고 AddPerson도 테스트 코드에 추가해서 coverage를 100%로 끌어올려보십시오. 아주 훌륭한 학습이 될 겁니다.
+
+참고: 리믹스에서 확인해본 파라미터값
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-13%20221543.png)
+
+people같은 함수를 부를때 `people[0]`이런식으로 호출하면 안되고 `people(0)` 이렇게 호출해야 됩니다. 또한 people 배열은 비어있으면 revert 되기때문에, 비어있는 people(0)을 호출하면 에러가 발생하면서 코드가 종료됩니다. 따라서 비어있는 people배열을 호출하더라도 에러를 처리하고 코드가 계속될 수 있는 처리를 해야할 것 같습니다... 단순 변수인 public view 함수들은 어떻게 receive와 fallback으로 처리해야하는지 알아봐야 할 것 같습니다...
+
+지금 생각난건 modifier를 생성해 해당 함수가 호출되기전에 require문을 처리해 배열이 비어있다면 에러를 반환하는것으로 처리하면 어떨까 싶네요.
+
+```js
+  const addPerson = await simpleStorage.addPerson("KIM","7");
+  await addPerson.wait(1);
+  console.log("person 불러오는중");
+  const updatedObj = await simpleStorage.people(0);
+  const updatedMap = await simpleStorage.nameToFavoriteNumber("KIM");
+  console.log(`업데이트 된 people배열: ${updatedObj}`,updatedObj.toString());
+  console.log(`업데이트 된 Map: ${updatedMap}`,updatedMap.toString());
+```
+```bash
+계약을 배포중입니다...
+이곳에 배포되었습니다: 0x9A9f2CCfdE556A7E9Ff0848998Aa4a0CFD8863AE
+{
+  accounts: 'remote',
+  gas: 'auto',
+  gasPrice: 'auto',
+  gasMultiplier: 1,
+  httpHeaders: {},
+  timeout: 40000,
+  url: 'http://127.0.0.1:8545/',
+  chainId: 31337
+}
+현재 좋아하는 숫자: 0
+업데이트 된 좋아하는 숫자 7
+person 불러오는중
+업데이트 된 people배열: 7,KIM 7,KIM
+업데이트 된 Map: 7 7
+Done in 2.77s.
+```
+
+toString 없이 생으로 가져오는 경우
+```bash
+계약을 배포중입니다...
+이곳에 배포되었습니다: 0x9A676e781A523b5d0C0e43731313A708CB607508
+{
+  accounts: 'remote',
+  gas: 'auto',
+  gasPrice: 'auto',
+  gasMultiplier: 1,
+  httpHeaders: {},
+  timeout: 40000,
+  url: 'http://127.0.0.1:8545/',
+  chainId: 31337
+}
+현재 좋아하는 숫자: 0
+업데이트 된 좋아하는 숫자 7
+person 불러오는중
+업데이트 된 people배열: 7,KIM [
+  BigNumber { value: "7" },
+  'KIM',
+  favoriteNumber: BigNumber { value: "7" },
+  name: 'KIM'
+]
+업데이트 된 Map: 7 BigNumber { value: "7" }
+Done in 2.82s.
+```
+
+테스트 코드
+`test-deploy.js`
+```js
+const { ethers } = require("hardhat");
+const { assert, expect } = require("chai"); 
+
+// describe("SimpleStorage", () => {});
+describe("SimpleStorage", function () {
+  let simpleStorageFactory, simpleStorage;
+  beforeEach(async function () {
+    simpleStorageFactory = await ethers.getContractFactory("SimpleStorage");
+    simpleStorage = await simpleStorageFactory.deploy();
+  })
+
+  it("favorite number가 0으로 시작되야 합니다.", async function () {
+    const currentValue = await simpleStorage.retrieve();
+    const expectedValue = "0";
+    assert.equal(currentValue.toString(), expectedValue);
+    // expect(currentValue.toStirng().to.equal(expectedValue))
+  })
+
+  // it.only() only 붙은 것만 테스트
+  it("store를 호출했을 때 업데이트 되어야 합니다.", async function () {
+    const expectedValue = "7";
+    const transactionResponse = await simpleStorage.store(expectedValue);
+    await transactionResponse.wait(1);
+
+    const currentValue = await simpleStorage.retrieve();
+    assert(currentValue.toString(), expectedValue);
+  })
+
+  it("AddPerson으로 사람이름과 좋아하는 숫자를 추가했을때 people배열에 좋아하는 숫자와 사람이름이 담긴 People struct가 추가 되어야합니다.", async function () {
+    const expectedNameValue = "김철수";
+    const expectedNumberValue = "7";
+    const expectedValue = `${expectedNumberValue},${expectedNameValue}`;
+    const transactionResponse = await simpleStorage.addPerson(expectedNameValue, expectedNumberValue);
+    await transactionResponse.wait(1);
+    const currentValue = await simpleStorage.people(0);
+    assert(currentValue.toString(), expectedValue); 
+  })
+})
+
+```
+
+```bash
+yarn hardhat coverage
+```
+```bash
+
+Version
+=======
+> solidity-coverage: v0.7.21
+
+Instrumenting for coverage...
+=============================
+
+> SimpleStorage.sol
+
+Compilation:
+============
+
+Compiled 1 Solidity file successfully
+
+Network Info
+============
+> HardhatEVM: v2.9.9
+> network:    hardhat
+
+
+
+  SimpleStorage
+    ✔ favorite number가 0으로 시작되야 합니다.
+    ✔ store를 호출했을 때 업데이트 되어야 합니다. (38ms)
+    ✔ AddPerson으로 사람이름과 좋아하는 숫자를 추가했을때 people배열에 좋아하는 숫자와 사람이름이 담긴 People 
+struct가 추가 되어야합니다. (45ms)
+
+
+  3 passing (375ms)
+
+--------------------|----------|----------|----------|----------|----------------|
+File                |  % Stmts | % Branch |  % Funcs |  % Lines |Uncovered Lines |
+--------------------|----------|----------|----------|----------|----------------|
+ contracts\         |      100 |      100 |      100 |      100 |                |
+  SimpleStorage.sol |      100 |      100 |      100 |      100 |                |
+--------------------|----------|----------|----------|----------|----------------|
+All files           |      100 |      100 |      100 |      100 |                |
+--------------------|----------|----------|----------|----------|----------------|
+
+> Istanbul reports written to ./coverage/ and ./coverage.json
+Done in 3.33s.
+```
+
+커버리지 100%를 달성했습니다!
+
+다음 챕터로 넘어가도록 하겠습니다.
+
+## Hardhat Waffle
+
+우리가 마지막으로 살펴보지 않은게 하나 있습니다.
+
+`hardhat.config.js`에 있는 `require("@nomiclabs/hardhat-waffle")`은 무엇일까요?
+
+구글링 해봅시다.
+
+https://hardhat.org/plugins/nomiclabs-hardhat-waffle
+
+여기에는 이렇게 써져있습니다.
+
+>Hardhat plugin for integration with Waffle
+와플과의 통합을 위한 하드햇 플러그인
+
+해당 링크를 따라가보면 Waffle 홈페이지가 나옵니다.
+
+https://getwaffle.io/
+
+와플(Waffle)은 진보된 테스팅을 할 수 있도록 해주는 프레임워크중 하나입니다.
+
+스크롤을 내려 써져있는 코드들은 우리가 곧 테스트 코드를 작성할때 사용해볼 코드들입니다.
+
+```js
+await expect(token.transfer(walletTo.address, 7))
+	.to.emit(token, 'Transfer')
+	.withArgs(wallet.address, walletTo.address, 7);
+
+```
+```js
+await expect(token.transfer(walletTo.address, 1007)).to.be.reverted;
+```
+
+그리고 앞으로 더욱 더 이 와플 툴을 보여드릴겁니다.
+
+## Lesson 6 Recap
+
+1. 하드햇 프로젝트를 spin up 하는방법 `yarn hardhat`
+2. 모든 TASKS의 출발점이 되는 `hardhat.config.js` 다루는 법
+3. contracts 폴더에 계약파일을 넣을 수 있다는 점
+4. 그리고 contracts폴더에 들어있는 계약파일을 `hardhat compile` 명령어로 컴파일 할 수 있습니다.
+5. 모든 컴파일 결과물은 `artifacts`와 `cache`폴더로 들어가게 됩니다.
+6. 만약 컴파일 에러 등으로 클린리셋을 원한다면, `artifacts`,`cache`폴더를 지우거나 `yarn hardhat clean` 명령어로 리셋할 수 있습니다.
+7. script 뿐만아니라 tasks로도 계약을 배포하고 상호작용 할 수 있다는 사실을 알게되었습니다.
+8. 주로 script를 사용할거지만, script와 tasks의 다른점에 대해서 알아둡시다. script는 주로 로컬에서 개발할때, tasks는 플러그인에서 사용할때 유용합니다.
+9. `const { ethers, run, netwrok } = require("hardhat");` 처럼 하드햇 패키지 안에서 여러가지를 가져올 수 있습니다.
+10. 그리고 이것들을 사요해서 async 함수로 계약을 배포하고 상호작용했습니다.
+11. 또한 하드햇과 하드햇플러그인을 이용해 계약을 프로그래메틱하게 검증했습니다.
+12. 그리고나서 `ehters`와 비슷하게 계약과 상호작용 했습니다.
+13. 우리는 놀라운 검증 스크립트 `verify` 함수를 작성했고, 
+14. 나만의 커스텀 task인 `block-number` task도 작성했습니다.
+15. 우리는 이 모든것들의 테스트 코드를 처음으로 작성했습니다.
+16. 또한 우리는 우리의 테스트가 앞으로 어떻게 진행될지 보여주었습니다.
+17. 그리고 테스트의 중요성에 대해서 살짝 얘기했습니다.
+18. 그리고 좋은 테스트를 작성하는 것이 정말로 전문적인 환경과 부차적인 프로젝트(그저그런 사이드프로젝트) 사이의 차이가 될 것이라는 것을 강조했습니다.
+19. 스마트 계약을 검사하거나 , 누군가가 저에게 보라하는 프로젝트가 주어질 때마다. 제가 첫번째로 보는것은 당연히 README입니다. 그리고 두번째로 보는것이 바로 테스트입니다.
+20. 만약 테스트가 좋지 않다면, 저는 보통 이렇게 말합니다. "여러분은 처음부터 다시 시작할 필요가 있고, 여러분의 테스트를 레벨업 할 필요가 있습니다."
+21. 그래서 테스트는 정말 정말 중요한 부분입니다. 특히 이 분야에서는요!
+22. 우리는 사용할 수 있는 몇가지 환경변수에 대해 더 배웠습니다. `etherscan api` `coinmarketcap api`
+23. 우리의 테스트를 더욱 좋게 만들어주는 도구에 대해 배웠습니다.
+24. 그 중 하나는 `coverage` 전체 코드중에 테스트 된 코드의 비율을 알려줍니다.
+25. 또 하나는 `gas-repoter`로 실제네트워크에서 가스요금으로 얼마나 지불해야하는지를 알려주는 도구입니다.
+26. 우리는 `hardhat.config.js`에 대해서 많은 것을 배웠습니다.
+27. `modules.exports`부분에서 `defaultNetwork` `networks`를 이용해 어떻게 여러개의 네트워크를 추가하고 우리의 EVM 코드나 프로젝트가 여기에 적힌 네트워크에서 작업할 수 있도록 하는 방법에 대해 알게되었습니다.
+28. 우리는 일반 dependencies 대신 dev dependencies를 이용해 작업을 시작했습니다.
+29. 리드미에 대해서는 이 시간에 자세히 다루지 않았었습니다.
+30. 그러나 리드미는 깃 허브 리포지토리의 환영 페이지 같은겁니다. 그리고 당신의 코드가 무슨일을 하는지 이해할 수 있도록 내용을 전달해주어야 합니다.
+31. 블록체인, 블록체인 생태계에 참여한다는 것은 여러분 스스로 코딩하는 일보다 그 이상의 것입니다. 
+32. 다른사람들이 여러분의 프로젝트에 관심을 갖고 참여하도록 하세요.
+33. 제 깃 리포지토리의 README.md를 살펴보세요, Getting started에는 코드의 설치방법 부터 실행방법 등, quickstart 섹션, Useage 섹션도 있습니다. 그리고 testing 섹션도요, 사람들에게 어떻게 당신의 코드와 상호작용하는지 가르쳐주는 겁니다.
+
+https://github.com/othneildrew/Best-README-Template
+
+리드미에 관한 리포지토리입니다. 참고하세요.
+
+### TypeScript
+
+나중에 TypeScript로 하드햇 프로젝트를 시작하고 싶다면 이렇게 하면 됩니다.
+
+`yarn hardhat` -> `Create an advanced sample project that uses TypeScript` 선택 -> 많은 플러그인이 설치될 겁니다.
+
+하지만 이번에는 자바스크립트에서 타입스크립트로 이전하는 방법에 대해 알려드릴겁니다.
+
+앞으로 심화된 타입스크립트를 사용하기 위해선 원하든 원치않든 패키지를 설치해야 할것입니다.
+다음 시간에 설명드리겠습니다. 그러나 그 중에 절대적으로 필요한 패키지가 있습니다.
+
+```bash
+yarn add --dev @typechain/ethers-v5 @typechain/hardhat @types/chai @types/node @types/mocha ts-node typechain typescript
+```
+
+다음에 할것은 모든 자바스크립트파일을 ts파일로 바꿔주는겁니다.
+
+`deploy.js`->`deploy.ts`
+`hardhat.config.js` -> `hardhat.config.ts`
+`block-number.js` -> `block-number.ts`
+`test-deploy.js` -> `test-deploy.ts`
+
+그리고 `tsconfig.json`파일을 새로 만들어줍니다. 이 파일은 우리의 타입스크립트 설정파일이 될겁니다.
+
+`tsconfig.json`는 다음과 같이 작성합니다.
+```json
+{
+    "compilerOptions": {
+        "target": "ES2018",
+        "module": "commonjs",
+        "strict": true,
+        "esModuleInterop": true,
+        "outDir": "dist"
+    },
+    "include": ["./scripts","./test"],
+    "files": ["./hardhat.config.ts"]
+}
+```
+
+이제 `deploy.ts`로 가서 시작해봅시다.
+
+먼저 require를 import 문으로 수정합니다.
+
+그다음 verify 함수에 있는 파라미터의 타입을 지정해줍니다.
+
+args에는 배열이 오는데 배열의 타입이 뭐가 될지 모르므로(문자열, 숫자, 불리언 기타 등등이 가능하므로) any[]로 설정해줍니다.
+
+error 객체에도 any를 붙여줍니다. 기술적으로는 error타입이지만 지금은 단순하게 any를 붙여주겠습니다.
+
+```ts
+const verify = async (contractAddress: string, args: any[]) => {
+  console.log("계약을 검증하고 있습니다...");
+  try {
+    await run("verify:verify", {
+      address:contractAddress,
+      constructorArguments: args,
+    })
+  } catch (e: any) {
+    console.log(e);
+    if (e.message.toLowerCase().includes("already verified")) {
+      console.log("이미 배포된 계약입니다.");
+    } else {
+      console.log(e);
+    }
+  }
+}
+```
+
+또한 지금 ethers가 불러와지지 않고 있습니다. `hardhat.config.ts`파일로 가봅시다.
+
+현재 require 문으로 되어있는 불러오기를 import문으로 모두 수정해줍니다.
+
+```ts
+// require("@nomiclabs/hardhat-waffle");
+// require("dotenv").config();
+// require("@nomiclabs/hardhat-etherscan");
+// require("./tasks/block-number");
+// require("hardhat-gas-reporter");
+// require("solidity-coverage");
+import "@nomiclabs/hardhat-waffle";
+import "dotenv/config";
+import "@nomiclabs/hardhat-etherscan";
+import "./tasks/block-number";
+import "hardhat-gas-reporter";
+import "solidity-coverage";
+```
+
+다시 deploy.ts로 가보면 ethers에 에러가 사라져있는걸 확인 할 수 있습니다.
+
+더 강조해서 나타내고 싶다면
+```ts
+import "@nomiclabs/hardhat-ethers"
+```
+로 작성해도 됩니다.
+
+`hardhat.config.ts` 파일에서는 또 task를 불러오고 있습니다. 따라서 `block-number.ts`도 수정해줘야 합니다.
+
+다음과 같이 import 문으로 고쳐주고
+
+moduel.exports 대신 `export default` 를 메소드 앞에 붙여줍니다.
+
+```ts
+import { task } from "hardhat/config";
+
+export default task("block-number","현재 블록넘버 확인하기").setAction(
+    async (taskArgs, hre) => {
+        const blockNumber = await hre.ethers.provider.getBlockNumber();
+        console.log(`현재 블록 넘버: ${blockNumber}`);
+    }
+)
+
+// module.exports = {}
+```
+
+이제 deploy.ts 스크립트를 실행해봅시다.
+
+```bash
+yarn hardhat run scripts/deploy.ts --network hardhat
+```
+```bash
+계약을 배포중입니다...
+이곳에 배포되었습니다: 0x5FbDB2315678afecb367f032d93F642f64180aa3
+{
+  hardfork: 'arrowGlacier',
+  blockGasLimit: 30000000,
+  gasPrice: 'auto',
+  chainId: 31337,
+  throwOnTransactionFailures: true,
+  throwOnCallFailures: true,
+  allowUnlimitedContractSize: false,
+  mining: { auto: true, interval: 0, mempool: { order: 'priority' } },
+  accounts: {
+    initialIndex: 0,
+    count: 20,
+    path: "m/44'/60'/0'/0",
+    passphrase: '',
+    mnemonic: 'test test test test test test test test test test test junk',
+    accountsBalance: '10000000000000000000000'
+  },
+  loggingEnabled: false,
+  gasMultiplier: 1,
+  minGasPrice: <BN: 0>,
+  chains: Map(4) {
+    1 => { hardforkHistory: [Map] },
+    3 => { hardforkHistory: [Map] },
+    4 => { hardforkHistory: [Map] },
+    42 => { hardforkHistory: [Map] }
+  },
+  gas: 30000000,
+  initialDate: '2022-06-13T15:05:15.643Z'
+}
+현재 좋아하는 숫자: 0
+업데이트 된 좋아하는 숫자 7
+person 불러오는중
+업데이트 된 people배열: 7,KIM 7,KIM
+업데이트 된 Map: 7 7
+Done in 8.64s.
+
+```
+
+성공적으로 실행되었습니다.
+
+이제 테스트 코드를 바꿀 차례입니다.
+
+`test-deploy.ts`
+
+require문을 import로 고치고
+
+`yarn hardhat test`를 실행해봅시다.
+
+그럼 린터로 인해 에러가 뿜어져나옵니다.
+
+```bash
+
+```
+
+One of the trickiest things that you run into as a developer in this space is calling functions on contracts where those functions don't exist, or vice versa. We're not calling functions on contracts that do exist. Right now the typing for our contracts is just `type: contract`, which isn't super helpful, because `type: contract` doesn't necessarily have all the functions that we want it to have. 
+
+이 부분에서 개발자로서 마주치게 되는 가장 까다로운 일 중 하나는 해당 함수가 존재하지 않는 계약에서 함수를 호출하는 것입니다. 또는 그 반대도 마찬가지입니다. 우리는 계약에 존재하는 함수를 호출하는 것이 아닙니다. 지금 우리의 계약을 타입화 하는것은 그저 contract 타입 일 뿐이기 때문에, 별 도움이 되지 않습니다. 왜냐하면 contract 타입은 우리가 원하는 모든 함수를 가지고 있지는 않기 때문입니다. 
+
+\node_modules\@ethersproject\contracts\src.ts\index.ts 파일을 보면 contract 클래스가 있습니다. 그것이 contract 타입입니다.
+
+따라서 우리는 우리의 계약 SimpleStorage에 맞는 계약 타입을 작성해야 합니다.
+
+여기서 사용할 수 있는 것이 `TypeChain` 패키지입니다.
+계약에게 올바른 타입을 추가해줍니다.
+
+타입체인은 하드헷 플러그인을 가지고 있습니다. 타입스크립트와 타입스크립트를 네이티브하게 쓸수있게 해줍니다.
+
+`typechain/hardhat`이 우리가 이미 설치한 패키지입니다.
+
+이제 `hardhat.config.ts` 파일로 가서 typeChain을 불러와줍니다.
+
+```ts
+import "@typechain/hardhat"
+```
+
+그후 다시 `yarn hardhat` 명령어를 입력하면, 새로운 typechain이라는 TASK가 생긴걸 확인 할 수 있습니다.
+
+```bash
+AVAILABLE TASKS:
+
+  block-number          현재 블록넘버 확인하기
+  check                 Check whatever you need
+  clean                 Clears the cache and deletes all artifacts
+  compile               Compiles the entire project, building all artifacts
+  console               Opens a hardhat console
+  coverage              Generates a code coverage report for tests
+  flatten               Flattens and prints contracts and their dependencies
+  gas-reporter:merge
+  help                  Prints this message
+  node                  Starts a JSON-RPC server on top of Hardhat Network
+  run                   Runs a user-defined script after compiling the project
+  test                  Runs mocha tests
+  typechain             Generate Typechain typings for compiled contracts
+  verify                Verifies contract on Etherscan
+
+To get help for a specific task run: npx hardhat help [task]
+
+Done in 3.64s.
+```
+
+설명을 읽어보면 컴파일 된 계약을 위한 타입체인 타이핑을 생성해준다고 되어있습니다.
+이것은 simpleStorage와 같은 계약들이 각각에 알맞는 타이핑을 가지게 해줍니다.
+
+그러므로 이걸 사용하면 simpleStorge 타입을 가지는 변수 simpleStorage를 얻을 수 있습니다.
+
+이것이 더 나은 이유는 계약마다 무엇을 하는지 더욱 명확해지기 때문이죠,
+
+이걸 만들기 위해선 다음 명령어를 입력합니다.
+
+```bash
+yarn hardhat typechain
+```
+```bash
+Generating typings for: 0 artifacts in dir: typechain-types for target: ethers-v5
+Successfully generated 6 typings!
+Done in 4.40s.
+```
+
+이 명령어는 이러한 새 폴더를 만듭니다.
+계약에 맞는 타입을 가지고 있는 계약이 들어있는 폴더입니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-14%20003241.png)
+
+simpleStorage.ts 를 열어보면 simpleStorage 계약에서 할 수 있는 모든것들이 자동적으로 타입스크립트와 자바스크립트로 변환되어 코딩되어 있습니다. 
+
+이제 `.gitignore`에 `typechain`과 `typechain-types`도 추가해줍니다.
+
+다시 테스트코드로 돌아와서
+
+simpleStorage에 맞는 타입을 정해줄 겁니다.
+
+```ts
+import { SimpleStorage, SimpleStorage__factory } from "../typechain_types"
+
+
+```
+
+SimpleStorage ctrl을 누르고 눌러보면 해당 함수의 타입에 대해서 알 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-14%20004007.png)
+
+getContractFactory를 살펴보면
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-14%20004227.png)
+
+```ts
+(property) HardhatEthersHelpers.getContractFactory: (name: string, signerOrOptions?: Signer | FactoryOptions | undefined) => Promise<ContractFactory> (+1 overload)
+```
+
+` Promise<ContractFactory> (+1 overload)`를 반환하는걸 알 수 있습니다.
+
+이걸 ()로 감싸주고 SimpleStorage__factory 타입으로 지정해주면 됩니다.
+
+```ts
+simpleStorageFactory = (await ethers.getContractFactory("SimpleStorage")) as SimpleStorage__factory;
+```
+
+이제 다시 `yarn hardhat test`를 입력해 테스트를 실시해보겠습니다.
+
+```bash
+No need to generate any newer typings.
+
+  SimpleStorage
+    √ favorite number가 0으로 시작되야 합니다.
+    √ store를 호출했을 때 업데이트 되어야 합니다.
+    √ AddPerson으로 사람이름과 좋아하는 숫자를 추가했을때 people배열에 좋아하는 숫자와 사람이름이 담긴 People 
+struct가 추가 되어야합니다.
+
+
+  3 passing (1s)
+
+Done in 6.88s.
+
+```
+성공적으로 테스트가 통과되었습니다.
+
+아래는 타입스크립트로 변환한 최종코드입니다.
+
+`test-deploy.ts`
+```ts
+import { ethers } from "hardhat";
+import { assert, expect } from "chai";
+import { SimpleStorage, SimpleStorage__factory } from "../typechain-types" 
+
+// describe("SimpleStorage", () => {});
+describe("SimpleStorage", function () {
+  let simpleStorageFactory: SimpleStorage__factory
+  let simpleStorage: SimpleStorage;
+  beforeEach(async function () {
+    simpleStorageFactory = (await ethers.getContractFactory("SimpleStorage")) as SimpleStorage__factory;
+    simpleStorage = await simpleStorageFactory.deploy();
+  })
+
+  it("favorite number가 0으로 시작되야 합니다.", async function () {
+    const currentValue = await simpleStorage.retrieve();
+    const expectedValue = "0";
+    assert.equal(currentValue.toString(), expectedValue);
+    // expect(currentValue.toStirng().to.equal(expectedValue))
+  })
+
+  // it.only() only 붙은 것만 테스트
+  it("store를 호출했을 때 업데이트 되어야 합니다.", async function () {
+    const expectedValue = "7";
+    const transactionResponse = await simpleStorage.store(expectedValue);
+    await transactionResponse.wait(1);
+
+    const currentValue = await simpleStorage.retrieve();
+    assert(currentValue.toString(), expectedValue);
+  })
+
+  it("AddPerson으로 사람이름과 좋아하는 숫자를 추가했을때 people배열에 좋아하는 숫자와 사람이름이 담긴 People struct가 추가 되어야합니다.", async function () {
+    const expectedNameValue = "김철수";
+    const expectedNumberValue = "7";
+    const expectedValue = `${expectedNumberValue},${expectedNameValue}`;
+    const transactionResponse = await simpleStorage.addPerson(expectedNameValue, expectedNumberValue);
+    await transactionResponse.wait(1);
+    const currentValue = await simpleStorage.people(0);
+    assert(currentValue.toString(), expectedValue); 
+  })
+})
+
+```
+
+
+`deploy.ts` 코드
+```ts
+import {ethers, run, network} from "hardhat";
+
+//async main
+async function main() {
+  const simpleStorageFactory = await ethers.getContractFactory("SimpleStorage");
+  console.log("계약을 배포중입니다...")
+  const simpleStorage = await simpleStorageFactory.deploy();
+  await simpleStorage.deployed();
+  // private key ㅇㄷ? rpc url ㅇㄷ?
+  console.log(`이곳에 배포되었습니다: ${simpleStorage.address}`)
+  //하드햇 로컬 네트워크에 배포했다면 어떻게 될까?
+  console.log(network.config);
+  if(network.config.chainId === 4 && process.env.ETHERSCAN_API_KEY) {
+    console.log("블록 트랜잭션 대기중...")
+    await simpleStorage.deployTransaction.wait(6);
+    await verify(simpleStorage.address, []);
+  }
+
+  const currentValue = await simpleStorage.retrieve();
+  console.log(`현재 좋아하는 숫자: ${currentValue}`);
+  const transactionResponse = await simpleStorage.store("7");
+  await transactionResponse.wait(1);
+  const updatedValue = await simpleStorage.retrieve();
+  console.log(`업데이트 된 좋아하는 숫자 ${updatedValue}`);
+  
+  const addPerson = await simpleStorage.addPerson("KIM","7");
+  await addPerson.wait(1);
+  console.log("person 불러오는중");
+  const updatedObj = await simpleStorage.people(0);
+  const updatedMap = await simpleStorage.nameToFavoriteNumber("KIM");
+  console.log(`업데이트 된 people배열: ${updatedObj}`,updatedObj.toString());
+  console.log(`업데이트 된 Map: ${updatedMap}`,updatedMap.toString());
+
+}
+
+// async function verify(contractAddress, args) {
+const verify = async (contractAddress: string, args: any[]) => {
+  console.log("계약을 검증하고 있습니다...");
+  try {
+    await run("verify:verify", {
+      address:contractAddress,
+      constructorArguments: args,
+    })
+  } catch (e: any) {
+    console.log(e);
+    if (e.message.toLowerCase().includes("already verified")) {
+      console.log("이미 배포된 계약입니다.");
+    } else {
+      console.log(e);
+    }
+  }
+}
+
+// main
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.log(error);
+    process.exit(1);
+  });
+
+```
+
+`hardhat.config.ts` 코드
+```ts
+import "@nomiclabs/hardhat-waffle";
+import "dotenv/config";
+import "@nomiclabs/hardhat-etherscan";
+import "./tasks/block-number";
+import "hardhat-gas-reporter";
+import "solidity-coverage";
+// ethers를 가져온걸 더 강조해서 표시하고 싶다면 이렇게 작성 (이렇게 안해도 됨) hardhat-waffle 과 hardhat-etherscan이 이미 ethers를 포함하고 있기 때문
+// import "@nomiclabs/hardhat-ethers";
+import "@typechain/hardhat";
+
+// You need to export an object to set up your config
+// Go to https://hardhat.org/config/ to learn more
+
+/**
+ * @type import('hardhat/config').HardhatUserConfig
+ */
+
+const RINKEBY_RPC_URL = process.env.RINKEBY_RPC_URL;
+const PRIVATE_KEY = process.env.PRIVATE_KEY;
+const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY;
+const COINMARKETCAP_API_KEY = process.env.COINMARKETCAP_API_KEY;
+
+module.exports = {
+  defaultNetwork: "hardhat",
+  networks: {
+    rinkeby: {
+      url: RINKEBY_RPC_URL,
+      accounts: [PRIVATE_KEY],
+      chainId: 4,
+    },
+    localhost: {
+      url:"http://127.0.0.1:8545/",
+      //acounts: 하드햇이 자동으로 노드목록에 있는 프라이빗키를 잡아줍니다!
+      chainId: 31337,
+    }
+  },
+  solidity: "0.8.8",
+  etherscan: {
+    apiKey: ETHERSCAN_API_KEY,
+  },
+  gasReporter: {
+    enabled: true,
+    outputFile: "gas-report.txt",
+    noColors: true,
+    currency: "KRW",
+    coinmarketcap: COINMARKETCAP_API_KEY,
+    token: "MATIC",
+  }
+};
+
+```
+
+`block-numbers.ts`코드
+```ts
+import { task } from "hardhat/config";
+
+export default task("block-number","현재 블록넘버 확인하기").setAction(
+    async (taskArgs, hre) => {
+        const blockNumber = await hre.ethers.provider.getBlockNumber();
+        console.log(`현재 블록 넘버: ${blockNumber}`);
+    }
+)
+
+// module.exports = {}
+```
+
+# Lesson 7 Hardhat fund Me
