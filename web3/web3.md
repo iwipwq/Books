@@ -9442,3 +9442,1748 @@ export default task("block-number","현재 블록넘버 확인하기").setAction
 ```
 
 # Lesson 7 Hardhat fund Me
+
+우리는 우리가 하드햇으로 할 수 있는 기본적인 것들을 배웠습니다.
+다음에 배울 하드햇 FundMe와 lottery 앱들은 하드햇을 익히는데 기본이 되는 과정이 될 것입니다.
+
+## Hardhat Setup
+
+```bash
+yarn add --dev hardhat
+```
+```bash
+yarn hardhat
+```
+
+2번 `Create an advanced sample project` 선택
+
+
+```bash
+yarn add --dev "hardhat@^2.9.9" "@nomiclabs/hardhat-waffle@^2.0.0" "ethereum-waffle@^3.0.0" "chai@^4.2.0" "@nomiclabs/hardhat-ethers@^2.0.0" "ethers@^5.0.0" "@nomiclabs/hardhat-etherscan@^3.0.0" "dotenv@^16.0.0" "eslint@^7.29.0" "eslint-config-prettier@^8.3.0" "eslint-config-standard@^16.0.3" "eslint-plugin-import@^2.23.4" "eslint-plugin-node@^11.1.0" "eslint-plugin-prettier@^3.4.0" "eslint-plugin-promise@^5.1.0" "hardhat-gas-reporter@^1.0.4" "prettier@^2.3.2" "prettier-plugin-solidity@^1.0.0-beta.13" "solhint@^3.3.6" "solidity-coverage@^0.7.16"
+```
+
+이중 사용할 건 얼마 되지 않지만 모두 설치해줍니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-15%20223941.png)
+
+저번 basic sample project와 달리
+.env 등 여러가지가 추가되었습니다.
+
+eslint가 추가된걸 볼 수 있습니다.
+하지만 여기선 eslint를 사용하지 않을것이기 때문에 지우겠습니다.
+
+물론 써도 상관없습니다.
+
+`.npmignore`는 npm패키지에 push할때 뺄것들을 넣는 곳입니다.
+
+이것도 지우도록 하겠습니다.
+
+solhint, solhintignore는 조금 있다 살펴보고,
+
+`hardhat.config.js` 파일을 살펴봅시다.
+
+```js
+require("dotenv").config();
+
+require("@nomiclabs/hardhat-etherscan");
+require("@nomiclabs/hardhat-waffle");
+require("hardhat-gas-reporter");
+require("solidity-coverage");
+
+// This is a sample Hardhat task. To learn how to create your own go to
+// https://hardhat.org/guides/create-task.html
+task("accounts", "Prints the list of accounts", async (taskArgs, hre) => {
+  const accounts = await hre.ethers.getSigners();
+
+  for (const account of accounts) {
+    console.log(account.address);
+  }
+});
+
+// You need to export an object to set up your config
+// Go to https://hardhat.org/config/ to learn more
+
+/**
+ * @type import('hardhat/config').HardhatUserConfig
+ */
+module.exports = {
+  solidity: "0.8.4",
+  networks: {
+    ropsten: {
+      url: process.env.ROPSTEN_URL || "",
+      accounts:
+        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+    },
+  },
+  gasReporter: {
+    enabled: process.env.REPORT_GAS !== undefined,
+    currency: "USD",
+  },
+  etherscan: {
+    apiKey: process.env.ETHERSCAN_API_KEY,
+  },
+};
+```
+
+롭스턴 네트워크와 가스리포터 그리고 이더스캔이 설정되어있는걸 확인 할 수 있습니다.
+
+readme.md 도 좀 더 늘어났습니다.
+
+## Linting
+
+### Solhint
+솔힌트(solhint)에 대해서 알아보겠습니다.
+
+솔힌트가 무엇일까요?
+
+솔힌트는 솔리디티 코드를 린트할 수 있는 린터입니다.
+
+>Linting is the process of running a program that will analyse code for potential erros. 린팅이란 잠재적 에러를 위해 코드를 분석하는 실행되는 프로그램의 프로세스입니다.
+
+eslint는 자바스크립트 코드 린터입니다.
+
+solhint는 솔리디티 코드 린터입니다.
+
+솔힌트는 이렇게 실행 할 수 있습니다.
+
+```bash
+yarn solhint contracts/*.sol
+```
+```bash
+
+Done in 0.76s.
+```
+아무이상이 없다면 아무 내용도 출력하지 않습니다.
+
+실험을 위해 샘플로 제공되는 `Greeter.sol`을 수정해보겠습니다.
+
+```solidity
+uint256 someVar;
+```
+해당 변수에 visibilty를 생략하고 solhint를 실행해보겠습니다.
+
+```bash
+
+./contracts/Greeter.sol
+  9:5  warning  Explicitly mark visibility of state  state-visibility
+
+✖ 1 problem (0 errors, 1 warning)
+
+Done in 0.69s.
+
+```
+해당 변수에 visibilty가 설정되지 않았다고 경고해줍니다.
+
+## Hardhat Setup Continued
+
+contracts에 Remix에서 작성했던 FundMe와 PriceConverter를 들고옵니다.
+
+`hardhat.config.js`에서 솔리디티 버전을 `0.8.8`로 바꿔줍니다.
+
+그리고 컴파일 해줍시다.
+
+```bash
+yarn hardhat compile
+```
+
+그러면 다음과 같은 에러가 발생할겁니다.
+
+```bash
+Error HH411: The library @chainlink/contracts, imported from contracts/PriceConverter.sol, is not installed. Try installing it using npm.
+
+For more info go to https://hardhat.org/HH411 or run Hardhat with --show-stack-traces
+error Command failed with exit code 1.
+info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command.
+```
+
+## Importing from NPM
+
+
+```solidity
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.0;
+
+import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+```
+
+PriceConverter.sol 에서 사용하는 chainlink 패키지를 노드환경에서 사용할 수 있도록 만들어주어야 합니다.
+
+다음과 같이 chainlink 패키지를 설치해줍니다.
+```bash
+yarn add --dev @chainlink/contracts
+```
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-15%20231204.png)
+
+설치후 노드모듈폴더에서 chainlink 패키지폴더를 찾을 수 있습니다.
+
+또한 하드햇이 패키지가 설치된 것을 인식하기때문에 다시 컴파일 하면 됩니다.
+
+```bash
+yarn hardhat compile
+```
+
+3개의 파일이 성공했다고 나옵니다.
+
+
+## Hardhat Deploy
+
+이제 배포를 해볼텐데요,
+지난번에 만든 deploy스크립트는 배포된것을 계속 추적하게 만들기가 굉장히 까다로웠습니다.
+
+deploy.js 스크립트를 사용한다면, 그건 배포한것을 어떤 파일로도 저장하지 않습니다. 또한 배포를 위해 배포 스크립트에 모든 내용을 포함하면 테스트와 배포 스크립트가 함께 작동하지 않을 수 있습니다.
+
+앞서 말한것들을 더욱 쉽게 할 수 있는 방법을 알아보겠습니다.
+
+hardhat-deploy
+
+https://github.com/wighawag/hardhat-deploy
+
+
+```
+yarn add --dev hardhat-deploy
+```
+
+설치가 끝나면 하드햇 컨픽파일에 require문을 작성해줍니다.
+
+```js
+require('hardhat-deploy');
+```
+
+이제 다시 하드햇 명령어를 시작하면
+여러줄의 명령어가 추가된걸 볼 수 있습니다.
+
+```bash
+yarn hardhat
+```
+```bash
+Hardhat version 2.9.9
+
+Usage: hardhat [GLOBAL OPTIONS] <TASK> [TASK OPTIONS]
+
+GLOBAL OPTIONS:
+
+  --config              A Hardhat config file.
+  --emoji               Use emoji in messages.
+  --help                Shows this message, or a task's 
+help if its name is provided
+  --max-memory          The maximum amount of memory that Hardhat can use.
+  --network             The network to connect to.      
+  --show-stack-traces   Show stack traces.
+  --tsconfig            A TypeScript config file.       
+  --verbose             Enables Hardhat verbose logging 
+  --version             Shows hardhat's version.        
+
+
+AVAILABLE TASKS:
+
+  accounts              Prints the list of accounts     
+  check                 Check whatever you need
+  clean                 Clears the cache and deletes all artifacts
+  compile               Compiles the entire project, building all artifacts
+  console               Opens a hardhat console
+  coverage              Generates a code coverage report for tests
+  deploy                Deploy contracts
+  etherscan-verify      submit contract source code to etherscan
+  export                export contract deployment of the specified network into one file
+  export-artifacts
+  flatten               Flattens and prints contracts and their dependencies
+  gas-reporter:merge
+  help                  Prints this message
+  node                  Starts a JSON-RPC server on top 
+of Hardhat EVM
+  run                   Runs a user-defined script after compiling the project
+  sourcify              submit contract source code to sourcify (https://sourcify.dev)
+  test                  Runs mocha tests
+  verify                Verifies contract on Etherscan  
+
+To get help for a specific task run: npx hardhat help [task]
+
+Done in 1.53s.
+```
+
+그중 하나인 `deploy`테스크를 주목해봅시다.
+
+deploy 폴더를 하나 만듭시다.
+
+배포코드로 보여지는 하드햇 배포모듈이 담길 폴더입니다.
+
+또한 우리가 스크립트를 작성할 곳이기도 합니다.
+
+스크립트 작성전 한가지 더 할일이 있습니다.
+
+`ethers.js`를 사용할거라면 
+`hardhat-deploy-ethers`패키지를 설치하는게 좋다고 나와있습니다.
+
+`yarn add --dev hardhat-deploy-ethers`로 설치하지 않고 조금 다른 방법으로 설치할겁니다.
+
+hardhat-deploy 레포의 README를 보면 이렇게 나와있습니다.
+
+```bash
+npm install --save-dev  @nomiclabs/hardhat-ethers@npm:hardhat-deploy-ethers ethers
+```
+
+이 말은 @nomiclabs/hardhat-ethers 패키지를
+npm에서 hardhat-deploy-ethers ethers 로 덮어씌우겠다는 뜻입니다.
+
+지난시간에는 `hardhat-ethers`를 이용해서 ethers에 덮어씌워 사용했습니다.
+
+이제 `hardhat-deploy-ethers`가 `ehters`를 덮어씌운 `hardhat-ethers`를 덮어쓰고 그것을 사용할 겁니다.
+
+이러한 과정은 `ehters`가 우리가 계약으로 만든 서로 다른 모든 배포를 기억하고 추적할 수 있습니다.
+
+```bash
+yarn add --dev @nomiclabs/hardhat-ethers@npm:hardhat-deploy-ethers ethers
+```
+
+설치가 끝난 후 package.json의 디펜던시를 살펴봅시다.
+
+```json
+{
+  "devDependencies": {
+    "@chainlink/contracts": "^0.4.1",
+    "@nomiclabs/hardhat-ethers": "npm:hardhat-deploy-ethers",
+    ...
+    ...
+  }
+}
+```
+`"@nomiclabs/hardhat-ethers": "npm:hardhat-deploy-ethers",`
+이더스의 버전이 하드햇 디플로이로 바뀌어져 있습니다.
+
+이제 배포스크립트를 작성하겠습니다.
+
+`deploy/01-deploy-fund-me.js` 파일을 생성합니다.
+배포스크립트는 이와같이 번호를 붙여서 웒하는 순서대로 실행되도록 하는게 좋습니다.
+
+// import
+// main function
+// calling of main function
+
+보통 배포스크립트라면 위와 같이 3가지 함수를 지니고있는데,
+hardhat-deploy를 이용하면 main function 과 calling of main function가 필요없습니다.
+
+하드햇 디플로이는 우리가 특정한 함수를 호출합니다. 이 스크립트에서 말이죠.
+
+```js
+function deployFunc() {
+    
+}
+```
+이 함수를 하드햇디플로이가 default 함수로 볼 수 있도록 export 할겁니다.
+
+```js
+function deployFunc() {
+    console.log("안녕!")
+}
+
+module.exports.default = deployFunc
+```
+
+`deployFunc()` 안에는 `deployFunc(hre)`처럼 암묵적으로 하드햇 런타임 환경이 인수로 포함되어 들어갑니다.
+
+이제 deploy 명령어를 사용 할 수 있습니다.
+
+```bash
+yarn hardhat deploy
+```
+
+그런데 하드햇-디플로이의 예제코드를 보면 신텍스가 약간 다른걸 알 수 있습니다.
+
+https://github.com/wighawag/hardhat-deploy#an-example-of-a-deploy-script-
+
+```js
+module.exports = async ({
+  getNamedAccounts,
+  deployments,
+  getChainId,
+  getUnnamedAccounts,
+}) => {
+  const {deploy} = deployments;
+  const {deployer} = await getNamedAccounts();
+
+  // the following will only deploy "GenericMetaTxProcessor" if the contract was never deployed or if the code changed since last deployment
+  await deploy('GenericMetaTxProcessor', {
+    from: deployer,
+    gasLimit: 4000000,
+    args: [],
+  });
+};
+```
+
+어떤 방식으로 작동하는지 알아보겠습니다.
+
+우리는 기명함수대신 익명함수로 작성할겁니다.
+
+```js
+async (hre) => {}
+```
+그리고 이걸 감싸서 module.exports에 넣어줄 겁니다.
+따라서 이렇게 표현할 수 있습니다.
+
+```js
+// function deployFunc(hre) {
+//     console.log("안녕!")
+// }
+
+// module.exports.default = deployFunc
+
+module.exports = aysnc (hre) => {}
+```
+
+이 문법은 주석처리된 문법과 거의 비슷합니다.
+그저 async 함수에 이름이 없을 뿐입니다.
+그래서 이것이 우리가 사용할 함수입니다.
+
+만약 이 문법이 헷갈린다면 위의 것을 사용해도 상관없습니다.
+
+그 다음에 할 것은 `hre`에 있는 async 함수들을 꺼내오는겁니다.
+
+deploy 스크립트를 실행할때마다, hardhat-deploy가 자동으로 위의 async 함수를 호출하여 hardhat 객체들을 인수에 전달합니다.
+
+지난시간의 hardhat-simple-storage과 비슷하게, deploy 스크립트를 보면 `ehters, run network`등의 하드햇 오브젝트를
+`hardhat`에서 가져왔습니다.
+
+```js
+const { ethers, run, network } = require("hardhat");
+```
+
+여기서는 `"hardhat"`에서 가져오는 대신 `hre`에서 가져오는겁니다.
+기본적으로 hardhat과 같은 것입니다.
+
+`hre`에서 2가지 변수를 사용할 겁니다.
+
+```js
+module.exports = async(hre) => {
+  const { getNamedAccount, deployments } = hre
+  // hre.getNamedAccounts
+  // hre.deployments
+}
+```
+
+한발 더 나아가서, 문법적 설탕을 이용해서 이렇게 줄일 수도 있습니다.
+
+함수 선언에서 이 두 변수를 추정할 수 있도록 만드는 겁니다.
+
+```js
+module.exports = async({ getNamedAccount, deployments }) => {
+
+}
+```
+
+문법적 설탕을 이용하지 않는다면 다음과 같이 표현할 수 있습니다.
+
+```js
+async function deployFunc(hre) {
+  console.log("hi!");
+  hre.getNamedAccounts();
+  hre.deployments;
+}
+module.exports.default = deployFunc; 
+```
+
+이 방식은 위에 있는 문법적 설탕을 추가한 방식과 동일합니다.
+
+둘 중 편한 방식을 사용하면 됩니다.
+
+다음으로 넘어가서 `deployments` 객체에서 두가지 함수를 또 꺼내 쓸겁니다. 그 두가지는 `deploy`와 `log` 함수입니다.
+
+```js
+module.exports = async({ getNamedAccounts, deployments }) => {
+  const { deploy, log } = deployments;
+}
+```
+
+추가로 `deployer` 도 `getNamedAccounts`에서 꺼내줍니다.
+
+```js
+module.exports = async({ getNamedAccounts, deployments }) => {
+  const { deploy, log } = deployments
+  const { deployer } = await getNamedAccounts()
+}
+```
+
+`getNamedAccounts()`는 무엇일까요?
+
+ethers.js를 사용할때 accounts 안에 있는 계정들로 계정을 불러올 수 있습니다. 하드햇 환경에서는 `hardhat.config.js`안에 있는 network 프로퍼티안에 있는 accounts에 해당합니다.
+
+```js
+module.exports = {
+  solidity: "0.8.8",
+  networks: {
+    ropsten: {
+      url: process.env.ROPSTEN_URL || "",
+      accounts:
+        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+    },
+  },
+
+  ...
+  ...
+
+}
+```
+
+예를 들어
+
+```js
+{accounts:[privatekey0, privateKey1, privateKey2]}
+```
+
+와 같이 프라이빗 키들이 들어가 있다면, 무엇이 어떤 곳에 대응하는 키인지 알아보기 힘들겁니다. 따라서 이렇게 하는 대신 제일 아래에 프로퍼티를 하나 생성해서 프라이빗 키마다 대응하는 계정을 지정해 줄건데, 이것이 바로 `namedAccounts`항목 입니다.
+
+여기서 namedAccounts 중 하나를 `deployer`로 지정할 겁니다.
+그리고 `default: 0` 로 설정해줄 겁니다.
+
+```js
+module.exports = {
+  solidity: "0.8.8",
+  networks: {
+    ropsten: {
+      url: process.env.ROPSTEN_URL || "",
+      accounts:
+        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+    },
+  },
+  gasReporter: {
+    enabled: process.env.REPORT_GAS !== undefined,
+    currency: "USD",
+  },
+  etherscan: {
+    apiKey: process.env.ETHERSCAN_API_KEY,
+  },
+  namedAccounts: {
+    deployer: {
+      default: 0,
+    }
+  }
+};
+
+```
+
+We can also specify which number is going to be the 'deployer' account across different chains.
+
+또한 여러 체인에서 어떤 번호가 `deployer`(배포자) 계정이 될 것인지 지정할 수 있습니다.
+
+예를 들어 링크비네트워크이고 deployer 계정을 첫번째(`1`)로 위치하고 싶을때 링크비 네트워크의 체인번호는 `4`이므로, 다음과 같이 설정할 수 있습니다.
+
+```js
+module.exports = {
+  solidity: "0.8.8",
+  networks: {
+    ropsten: {
+      url: process.env.ROPSTEN_URL || "",
+      accounts:
+        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+    },
+  },
+  gasReporter: {
+    enabled: process.env.REPORT_GAS !== undefined,
+    currency: "USD",
+  },
+  etherscan: {
+    apiKey: process.env.ETHERSCAN_API_KEY,
+  },
+  namedAccounts: {
+    deployer: {
+      default: 0,
+      4: 1,
+    }
+  }
+};
+
+```
+
+아니면 만약 하드햇이라면 이렇게 설정할겁니다.
+
+```js
+namedAccounts: {
+  deployer: {
+    default: 0,
+    31337: 1
+  }
+}
+```
+
+또한 다음순서로 사용자도 생성할 수 있습니다. 예를 들어 테스트나 기타 등등을 위한 유저계정을 생성한다면 이런식으로 원하는대로 생성할 수 있습니다.
+
+```js
+namedAccounts: {
+  deployer: {
+    default: 0,
+    31337: 1
+  }
+  user: {
+    default: 1,
+  }
+}
+```
+
+다시 배포스크립트로 돌아와서 보면, getNamedAccounts안의 deployer를 꺼내오고 있다는걸 알 수 있습니다.
+
+```js
+module.expots = async({ getNamedAccounts, deploymnets }) {
+  const { deploy, log } = deployments;
+  const { deployer } = await getNamedAccounts()
+}
+```
+
+마지막으로는 체인아이디를 꺼내옵니다.
+```js
+module.expots = async({ getNamedAccounts, deploymnets }) {
+  const { deploy, log } = deployments;
+  const { deployer } = await getNamedAccounts()
+  const chainId = netwrok.config.chainId
+}
+```
+
+## Mocking & helper-hardhat-config
+
+그럼 이 FuneMe 계약을 어떻게 배포해야될까요?
+
+리믹스를 사용할땐 엄청 쉬었잖아요 그쵸?
+
+우린 테스트넷에 배포를 했었습니다. 아하, 여기에서 문제가 있었죠,
+테스트넷에 배포하는건 조금 느리다는 문제점이 있었습니다. 이렇게 항상 테스트 넷 혹은 메인넷에 배포할때마다 느린속도 때문에 기다리게 되면 계약을 조금씩 수정할때 굉장히 불편할겁니다. 그래서 이 코드를 모두 로컬에서 테스트 한 후 혹은 특정 코드만 작동하는지 보기 위해 마지막으로 배포하고 싶습니다. chainlink 문서에 나와있는 예시처럼 말이죠.
+
+그래서 생각해낸게 로컬네트워크에 먼저 배포하는 겁니다. 가능할까요?
+
+PriceConverter.sol을 보면, 아래와 같이 0x로 시작하는 주소로 하드코딩 되어있습니다.
+
+```solidity
+    function getVersion() internal view returns (uint256) {
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(0xECe365B379E1dD183B20fc5f022230C044d51404);
+        return priceFeed.version();
+    }
+```
+
+https://docs.chain.link/docs/ethereum-addresses/#Rinkeby%20Testnet
+
+에 가서 ETH / USD 를 찾아보면 여기 있는 이 주소는 Rinkeby만을 위한 주소입니다.
+
+```
+ETH / USD	0x8A753747A1Fa494EC906cE90E9f37563A8AF630e
+```
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-16%20102755.png)
+
+
+그렇다면 하드햇 네트워크에선 어떻게 해야할까요?
+
+하드햇 네트워크의 블록체인은 비어있습니다. 즉 실행될때마다 부숴지고 초기화 되죠. 
+
+심지어 체인링크 프라이스피드 또한 실제 네트워크상에 배포되어있는 계약이기 때문에, 하드햇에서 사용할 수도 없습니다.
+
+그 중 하나의 방법이 블록체인을 포킹(`forking`)하는 것입니다. 하드코딩하지 않아도 되죠.
+
+하지만 더 나은 방법이 있습니다. 바로 `mocks` 라는 방법입니다.
+
+https://stackoverflow.com/questions/2665812/what-is-mocking
+
+>Mocking is primarily used in unit testing. An object under test may have dependencies on other (complex) objects. To isolate the behavior of the object you want to replace the other objects by mocks that simulate the behavior of the real objects. This is useful if the real objects are impractical to incorporate into the unit test.
+>
+>In short, mocking is creating objects that simulate the behavior of real objects.
+
+역주) 대략 목업(mock-up)이랑 비슷한 뜻입니다.
+
+다시 배포스크립트로 와서 보겠습니다.
+```js
+module.exports = async ({ getNamedAccounts, deployments }) => {
+    const { deloy, log } = deployments;
+    const { deployer } = await getNamedAccounts();
+    const chainId = network.config.chainId;
+
+    // 이제 무슨 일이 일어나냐면...
+    // 체인을 바꾸고 싶을때 어떻게 해야 할까요
+    // 1. 로컬 호스트 또는 하드햇 네트워크로 이동할 때 모의실험(mock)을 사용할 겁니다.
+
+
+}
+```
+
+첫번째로 로컬 호스트 또는 하드햇 네트워크로 이동할 때 mock을 이용해서 모의실험을 할 겁니다.
+
+두번째로 만약 체인을 바꾸고 싶다면 어떻게 될까요
+
+chainlink pricefeed 에는 많은 네트워크 체인(메인넷, 팔리디움, 링크비, 코반...등등)이 있고 게다가 체인마다 eth에 대응하는 다른 화폐단위마다 가격이 다릅니다.
+
+따라서 우리에게 주어진 방법은 여기 있는 이 하드코딩된 주소를 모듈화(modularize)하고 파라미터화(parameterize)해야합니다.
+그래서 어떤 체인에 배포해도 계약코드를 바꾸지 않아도 상관없게 말이죠.
+
+이렇게 하기 위해서 FundMe.sol을 리팩터링 해야합니다.
+
+```solidity
+// 사용자로부터 펀딩기금 받아오기
+// 기금 인출하기
+// 달러로 최소 펀딩 금액 설정하기
+
+//SPDX-License-Identifier: MIT
+pragma solidity ^0.8.8;
+
+// import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+import "./PriceConverter.sol";
+
+error NotOwner();
+
+contract FundMe {
+    using PriceConverter for uint256;
+
+    uint256 public constant MINIMUM_USD = 50 * 1e18;
+    // uint256 public number;
+
+    address[] public funders;
+    mapping(address => uint256) public addressToAmountFunded;
+
+    address public immutable i_owner;
+
+    constructor (){
+        i_owner = msg.sender;
+    }
+
+    function fund() public payable {
+        // 달러로 최소 금액을 설정하려 합니다.
+        // 1. 어떻게 이 계약으로 ETH를 보낼까요?
+        // number = 5;
+        require(msg.value.getConversionRate() >= MINIMUM_USD, unicode"최소 펀딩금액에 미달합니다.");
+        // revert 될 경우 이후 액션에서 소모된 가스는 반환됩니다.
+        funders.push(msg.sender);
+        addressToAmountFunded[msg.sender] += msg.value;
+    }
+
+    function withdraw() public onlyOwner {
+        // require(msg.sender == owner, unicode"펀딩 소유자만 인출할 수 있습니다.");
+        // for loop
+        /* starting index, ending index, step amount*/
+        for(uint256 funderIndex = 0; funderIndex < funders.length; funderIndex++) {
+            address funder = funders[funderIndex];
+            addressToAmountFunded[funder] = 0;
+        }
+        // reset the array
+        funders = new address[](0);
+        // actually withdraw the funds
+        (bool callSuccess,/*bytes dataReturned*/) = payable(msg.sender).call{value: address(this).balance}("");
+        require(callSuccess, unicode"호출 실패");
+    }
+
+    modifier onlyOwner {
+        require(msg.sender == i_owner, unicode"펀딩 소유자만 인출할 수 있습니다.");
+        // if(msg.sender != i_owner) { revert NotOwner();}
+        _;
+    }
+
+    receive() external payable {
+        fund();
+    }
+
+    fallback() external payable {
+        fund();
+    }
+}
+```
+
+현재 여기에는 `constructor`가 보일겁니다.
+```solidity
+    constructor (){
+        i_owner = msg.sender;
+    }
+```
+컨스트럭터 함수는 배포하는 동시에 자동으로 호출되는 함수입니다.
+즉, 배포하자마자 계약소유자(owner)를 msg.sender(계약배포자)로 설정하고 있습니다.
+
+그런데 여기서 constructor를 가지고 더 할 수 있는 일이 있습니다.
+보통 함수와 같이 constructor도 역시 함수이기 때문에 파라미터를 가질 수 있습니다. 우리가 원하는 것은 파라미터에 프라이스피드 주소를 넣는것입니다.
+
+현재 프라이스피드는 체인에 따라 다른 주소를 가지고 있습니다.
+
+```solidity
+constructor (address priceFeed) {
+  i_owner = msg.sender;
+}
+```
+
+AggregatorV3Interface를 전역변수로 저장합니다.
+
+priceConverter에서 보면 이미 AggregatorV3Interface 타입의 변수를 만든 경험이 있습니다.
+
+chainlink 레포지토리에서 가져온 ABI로 컴파일된 파일을 가져와서 ABI와 정보와 계약주소의 정보가 일치하면 상호작용할 수 있는 계약을 얻을 수 있는 구조였습니다.
+
+FundMe에서 할일도 똑같습니다.
+AggregatorV3Interface 변수 priceFeed를 선언합니다
+
+컨스트럭터 안의 priceFeed를 이름이 겹치지 않도록 이름을 바꿨습니다.
+
+그리고 priceConverter에서 했던것과 동일하게 AggregatorV3Interface함수 안에 인수로 프라이스피드 주소를 넣어줍니다. 차이점이라면 하드코딩된 주소말고 파라미터를 넣어준다는것입니다.
+
+```solidity
+AggregatorV3Interface public priceFeed;
+
+    constructor (address priceFeedAddress){
+        i_owner = msg.sender;
+        priceFeed = AggregatorV3Interface(priceFeedAddress);
+    }
+```
+참고로 인수로 넣을때 priceFeedAddress의 타입을 꼭 지정해줍시다 address`로요!
+
+여기보시면 uint256에서 PriceConverter를 라이브러리로 사용할것이라 해놨습니다.
+
+```solidity
+using PriceConverter for uint256
+```
+
+그래서 `msg.value.getConversionRate` 에서는 uint256의 라이브러리로 사용하고 있기때문에 getConversionRate(msg.value)와 동일하게 사용되고 있다는걸 알고 있어야 합니다.
+
+```solidity
+function FundMe() public payable {
+  require(msg.value.getConversionRate(priceFeed)) >= MINIMUM_USD, unicode"최소 후원 금액에 미달합니다")
+
+  funders.push(msg.sender);
+  addressToAmountFunded[msg.sender] += msg.value;
+}
+```
+와 같이 사용할 수 있습니다.
+
+그리고 인수(priceFeed)가 들어갈 자리를 하나 더 마련할 수 있도록 `PriceConvert.sol`안의 `getConversionRate`를 업데이트 해야합니다.
+
+또한 인수로 추가한 priceFeed를 getPrice에 인수로 넣어줄 수 있습니다.
+
+```solidity
+    function getConversionRate(uint256 ethAmount, AggregatorV3Interface priceFeed) internal view returns(uint256) {
+        uint256 ethPrice = getPrice(priceFeed);
+        uint256 ethAmountInUsd = (ethPrice * ethAmount) / 1e18;
+        // 2999.999999999999999999
+        return ethAmountInUsd;
+    }
+```
+
+그럼 마찬가지로 getPrice 함수 선언에서도 priceFeed를 넣어줍니다.
+
+```solidity
+ function getPrice(AggregatorV3 priceFeed) Internal view returns uint256 {
+  // AggregatorV3Interface priceFeed = AggregatorV3Interface(0x142132352352352);
+  (, int256 answer, , , ) = priceFeed.latestRoundData();
+  return uint256(answer * 10000000000);
+ }
+```
+
+FundMe.sol
+```solidity
+// 사용자로부터 펀딩기금 받아오기
+// 기금 인출하기
+// 달러로 최소 펀딩 금액 설정하기
+
+//SPDX-License-Identifier: MIT
+pragma solidity ^0.8.8;
+
+import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+import "./PriceConverter.sol";
+
+error NotOwner();
+
+contract FundMe {
+    using PriceConverter for uint256;
+
+    uint256 public constant MINIMUM_USD = 50 * 1e18;
+    // uint256 public number;
+
+    address[] public funders;
+    mapping(address => uint256) public addressToAmountFunded;
+
+    address public immutable i_owner;
+
+    AggregatorV3Interface public priceFeed;
+
+    constructor (address priceFeedAddress){
+        i_owner = msg.sender;
+        priceFeed = AggregatorV3Interface(priceFeedAddress);
+    }
+
+    function fund() public payable {
+        // 달러로 최소 금액을 설정하려 합니다.
+        // 1. 어떻게 이 계약으로 ETH를 보낼까요?
+        // number = 5;
+        require(msg.value.getConversionRate(priceFeed) >= MINIMUM_USD, unicode"최소 펀딩금액에 미달합니다.");
+        // revert 될 경우 이후 액션에서 소모된 가스는 반환됩니다.
+        funders.push(msg.sender);
+        addressToAmountFunded[msg.sender] += msg.value;
+    }
+
+    function withdraw() public onlyOwner {
+        // require(msg.sender == owner, unicode"펀딩 소유자만 인출할 수 있습니다.");
+        // for loop
+        /* starting index, ending index, step amount*/
+        for(uint256 funderIndex = 0; funderIndex < funders.length; funderIndex++) {
+            address funder = funders[funderIndex];
+            addressToAmountFunded[funder] = 0;
+        }
+        // reset the array
+        funders = new address[](0);
+        // actually withdraw the funds
+        (bool callSuccess,/*bytes dataReturned*/) = payable(msg.sender).call{value: address(this).balance}("");
+        require(callSuccess, unicode"호출 실패");
+    }
+
+    modifier onlyOwner {
+        require(msg.sender == i_owner, unicode"펀딩 소유자만 인출할 수 있습니다.");
+        // if(msg.sender != i_owner) { revert NotOwner();}
+        _;
+    }
+
+    receive() external payable {
+        fund();
+    }
+
+    fallback() external payable {
+        fund();
+    }
+}
+```
+priceConverter.sol
+```solidity
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.0;
+
+import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+
+library PriceConverter {
+        function getDecimals() internal view returns (uint8) {
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(0xECe365B379E1dD183B20fc5f022230C044d51404);
+        return priceFeed.decimals();
+        // 18 decimals
+    }
+
+    function getPrice(AggregatorV3Interface priceFeed) internal view returns(uint256) {
+        // ABI
+        // Address 
+        // AggregatorV3Interface priceFeed = AggregatorV3Interface(0xECe365B379E1dD183B20fc5f022230C044d51404);
+        // (uint80 roundId, int price, uint startedAt, uint updateAt, uint80 answeredInRound) = priceFeed.latestRoundData();
+        (, int256 price, , , ) = priceFeed.latestRoundData();
+        // ETH in term of USD
+        // 1800.00000000
+        return uint256(price * 1e10); // * 1 ** 10;
+    }
+
+    function getVersion() internal view returns (uint256) {
+        AggregatorV3Interface priceFeed = AggregatorV3Interface(0xECe365B379E1dD183B20fc5f022230C044d51404);
+        return priceFeed.version();
+    }
+
+    function getConversionRate(uint256 ethAmount, AggregatorV3Interface priceFeed) internal view returns(uint256) {
+        uint256 ethPrice = getPrice(priceFeed);
+        uint256 ethAmountInUsd = (ethPrice * ethAmount) / 1e18;
+        // 2999.999999999999999999
+        return ethAmountInUsd;
+    }
+    // function withdraw(){}
+}
+```
+
+
+이로서 priceFeed를 체인이 다르더라도 코드를 바꾸지 않고 사용할 준비가 끝났습니다.
+
+이제 컴파잃 해보겠습니다.
+```bash
+yarn hardhat compile
+```
+```bash
+$ yarn hardhat compile
+
+Compiled 3 Solidity files successfully
+Done in 2.00s.
+```
+
+다시 배포스크립트로 가보겠습니다.
+
+우리가 컨트렉트를 배포하려면 컨트렉트 팩토리를 필요로했습니다.
+그런데 hardhat-deploy에서는 이 deploy 함수를 이용하기만 하면 됩니다. 그리고 이 deploy 함수를 이용하려면 이렇게 작성하면 됩니다. 계약이름으로 변수를 생성하고 `const fundMe`
+그다음 `await deploy("FundMe", {})` 첫번째 인수는 계약의 이름, 그리고 두번째 인수는 여기에 더해서 덮어씌울 리스트를 넣으면 됩니다. `from`은 누가 배포하는지를 정할 수 있고 위에서 `getNamedAccounts`로 불러온 `deployer`로 정해줍니다. 그리고 `args`로 constructor에 인수를 보내줄 수 있는데 전달할 args가 바로 
+```solidity
+constructor (address priceFeedAddress) {
+  i_owner = msg.sender;
+  priceFeed = AggregatorV3Interface(priceFeedAddress);
+}
+```
+이곳에 들어가는 `address priceFeedAddress` 입니다.
+그래서 `args: []`로 배열안에 프라이스피드 계약주소를 넣어두면 됩니다. 그리고 마지막으로 커스텀 로그를 설정합니다. 이렇게 하면 계약배포할때 일일이 console.log를 칠 필요가 없어집니다.
+
+
+```js
+module.exports = async ({ getNamedAccounts, deployments }) => {
+    const { deloy, log } = deployments;
+    const { deployer } = await getNamedAccounts();
+    const chainId = network.config.chainId;
+
+    // 이제 무슨 일이 일어나냐면...
+    // 체인을 바꾸고 싶을때 어떻게 해야 할까요
+    // 1. 로컬 호스트 또는 하드햇 네트워크로 이동할 때 모의실험(mock)을 사용할 겁니다.
+
+    const fundMe = await deploy("FundMe", {
+      from: deployer,
+      args: [], // 프라이스피드 주소 목록 집어넣기
+      logs: true,
+    })
+
+}
+(async function () {})
+```
+
+이제 args에 프라이스피드 주소를 파라미터화하여 넣어봅시다.
+
+// 만약 체인아이디가 X면 주소는 Y를 사용
+// 만약 체인아이디가 Z면 주소는 A를 사용
+
+이런식으로 구성 할 수 있을겁니다.
+
+그리고 이런 논리를 구성하기 위해선 `aave`를 사용해야합니다.
+
+aave는 여러 체인상에서 작동하고있고, 코드를 여러 체인에 배포하고 여러 개의 다른 주소로 작동하는 또 다른 프로토콜입니다.
+
+https://github.com/aave/aave-v3-core/blob/master/helper-hardhat-config.ts
+
+여기서 눈여겨봐야할건 `helper-hardhat-config.ts` 파일입니다.
+
+```ts
+// @ts-ignore
+import { HardhatNetworkForkingUserConfig, HardhatUserConfig } from 'hardhat/types';
+import { eEthereumNetwork, iParamsPerNetwork } from './helpers/types';
+
+require('dotenv').config();
+
+const INFURA_KEY = process.env.INFURA_KEY || '';
+const ALCHEMY_KEY = process.env.ALCHEMY_KEY || '';
+const TENDERLY_FORK_ID = process.env.TENDERLY_FORK_ID || '';
+const FORK = process.env.FORK || '';
+const FORK_BLOCK_NUMBER = process.env.FORK_BLOCK_NUMBER
+  ? parseInt(process.env.FORK_BLOCK_NUMBER)
+  : 0;
+
+const GWEI = 1000 * 1000 * 1000;
+
+export const buildForkConfig = (): HardhatNetworkForkingUserConfig | undefined => {
+  let forkMode: HardhatNetworkForkingUserConfig | undefined;
+  if (FORK) {
+    forkMode = {
+      url: NETWORKS_RPC_URL[FORK],
+    };
+    if (FORK_BLOCK_NUMBER || BLOCK_TO_FORK[FORK]) {
+      forkMode.blockNumber = FORK_BLOCK_NUMBER || BLOCK_TO_FORK[FORK];
+    }
+  }
+  return forkMode;
+};
+
+export const NETWORKS_RPC_URL: iParamsPerNetwork<string> = {
+  [eEthereumNetwork.kovan]: ALCHEMY_KEY
+    ? `https://eth-kovan.alchemyapi.io/v2/${ALCHEMY_KEY}`
+    : `https://kovan.infura.io/v3/${INFURA_KEY}`,
+  [eEthereumNetwork.ropsten]: ALCHEMY_KEY
+    ? `https://eth-ropsten.alchemyapi.io/v2/${ALCHEMY_KEY}`
+    : `https://ropsten.infura.io/v3/${INFURA_KEY}`,
+  [eEthereumNetwork.main]: ALCHEMY_KEY
+    ? `https://eth-mainnet.alchemyapi.io/v2/${ALCHEMY_KEY}`
+    : `https://mainnet.infura.io/v3/${INFURA_KEY}`,
+  [eEthereumNetwork.coverage]: 'http://localhost:8555',
+  [eEthereumNetwork.hardhat]: 'http://localhost:8545',
+  [eEthereumNetwork.tenderlyMain]: `https://rpc.tenderly.co/fork/${TENDERLY_FORK_ID}`,
+};
+
+export const BLOCK_TO_FORK: iParamsPerNetwork<number | undefined> = {
+  [eEthereumNetwork.main]: 12406069,
+  [eEthereumNetwork.kovan]: undefined,
+  [eEthereumNetwork.ropsten]: undefined,
+  [eEthereumNetwork.coverage]: undefined,
+  [eEthereumNetwork.hardhat]: undefined,
+  [eEthereumNetwork.tenderlyMain]: 12406069,
+};
+```
+
+여기서 이부분을 보면
+
+```ts
+export const NETWORKS_RPC_URL: iParamsPerNetwork<string> = {
+  [eEthereumNetwork.kovan]: ALCHEMY_KEY
+    ? `https://eth-kovan.alchemyapi.io/v2/${ALCHEMY_KEY}`
+    : `https://kovan.infura.io/v3/${INFURA_KEY}`,
+  [eEthereumNetwork.ropsten]: ALCHEMY_KEY
+    ? `https://eth-ropsten.alchemyapi.io/v2/${ALCHEMY_KEY}`
+    : `https://ropsten.infura.io/v3/${INFURA_KEY}`,
+  [eEthereumNetwork.main]: ALCHEMY_KEY
+    ? `https://eth-mainnet.alchemyapi.io/v2/${ALCHEMY_KEY}`
+    : `https://mainnet.infura.io/v3/${INFURA_KEY}`,
+  [eEthereumNetwork.coverage]: 'http://localhost:8555',
+  [eEthereumNetwork.hardhat]: 'http://localhost:8545',
+  [eEthereumNetwork.tenderlyMain]: `https://rpc.tenderly.co/fork/${TENDERLY_FORK_ID}`,
+};
+```
+어떤 어떤 네트워크에 있는지에 따라서 변수를 가지고 있습니다. 
+
+이는 우리가 구현하려는
+
+```js
+// 만약 체인아이디가 X면 주소는 Y를 사용
+// 만약 체인아이디가 Z면 주소는 A를 사용
+```
+와 똑같습니다.
+
+우리도 똑같이 `helper-hardhat-config.js` 파일을 만들어보겠습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-16%20123006.png)
+
+그리고 여기서 네트워크 설정을 정의할겁니다.
+
+```js
+const networkConfig = {
+
+}
+```
+
+그리고 링크비 네트워크 체인아이디(`4`)를 이용한 프로퍼티를 하나 만들어줍니다.
+
+그리고 그 안에 name과 ethUsdPriceFeed를 체인링크 프라이스피드에서 긁어와 넣어줍니다.
+
+https://docs.chain.link/docs/ethereum-addresses/#Rinkeby%20Testnet
+
+```js
+const networkConfig = {
+  4: {
+    name: "rinkeby",
+    ethUsdPriceFeed: "0x8A753747A1Fa494EC906cE90E9f37563A8AF630e"
+  }
+}
+```
+
+Now we have a simple methodology of keeping track of different price feeds a different contract addresses across different chains. 
+
+이제 여러 체인에서 서로 다른 가격 피드를 추적할 수 있는 간단한 방법론을 갖게 되었습니다.
+
+예를 들어 우리가 폴리곤에 배포한다고 생각해봅시다.
+첫번째로 polygon의 체인아이디가 필요할 겁니다.
+
+https://docs.polygon.technology/docs/develop/metamask/config-polygon-on-metamask
+
+![](https://docs.polygon.technology/img/metamask/metamask-settings-mainnet.png)
+
+체인아이디가 `137`임을 확인했습니다.
+
+체인링크에 가서 주소릃 확인합니다.
+
+https://docs.chain.link/docs/matic-addresses/
+
+```js
+const networkConfig = {
+  4: {
+    name: "rinkeby",
+    ethUsdPriceFeed:"0x8A753747A1Fa494EC906cE90E9f37563A8AF630e"
+  },
+  137: {
+    name: "polygon",
+    ethUsdPriceFeed:"0xF9680D99D6C9589e2a93a78A04A279e509205945"
+  },
+  // 31337 -> 하드햇은 어떻게 하죠?
+}
+```
+
+하드햇 설정에 대해선 조금있다가 살펴보겠습니다.
+
+그리고 다음과 같이 내보내줍니다. 이렇게 하는 이유는 아까 전에 배포스크립트를 작성할때 이렇게 내보낸 이유와 같습니다.
+
+```js
+const networkConfig = {
+  4: {
+    name: "rinkeby",
+    ethUsdPriceFeed:"0x8A753747A1Fa494EC906cE90E9f37563A8AF630e"
+  },
+  137: {
+    name: "polygon",
+    ethUsdPriceFeed:"0xF9680D99D6C9589e2a93a78A04A279e509205945"
+  },
+  // 31337 -> 하드햇은 어떻게 하죠?
+}
+
+module.exports = {
+  networkConfig,
+}
+```
+
+배포스크립트로 돌아가봅시다. 이제 뭘 해야 할까요
+
+네, 방금 만든 네트워크 설정을 가져와야합니다.
+
+```js
+const { networkConfig } = require("../helper-hardhat-config");
+// const helperConfig = require("../helper-hardhat-config");
+// const networkConfig = helperConfig.networkConfig;
+```
+
+위의 코드는 주석처리된 코드 2줄을 줄인것과 같습니다.
+
+그리고 이것이 `module.exports = { networkConfig }` 로 내보낸 이유입니다.
+
+이제 이 로직을 작성할 차례입니다.
+
+```
+// 만약 체인아이디가 X면 주소는 Y를 사용
+// 만약 체인아이디가 Z면 주소는 A를 사용
+```
+
+```js
+const ethUsdPriceFeedAddress = networkConfg[chainId]["ethUsdPriceFeed"];
+```
+
+이렇게 작성하면 chainId에 따라서 프라이스피드 주소를 받아올 수 있습니다.
+
+이제 로컬호스트는 어떻게 처리하는지 알아보겠습니다.
+
+프라이스피드 주소가 필요없는 경우엔 어떻게 할까요?
+
+이 지점이 바로 모의계약(mock contracts)이 필요한 시점입니다.
+
+로직은 이렇습니다.
+
+`만약 계약이 존재하지 않는다면, 미니버전의 계약을 로컬테스트를 위해 배포한다.`
+
+deploy폴더에 `00-deploy-mocks.js`파일을 만듭니다.
+
+00으로 시작하는 이유는 이것이 거의 배포 전 미리 실행되는 스크립트라 봐도 무방하기 때문입니다.
+
+이제 FundeMe 계약에서도 체인링크프라이스피드 같은 이미 만들어진 계약이 아니라 우리가 만든 계약을 사용할겁니다. 이미 만들어진 계약이 없을때 , 하드햇이나 로컬환경에서 , 그럴때 이렇게 mocks를 사용합니다.
+
+시작은 01 배포스크립트와 비슷합니다.
+
+```js
+module.exports = async ({ getNamedAccounts, deployments }) => {}
+```
+
+아 그리고 `01-deploy-fund-me.js`에서 chainId를 불러오는 network를 어디서 불러오는지 정의하지 않고 사용하고 있는데요, 자바스크립트가 network가 어디서 오는지 알고있을정도로 똑똑해서 그렇습니다. 다만 명시하지 않으면 헷갈리기 때문에 requrie문으로 명시하도록 하겠습니다.
+
+```js
+const { network } = require("hardhat");
+
+const chainId = network.config.chainId
+```
+
+다시 `00-deploy-mocks.js`로 돌아가서 여기서도 네트워크를 불러와줍니다.
+
+```js
+const { netwrok } = require("hardhat");
+
+module.exports = async ({ getNamedAccounts, deployments }) => {
+  const { deploy, log } = deployments;
+  const { deployer } = getNamedAccounts();
+  const chainId = network.config.chainId;
+}
+```
+
+여기까지도 01배포스크립트와 똑같습니다. 왜냐하면 배포스크립트를 만드는 거니까요!
+
+이제 계약을 배포하고 싶은데, 계약폴더에는 FundMe와 PriceConverter 두가지 밖에 없습니다. 새로운 계약을 배포할 파일이 필요합니다.
+
+또 필요한것은 이 계약은 테스트 파일이고 실제로 쓰이지 않는다는걸 명시해 둬야합니다.
+
+contracts 폴더에 `mocks` 나 `test`라는 이름으로 폴더를 생성해줍니다.
+
+그리고 그안에 `MockV3Aggregator.sol`파일을 생성해줍니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-16%20132548.png)
+
+이 파일이 우리의 모의계약이 될 파일입니다.
+
+그럼 우리의 페이크 프라이스피드 계약을 어떻게 작성할까요?
+
+체인링크 깃허브에 가서 소스코드를 긁어오는 방법도 있을겁니다. 하지만 너무 방대한 양이라 불편하죠, 더 편리하고 똑똑한 방법이 있습니다.
+
+체인링크 레포지토리는 mocks를 포함하고 있습니다.
+
+https://github.com/smartcontractkit/chainlink/blob/develop/contracts/src/v0.6/tests/MockV3Aggregator.sol
+
+이제 이 파일을 사용하면 되는데, 파일구조가 해당 레포지토리에 맞춰져 있기 때문에 이것을 우리 프로젝트의 구조에 맞춰야 하기 때문에 번거롭습니다.
+
+대신에, 노드모듈패키지를 사용하면 됩니다!
+
+이렇게 작성하면 됩니다.
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.6.0;
+
+import "@chainlink/contracts/src/v0.6/tests/MockV3Aggregator.sol";
+```
+
+여기서 솔리디티 버전때문에 에러가 발생합니다.
+솔리디티 버전은 계속해서 업그레이드 되고 다른 버전과 작업해야할 일도 있기 떄문에 버전설정을 해줘야 합니다.
+
+`hardhat.config.js`로 가서 솔리디티 버전을 수정합니다.
+
+solidity를 객체로 만들어서 아래와 같이 여러 버전을 넣어줄 겁니다.
+
+```js
+module.exports = {
+  // solidity: "0.8.8",
+  solidity: {
+    compilers: [{ version: "0.8.8" }, { version: "0.6.6" }],
+  },
+  defaultNetwork: "hardhat",
+  networks: {
+    ropsten: {
+      url: process.env.ROPSTEN_URL || "",
+      accounts:
+        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+    },
+  },
+  gasReporter: {
+    enabled: process.env.REPORT_GAS !== undefined,
+    currency: "USD",
+  },
+  etherscan: {
+    apiKey: process.env.ETHERSCAN_API_KEY,
+  },
+};
+```
+
+다시 yarn hardhat compile을 해봅시다.
+
+```bash
+$ yarn hardhat compile
+yarn run v1.22.15
+warning package.json: No license field
+$ 
+
+Downloading compiler 0.6.6
+Compiled 5 Solidity files successfully
+Done in 4.13s.
+```
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-16%20134635.png)
+
+
+artifacts 폴더에 다음과 같이 파일이 생성된걸 확인 할 수 있습니다.
+
+이제 우리는 컴파일 된 모의계약(MockV3Aggregator.sol)과 이 페이크 프라이스피드를 배포하기 위한 스크립트(00-deploy-mocks.js)를 가지고 있습니다.
+
+이제 어떻게 배포하면 될까요?
+
+FundMe 계약을 배포하는것과 유사합니다.
+
+`00-deploy-mocks.js`파일로 돌아오겠습니다.
+
+그리고 이곳에 if문을 작성할 겁니다.
+
+우리는 이 계약을 프라이스피드가 이미 존재하는 메인넷이나 테스트넷에 배포하지 않을겁니다.
+
+일단 우리가 어느 체인에 있는지(chainId)를 정의해야합니다.
+`helper-hardhat-config.js` 파일로 갑니다.
+
+다음과 같이 developmentChains 를 설정하고 exports 합니다.
+
+```js
+const networkConfig = {
+    4: {
+        name:"rinkeby",
+        ethUsdPriceFeed:"",
+    },
+    137: {
+        name:"polygon",
+        ethUsdPriceFeed:"",
+    },
+    //31337 하드햇설정은 나중에
+}
+
+const developmentChains = ["hardhat", "localhost"];
+
+module.exports = {
+    networkConfig,
+    developmentChains
+}
+```
+
+`00-deploy-mocks.js`로 갑니다.
+
+이제 developmentChain을 가져올겁니다.
+
+그리고 이를 이용해 만약 developmentChains에 현재 chainId가 포함되어 있다면 이 계약을 배포합니다.
+
+```js
+const { netwrok } = require("hardhat");
+const { developmentChains } = require("../helper-hardhat-config.js");
+
+module.exports = async ({ getNamedAccounts, deployments }) => {
+  const { deploy, log } = deployments;
+  const { deployer } = getNamedAccounts();
+  const chainId = network.config.chainId;
+
+  if(developmentChains.includes(chainId)) {
+    log("로컬 네트워크 감지됨!, 모의계약 배포중...")
+    deploy("MockV3Aggregator", {
+      contract:"MockV3Aggregator",
+      from: deployer,
+      log: true,
+      args: ???
+    })
+  }
+
+}
+```
+
+이제 args에는 무엇이 들어가야 할까요? 본래는 주소가 들어가야 했습니다.
+
+체인링크 레포지토리나 노드모듈을 살펴보면 컨스트럭터에 들어가야할 인수가 정해져있는걸 볼 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-16%20140403.png)
+
+```solidity
+  constructor(
+    uint8 _decimals,
+    int256 _initialAnswer
+  ) public {
+    decimals = _decimals;
+    updateAnswer(_initialAnswer);
+  }
+```
+
+`uint8 _decimals`와 `int256 _initialAnswer`가 들어가야 한다는 걸 알 수 있습니다.
+
+decimals는 decimals() 함수가 반환하는 결과물과 똑같고, initialAnswer는 프라이스피드가 어떤 자릿수로 시작되는지에 대한것입니다. ex)2000 이면 initialAnswer는 200000000000 DECIMAL은 8
+
+이걸 변수로 만들어서 밖에서도 가져올 수 있도록 할 겁니다.
+
+변수로 만들어놓을 좋은 공간은 바로 `helper-hardhat-confg.js`파일입니다, 
+
+```js
+const networkConfig = {
+    4: {
+        name:"rinkeby",
+        ethUsdPriceFeed:"",
+    },
+    137: {
+        name:"polygon",
+        ethUsdPriceFeed:"",
+    },
+    //31337 하드햇설정은 나중에
+}
+
+const developmentChain = ["hardhat", "localhost"];
+const DECIMALS = 8;
+const INITIAL_ANSWER = 200000000000;
+
+module.exports = {
+    networkConfig,
+    developmentChain,
+    DECIMALS,
+    INITIAL_ANSWER
+}
+```
+
+다시 모의배포스크립트로 갑니다.
+
+MockV3Aggregator 의 컨스트럭터가 인수 순서가 어떻게 되는지 확인 후에 args에 배열로 인수를 순서대로 넣어줍니다.
+
+```js
+const { netwrok } = require("hardhat");
+const { developmentChain, DECIMALS, INITIAL_ANSWER } = require("../helper-hardhat-config");
+
+module.exports = async ({ getNamedAccounts, deployments }) => {
+  const { deploy, log } = deployments;
+  const { deployer } = getNamedAccounts();
+  const chainName = network.name;
+
+  if(developmentChain.includes(chainName)) {
+    log("로컬 네트워크 감지됨! 모의계약 배포중...");
+    await deploy("MockV3Aggregator", {
+        contract: "MockV3Aggregator",
+        from: deployer,
+        log: true,
+        args: [DECIMALS, INITIAL_ANSWER],
+    })
+    log("모의계약 배포가 완료되었습니다.");
+    log("-----------------------------")
+  }
+
+}
+```
+
+이제 로컬에서 테스트 가능한 모의계약 배포 스크립트작성이 끝났습니다.
+
+하지만 아직 FundMe 계약 배포가 완료된것이 아닙니다.
+
+mock 스크립트만 가지고 실행할 수 있는 방법이 있을까요? 그렇습니다.
+
+`00-deploy-mocks.js` 의 끝부분에 `module.exports`문을 이렇게 작성해줍니다.
+
+```js
+module.exports.tags = ["all", "mocks"];
+```
+
+이렇게 하면 tag 플래그를 사용하여 명령어를 입력할 수 있습니다.
+
+```bash
+yarn hardhat deploy --tags mocks
+```
+
+deploy 스크립트를 특정 태그(여기선 mocks)를 달고 있는 것만 실행한다는 뜻입니다.
+
+이 말은 mocks 스크립트만 실행한다는 뜻입니다.
+
+```bash
+$ yarn hardhat deploy --tags mocks
+yarn run v1.22.15
+warning package.json: No license field
+$ C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\node_modules\.bin\hardhat deploy --tags mocks
+Nothing to compile
+로컬 네트워크 감지됨! 모의계약 배포중... [Function: bound getNamedAccounts] AsyncFunction
+An unexpected error occurred:
+
+Error: ERROR processing C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\deploy\00-deploy-mocks.js:
+TypeError: Cannot read properties of undefined (reading 'length')
+    at getFrom (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\node_modules\hardhat-deploy\src\helpers.ts:1713:14)
+    at _deploy (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\node_modules\hardhat-deploy\src\helpers.ts:533:9)
+    at processTicksAndRejections (node:internal/process/task_queues:96:5)
+    at _deployOne (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\node_modules\hardhat-deploy\src\helpers.ts:1004:16)
+    at Object.module.exports [as func] (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\deploy\00-deploy-mocks.js:19:5)
+    at DeploymentsManager.executeDeployScripts (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\node_modules\hardhat-deploy\src\DeploymentsManager.ts:1219:22)
+    at DeploymentsManager.runDeploy (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\node_modules\hardhat-deploy\src\DeploymentsManager.ts:1052:5)
+    at SimpleTaskDefinition.action (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\node_modules\hardhat-deploy\src\index.ts:438:5)
+    at Environment._runTaskDefinition (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\node_modules\hardhat\src\internal\core\runtime-environment.ts:219:14)
+    at Environment.run (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\node_modules\hardhat\src\internal\core\runtime-environment.ts:131:14)    
+    at DeploymentsManager.executeDeployScripts (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\node_modules\hardhat-deploy\src\DeploymentsManager.ts:1222:19)
+    at processTicksAndRejections (node:internal/process/task_queues:96:5)
+    at DeploymentsManager.runDeploy (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\node_modules\hardhat-deploy\src\DeploymentsManager.ts:1052:5)
+    at SimpleTaskDefinition.action (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\node_modules\hardhat-deploy\src\index.ts:438:5)
+    at Environment._runTaskDefinition (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\node_modules\hardhat\src\internal\core\runtime-environment.ts:219:14)
+    at Environment.run (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\node_modules\hardhat\src\internal\core\runtime-environment.ts:131:14)    
+    at SimpleTaskDefinition.action (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\node_modules\hardhat-deploy\src\index.ts:584:32)
+    at Environment._runTaskDefinition (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\node_modules\hardhat\src\internal\core\runtime-environment.ts:219:14)
+error Command failed with exit code 1.
+info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command.
+
+```
+에러해결
+hardhat.config.js module.exports에 다음을 추가
+```bash
+
+```
+
+
+```bash
+Nothing to compile
+로컬 네트워크 감지됨! 모의계약 배포중...
+deploying "MockV3Aggregator" (tx: 0x2f60bd4cba5dffe33cd22380f4891cfadb7f13aad763bb084e8a1c3336b892f9)...: deployed at 0x5FbDB2315678afecb367f032d93F642f64180aa3 with 569635 gas
+모의계약 배포가 완료되었습니다!
+-----------------------------
+Done in 2.71s.
+
+```
+
+`log: true` 로 설정해놨기 때문에 
+```bash
+deploying "MockV3Aggregator" (tx: 0x2f60bd4cba5dffe33cd22380f4891cfadb7f13aad763bb084e8a1c3336b892f9)...: deployed at 0x5FbDB2315678afecb367f032d93F642f64180aa3 with 569635 gas
+```
+가 보이는 겁니다.
+
+좋습니다. 배포에 성공했다면 모의계약이 잘 작동한다는 뜻입니다.
+
+이제 FundMe 배포 스크립트에 이것을 적용해보겠습니다.
+
+`01-deploy-fund-me.js`로 돌아옵니다.
+
+먼저 전에 입력했던 ethUsdPriceFeedAddress를 const에서 let으로 바꿔줍니다.
+
+그리고 다음과 같이 현재 네트워크 체인이 개발 네트워크 배열목록에 있다면 모의계약을 불러와서 ethUsdPriceFeed주소를 대체하고,
+아니라면 네트워크를 체인아이디로 식별한 후 해당 네트워크에 맞는 address를 얻은 후 ethUsdPriceFeed를 실제네트워크 상에 존재하는 체인링크 프라이스피드로 부터 받아옵니다.
+
+그후 deploy를 작동시키는 fundMe 안에 args를 임시로 `[address]`로 해놨을텐데, 이것을 `ethUsdPriceFeed`로 바꿔줘서 프라이스 피드 주소가 동적으로 들어갈 수 있도록 해줍니다. 
+
+```js
+  if (developmentChains.includes(network.name)) {
+    // const ethUsdAggregator = await deployments.get("MockV3Aggregator")
+    const ethUsdAggregator = await get("MockV3Aggregator");
+    ethUsdPriceFeedAddress = ethUsdAggregator.address;
+  } else {
+    ethUsdPriceFeedAddress = networkConfig[chainId]["ethUsdPriceFeed"];
+  }
+
+    const fundMe = await deploy("FundMe", {
+    from: deployer,
+    args: [ethUsdPriceFeedAddress], // 여기에 주소 리스트 입력
+    log: true,
+  });
+
+```
+
+그리고 끝으로 실행 태그도 달아주도록 하겠습니다.
+
+```js
+module.exports.tags = ["all", "fundme"];
+```
+
+
+
+전체코드 `01-deploy-fund-me.js`
+
+```js
+// import
+// main function
+// calling of main function
+
+// function deployFunc(hre) {
+//     console.log("안녕!")
+// }
+
+// module.exports.default = deployFunc
+
+const { network } = require("hardhat");
+const {
+  networkConfig,
+  developmentChains,
+} = require("../helper-hardhat-config");
+// const helperConfig = require("../helper-hardhat-config");
+// const networkConfig = helperConfig.networkConfig;
+
+module.exports = async ({ getNamedAccounts, deployments }) => {
+  const { deploy, log, get } = deployments;
+  const { deployer } = await getNamedAccounts();
+  const chainId = network.config.chainId;
+  // 만약 체인아이디가 X면 주소는 Y를 사용
+  // 만약 체인아이디가 Z면 주소는 A를 사용
+  // const ethUsdPriceFeedAddress = networkConfig[chainId]["ethUsdPriceFeed"];
+  let ethUsdPriceFeedAddress;
+  if (developmentChains.includes(network.name)) {
+    // const ethUsdAggregator = await deployments.get("MockV3Aggregator")
+    const ethUsdAggregator = await get("MockV3Aggregator");
+    ethUsdPriceFeedAddress = ethUsdAggregator.address;
+  } else {
+    ethUsdPriceFeedAddress = networkConfig[chainId]["ethUsdPriceFeed"];
+  }
+
+  // 이제 무슨 일이 일어나냐면...
+  // 체인을 바꾸고 싶을때 어떻게 해야 할까요
+  // 1. 로컬 호스트 또는 하드햇 네트워크로 이동할 때 모의실험(mock)을 사용할 겁니다.
+
+  const fundMe = await deploy("FundMe", {
+    from: deployer,
+    args: [ethUsdPriceFeedAddress], // 여기에 주소 리스트 입력
+    log: true,
+  });
+  log("---------------------------------------------------------------");
+};
+// (async function () {});
+
+module.exports.tags = ["all", "fundme"];
+
+```
+
+이제 솔리디티 코드를 바꾸지 않아도 하드햇 네트워크나 로컬이든 아니면 실제 메인넷, 테스트넷이든 상관하지 않고 배포할 수 있게 되었습니다.
+
+자 이제 제대로 되었다면 아래의 코드가 작동할겁니다.
+```bash
+yarn hardhat deploy
+```
+
+```bash
+Nothing to compile
+로컬 네트워크 감지됨! 모의계약 배포중...
+deploying "MockV3Aggregator" (tx: 0xf702e8af2a5c6b59e76ea7d72a331af0f9cc0b457a6b1205c62b456b040571b2)...: deployed at 0x8464135c8F25Da09e49BC8782676a84730C318bC with 569635 gas
+모의계약 배포가 완료되었습니다!
+-----------------------------
+deploying "FundMe" (tx: 0xcba62f66b0fbc8f8a2abe039ad3fe6a63dcbb9f72d383c31523287d62ef6c4df)...: deployed at 0x71C95911E9a5D330f4D621842EC243EE1343292e with 919272 gas
+---------------------------------------------------------------
+Done in 2.73s.
+```
+
+훌륭합니다. 잘 배포되었습니다.
+로컬네트워크가 감지되자
+먼저 MockV3Aggregator를 모의계약으로 배포한 뒤,
+그다음 FundMe 계약을 배포하였습니다.
+
+하드햇-디플로이의 또하나의 장점은,
+우리가 로컬네트워크에서 블록체인을 작동시키거나 블록체인 노드를 가동시킬때 하드햇-디플로이가 자동적으로 모든 배포스크립트를 실행시켜서 모든 하드햇 노드(yarn hardhat node 했을때 나오는 노드들)마다 계약이 배포되도록 만듭니다.
+
+```bash
+yarn hardhat node
+```
+```bash
+$ yarn hardhat node
+yarn run v1.22.15
+warning package.json: No license field
+$ 
+Nothing to compile
+로컬 네트워크 감지됨! 모의계약 배포중...
+deploying "MockV3Aggregator" (tx: 0xf702e8af2a5c6b59e76ea7d72a331af0f9cc0b457a6b1205c62b456b040571b2)...: deployed at 0x8464135c8F25Da09e49BC8782676a84730C318bC with 569635 gas
+모의계약 배포가 완료되었습니다!
+-----------------------------
+deploying "FundMe" (tx: 0xcba62f66b0fbc8f8a2abe039ad3fe6a63dcbb9f72d383c31523287d62ef6c4df)...: deployed at 0x71C95911E9a5D330f4D621842EC243EE1343292e with 919272 gas
+---------------------------------------------------------------
+Started HTTP and WebSocket JSON-RPC server at http://127.0.0.1:8545/
+
+Accounts
+========
+
+WARNING: These accounts, and their private keys, are publicly known.
+Any funds sent to them on Mainnet or any other live network WILL BE LOST.
+
+Account #0: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 (10000 ETH)
+Private Key: 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+
+Account #1: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8 (10000 ETH)
+Private Key: 0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
+
+Account #2: 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC (10000 ETH)
+Private Key: 0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a
+
+Account #3: 0x90F79bf6EB2c4f870365E785982E1f101E93b906 (10000 ETH)
+Private Key: 0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6
+
+Account #4: 0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65 (10000 ETH)
+Private Key: 0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a
+
+Account #5: 0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc (10000 ETH)
+Private Key: 0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba
+
+Account #6: 0x976EA74026E726554dB657fA54763abd0C3a0aa9 (10000 ETH)
+Private Key: 0x92db14e403b83dfe3df233f83dfa3a0d7096f21ca9b0d6d6b8d88b2b4ec1564e
+
+Account #7: 0x14dC79964da2C08b23698B3D3cc7Ca32193d9955 (10000 ETH)
+Private Key: 0x4bbbf85ce3377467afe5d46f804f221813b2bb87f24d81f60f1fcdbf7cbf4356
+
+Account #8: 0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f (10000 ETH)
+Private Key: 0xdbda1821b80551c9d65939329250298aa3472ba22feea921c0cf5d620ea67b97
+
+Account #9: 0xa0Ee7A142d267C1f36714E4a8F75612F20a79720 (10000 ETH)
+Private Key: 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6
+
+Account #10: 0xBcd4042DE499D14e55001CcbB24a551F3b954096 (10000 ETH)
+Private Key: 0xf214f2b2cd398c806f84e317254e0f0b801d0643303237d97a22a48e01628897
+
+Account #11: 0x71bE63f3384f5fb98995898A86B02Fb2426c5788 (10000 ETH)
+Private Key: 0x701b615bbdfb9de65240bc28bd21bbc0d996645a3dd57e7b12bc2bdf6f192c82
+
+Account #12: 0xFABB0ac9d68B0B445fB7357272Ff202C5651694a (10000 ETH)
+Private Key: 0xa267530f49f8280200edf313ee7af6b827f2a8bce2897751d06a843f644967b1
+
+Account #13: 0x1CBd3b2770909D4e10f157cABC84C7264073C9Ec (10000 ETH)
+Private Key: 0x47c99abed3324a2707c28affff1267e45918ec8c3f20b8aa892e8b065d2942dd
+
+Account #14: 0xdF3e18d64BC6A983f673Ab319CCaE4f1a57C7097 (10000 ETH)
+Private Key: 0xc526ee95bf44d8fc405a158bb884d9d1238d99f0612e9f33d006bb0789009aaa
+
+Account #15: 0xcd3B766CCDd6AE721141F452C550Ca635964ce71 (10000 ETH)
+Private Key: 0x8166f546bab6da521a8369cab06c5d2b9e46670292d85c875ee9ec20e84ffb61
+
+Account #16: 0x2546BcD3c84621e976D8185a91A922aE77ECEc30 (10000 ETH)
+Private Key: 0xea6c44ac03bff858b476bba40716402b03e41b8e97e276d1baec7c37d42484a0
+
+Account #17: 0xbDA5747bFD65F08deb54cb465eB87D40e51B197E (10000 ETH)
+Private Key: 0x689af8efa8c651a91ad287602527f3af2fe9f6501a7ac4b061667b5a93e037fd
+
+Account #18: 0xdD2FD4581271e230360230F9337D5c0430Bf44C0 (10000 ETH)
+Private Key: 0xde9be858da4a475276426320d5e9262ecfc3ba460bfac56360bfa6c4c28b4ee0
+
+Account #19: 0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199 (10000 ETH)
+Private Key: 0xdf57089febbacf7ba0bc227dafbffa9fc08a93fdc68e1e42411a14efcf23656e
+
+WARNING: These accounts, and their private keys, are publicly known.
+Any funds sent to them on Mainnet or any other live network WILL BE LOST.
+
+```
+
+## Utils Folder
