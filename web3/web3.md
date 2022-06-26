@@ -11187,3 +11187,5653 @@ Any funds sent to them on Mainnet or any other live network WILL BE LOST.
 ```
 
 ## Utils Folder
+
+`01-deploy-fund-me.js` 에
+
+개발환경이 아닌 경우에 인증하는 스크립트를 작성합니다.
+
+```js
+  // 체인이 개발환경이 아니라면 바로 검증
+  if(!developmentChains.includes(network.name) && process.env.ETHERSCAN_API_KEY) {
+    //검증
+    
+  }
+```
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-17%20104434.png)
+
+이 검증은 유틸 폴더를 만들어서 진행합니다.
+
+여러개의 검증 스크립트를 작성할 필요가 없이 유틸폴더 스크립트로 대체합니다.
+
+`verify.js`파일을 만들고 지난시간에 만들었던 `deploy.js` 스크립트를 가져와 붙여넣습니다.
+
+```js
+const { run } = require("hardhat");
+
+const verify = async (contractAddress, args) => {
+    console.log("계약 검증을 진행하고 있습니다...");
+    try {
+        await run("verify:verify", {
+            address: contractAddress,
+            constructorArguments: args,
+        })
+    } catch (e) {
+        if(e.message.toLowerCase().includes("already verify")) {
+            console.log("이미 검증된 계약입니다.");
+        } else {
+            console.log(e);
+        }
+    }
+}
+
+module.exports = {
+    verify
+}
+```
+
+`01-deploy-fund-me.js`로 돌아옵니다.
+
+verify 함수를 불러오고 await으로 실행시킵니다.
+
+다음으로 verify 실행에 필요한 인수 두가지 계약 address와 args를 넣어줍니다.
+
+fundMe 변수에서 fundMe.address로 계약주소를 얻을 수 있습니다.
+
+fundMe에 args로 ethUsdPriceFeedAddresss가 들어갑니다.
+이를 바깥에서 args라는 변수에 할당해서 fundMe에도 넣어주고 verify에도 넣어줍니다.
+
+
+
+```js
+// import
+// main function
+// calling of main function
+
+// function deployFunc(hre) {
+//     console.log("안녕!")
+// }
+
+// module.exports.default = deployFunc
+
+const { network } = require("hardhat");
+const {
+  networkConfig,
+  developmentChains,
+} = require("../helper-hardhat-config");
+const { verify } = require("../utils/verify");
+// const helperConfig = require("../helper-hardhat-config");
+// const networkConfig = helperConfig.networkConfig;
+
+module.exports = async ({ getNamedAccounts, deployments }) => {
+  const { deploy, log, get } = deployments;
+  const { deployer } = await getNamedAccounts();
+  const chainId = network.config.chainId;
+  // 만약 체인아이디가 X면 주소는 Y를 사용
+  // 만약 체인아이디가 Z면 주소는 A를 사용
+  // const ethUsdPriceFeedAddress = networkConfig[chainId]["ethUsdPriceFeed"];
+  let ethUsdPriceFeedAddress;
+  if (developmentChains.includes(network.name)) {
+    // const ethUsdAggregator = await deployments.get("MockV3Aggregator")
+    const ethUsdAggregator = await get("MockV3Aggregator");
+    ethUsdPriceFeedAddress = ethUsdAggregator.address;
+  } else {
+    ethUsdPriceFeedAddress = networkConfig[chainId]["ethUsdPriceFeed"];
+  }
+
+  // 이제 무슨 일이 일어나냐면...
+  // 체인을 바꾸고 싶을때 어떻게 해야 할까요
+  // 1. 로컬 호스트 또는 하드햇 네트워크로 이동할 때 모의실험(mock)을 사용할 겁니다.
+  const args = [ethUsdPriceFeedAddress];
+
+  const fundMe = await deploy("FundMe", {
+    from: deployer,
+    args: args, // 여기에 주소 리스트 입력
+    log: true,
+  });
+
+  // 체인이 개발환경이 아니라면 바로 검증
+  if(!developmentChains.includes(network.name) && process.env.ETHERSCAN_API_KEY) {
+    //검증
+    await verify(fundMe.address, args);
+  }
+
+  log("---------------------------------------------------------------");
+};
+// (async function () {});
+
+module.exports.tags = ["all", "fundme"];
+
+```
+
+## Testnet Demo
+
+이제 링크비테스트넷에 배포할겁니다.
+
+`hardhat.config.js`에서 필요없는 주석들과 account 테스크를 지워줍니다.
+
+```js
+require("dotenv").config();
+
+require("@nomiclabs/hardhat-etherscan");
+require("@nomiclabs/hardhat-waffle");
+require("hardhat-gas-reporter");
+require("solidity-coverage");
+require("hardhat-deploy");
+
+/**
+ * @type import('hardhat/config').HardhatUserConfig
+ */
+module.exports = {
+  // solidity: "0.8.8",
+  solidity: {
+    compilers: [{ version: "0.8.8" }, { version: "0.6.6" }],
+  },
+  defaultNetwork: "hardhat",
+  networks: {
+    ropsten: {
+      url: process.env.ROPSTEN_URL || "",
+      accounts:
+        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+    },
+  },
+  gasReporter: {
+    enabled: process.env.REPORT_GAS !== undefined,
+    currency: "USD",
+  },
+  etherscan: {
+    apiKey: process.env.ETHERSCAN_API_KEY,
+  },
+  namedAccounts: {
+    deployer: {
+      default: 0,
+      31337: 1
+    },
+    user: {
+      default: 1,
+    },
+  },
+};
+
+```
+
+networks에서 롭스턴은 사용하지 않을것이기 때문에 지워줍니다.
+
+링크비 네트워크(주소,계정,체인ID)를 설정해주고, 코인마켓캡의 가스리포터 설정, 검증을 위한 이더스캔을 설정해줍니다.
+
+```js
+require("dotenv").config();
+
+require("@nomiclabs/hardhat-etherscan");
+require("@nomiclabs/hardhat-waffle");
+require("hardhat-gas-reporter");
+require("solidity-coverage");
+require("hardhat-deploy");
+
+const RINKEBY_RPC_URL = process.env.RINKEBY_RPC_URL;
+const PRIVATE_KEY = process.env.PRIVATE_KEY;
+const COINMARKETCAP_API_KEY = process.env.COINMARKETCAP_API_KEY;
+const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY;
+
+module.exports = {
+  // solidity: "0.8.8",
+  solidity: {
+    compilers: [{ version: "0.8.8" }, { version: "0.6.6" }],
+  },
+  defaultNetwork: "hardhat",
+  networks: {
+    rinkeby: {
+      url:RINKEBY_RPC_URL,
+      accounts:[PRIVATE_KEY],
+      chainId: 4,
+    },
+  },
+  gasReporter: {
+    enabled: false,
+    outputFile: "gas-report.txt",
+    noColors: true,
+    currency: "USD",
+    coinmarketcap:COINMARKEYCAP_API_KEY,
+    toekn: "MATIC",
+  },
+  etherscan: {
+    apiKey: ETHERSCAN_API_KEY,
+  },
+  namedAccounts: {
+    deployer: {
+      default: 0,
+      31337: 1
+    },
+    user: {
+      default: 1,
+    },
+  },
+};
+
+```
+
+한가지 더 해야합니다.
+
+지난 프로젝트에서 우리는 이더스캔이 블록이 확실히 포함된 후에 검증을 하기 위해서 블록이 승인되기까지 기다리도록 명령했습니다(wait(1)). 여기서도 마찬가지입니다.
+
+hardhat.config.js에 몇개의 블럭을 기다려야 하는지 설정할 수 있습니다.
+
+```js
+require("dotenv").config();
+
+require("@nomiclabs/hardhat-etherscan");
+require("@nomiclabs/hardhat-waffle");
+require("hardhat-gas-reporter");
+require("solidity-coverage");
+require("hardhat-deploy");
+
+const RINKEBY_RPC_URL = process.env.RINKEBY_RPC_URL;
+const PRIVATE_KEY = process.env.PRIVATE_KEY;
+const COINMARKETCAP_API_KEY = process.env.COINMARKETCAP_API_KEY;
+const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY;
+
+module.exports = {
+  // solidity: "0.8.8",
+  solidity: {
+    compilers: [{ version: "0.8.8" }, { version: "0.6.6" }],
+  },
+  defaultNetwork: "hardhat",
+  networks: {
+    rinkeby: {
+      url:RINKEBY_RPC_URL,
+      accounts:[PRIVATE_KEY],
+      chainId: 4,
+      blockConfirmations: 6,
+    },
+  },
+  gasReporter: {
+    enabled: false,
+    outputFile: "gas-report.txt",
+    noColors: true,
+    currency: "USD",
+    coinmarketcap:COINMARKEYCAP_API_KEY,
+    toekn: "MATIC",
+  },
+  etherscan: {
+    apiKey: ETHERSCAN_API_KEY,
+  },
+  namedAccounts: {
+    deployer: {
+      default: 0,
+      31337: 1
+    },
+    user: {
+      default: 1,
+    },
+  },
+};
+
+```
+
+이제 다시 `01-deploy-fund-me.js` 로 돌아옵니다.
+
+fundME deploy의 옵션에 waitConfirmation을 추가해줍니다.
+
+```js
+//import
+// main function
+// calling of main function
+
+// function deployFunc(hre) {
+//   console.log("안녕");
+// }
+
+// module.exports.default = deployFunc
+
+const { network } = require("hardhat");
+const { networkConfig, developmentChains, } = requrie("../helper-hardhat-config");
+const { verify } = require("../utils/verify");
+
+module.exports = async ({ getNamedAccounts, deployments }) => {
+  const { deploy, log, get } = deployments;
+  const { deployer } = getNamedAccounts();
+  const chainId = network.config.ChainId;
+
+  let ethUsdPriceFeedAddress;
+  if(deploymentChains.includes(network.name)) {
+    const ethUsdAggregator = await get("MockV3Aggregator");
+    ethUsdPriceFeedAddresss = ethUsdAggregator.address;
+  } else {
+    ethUsdPriceFeedAddress = networkConfig[chainId]["ethUsdPriceFeed"];
+  }
+
+  const args = [ethUsdPriceFeedAddress];
+  const fundMe = deploy("FundMe", {
+    from: deployer,
+    args: args,
+    log: true,
+    waitConfirmations: network.config.blockConfirmations || 1,
+  });
+
+  if(!developmentChains.includes(network.name)) {
+    await verify(fundMe.address, args);
+  }
+}
+```
+
+`waitConfirmations: network.config.blockConfirmations || 1,`
+은 하드햇 컨픽파일에서 블럭컨퍼메이션 숫자를 받아오지 못하면, 블럭 하나(1)를 기다리겠다는 의미입니다.
+
+여기서 6블럭을 기다리는 이유는 이더스캔이 트랜잭션을 인덱싱 하기까지 충분한 시간을 주기 위해서입니다.
+
+이제 .env 파일을 만들어 해당 키들을 다 넣어줍니다.
+
+계약을 배포해봅시다.
+`yarn hardhat deploy --network rinkeby`
+
+정상적으로 실행된다면, 링크비 네트워크에 배포했기 때문에 모의계약을 생성하지 않고 링크비 네트워크 프라이스피드 주소를 받아 환율정보를 얻은 뒤 배포가 완료되면, 이더스캔 API로 계약을 검증할 것입니다.
+
+정말 확실하게 배포하고 싶다면 태그를 이용하면 됩니다.
+`yarn hardhat deploy --network rinkeby --tags fundme`
+
+에러 수정 -> hardhat.config.js blockconfirmation 오타수정, verfiy.js constructorArgs -> constructorArgumnets 오타수정
+
+```bash
+Nothing to compile
+프라이스피드주소0x8A753747A1Fa494EC906cE90E9f37563A8AF630e
+reusing "FundMe" at 0x463e4c05D8165A339bfB94B9A6F2D0Ad57a8E0e0
+배포된 계약 {
+  address: '0x463e4c05D8165A339bfB94B9A6F2D0Ad57a8E0e0',
+  abi: [
+    {
+      inputs: [Array],
+      stateMutability: 'nonpayable',
+      type: 'constructor'
+    },
+    { stateMutability: 'payable', type: 'fallback' },
+    {
+      inputs: [],
+      name: 'MINIMUM_USD',
+      outputs: [Array],
+      stateMutability: 'view',
+      type: 'function'
+    },
+    {
+      inputs: [Array],
+      name: 'addressToAmountFunded',
+      outputs: [Array],
+      stateMutability: 'view',
+      type: 'function'
+    },
+    {
+      inputs: [],
+      name: 'fund',
+      outputs: [],
+      stateMutability: 'payable',
+      type: 'function'
+    },
+    {
+      inputs: [Array],
+      name: 'funders',
+      outputs: [Array],
+      stateMutability: 'view',
+      type: 'function'
+    },
+    {
+      inputs: [],
+      name: 'i_owner',
+      outputs: [Array],
+      stateMutability: 'view',
+      type: 'function'
+    },
+    {
+      inputs: [],
+      name: 'priceFeed',
+      outputs: [Array],
+      stateMutability: 'view',
+      type: 'function'
+    },
+    {
+      inputs: [],
+      name: 'withdraw',
+      outputs: [],
+      stateMutability: 'nonpayable',
+      type: 'function'
+    },
+    { stateMutability: 'payable', type: 'receive' }
+  ],
+  transactionHash: '0x3c230fe2180a79d89c80adb6db2f4dc3524fb577e18196914b2836ca16d6f3ba',
+  receipt: {
+    to: null,
+    from: '0xC2a354ac356d3c4BC00432A4989C5fD7a6c4e199',
+    contractAddress: '0x463e4c05D8165A339bfB94B9A6F2D0Ad57a8E0e0',
+    transactionIndex: 21,
+    gasUsed: '919272',
+    logsBloom: '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
+    blockHash: '0x8e0882ddece681e1ef48aed97746f9d78ace95c77add5ab595f16cf012843d80',
+    transactionHash: '0x3c230fe2180a79d89c80adb6db2f4dc3524fb577e18196914b2836ca16d6f3ba',
+    logs: [],
+    blockNumber: 10867706,
+    cumulativeGasUsed: '12940071',
+    status: 1,
+    byzantium: true
+  },
+  args: [ '0x8A753747A1Fa494EC906cE90E9f37563A8AF630e' ],
+  numDeployments: 1,
+  solcInputHash: '1cdb5b296904958fdbae21c7b8d7e46d',
+  metadata: '{"compiler":{"version":"0.8.8+commit.dddeac2f"},"language":"Solidity","output":{"abi":[{"inputs":[{"internalType":"address","name":"priceFeedAddress","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"stateMutability":"payable","type":"fallback"},{"inputs":[],"name":"MINIMUM_USD","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"addressToAmountFunded","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"fund","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"funders","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"i_owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"priceFeed","outputs":[{"internalType":"contract AggregatorV3Interface","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"withdraw","outputs":[],"stateMutability":"nonpayable","type":"function"},{"stateMutability":"payable","type":"receive"}],"devdoc":{"kind":"dev","methods":{},"version":1},"userdoc":{"kind":"user","methods":{},"version":1}},"settings":{"compilationTarget":{"contracts/FundMe.sol":"FundMe"},"evmVersion":"london","libraries":{},"metadata":{"bytecodeHash":"ipfs","useLiteralContent":true},"optimizer":{"enabled":false,"runs":200},"remappings":[]},"sources":{"@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol":{"content":"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.0;\\n\\ninterface AggregatorV3Interface {\\n  function decimals() external view returns (uint8);\\n\\n  function description() external view returns (string memory);\\n\\n 
+ function version() external view returns (uint256);\\n\\n  // getRoundData and latestRoundData should both raise \\"No data present\\"\\n  // 
+if they do not have data to report, instead of returning unset values\\n  // which could be misinterpreted as actual reported values.\\n  function getRoundData(uint80 _roundId)\\n    external\\n    view\\n    returns (\\n      uint80 roundId,\\n      int256 answer,\\n      uint256 startedAt,\\n      uint256 updatedAt,\\n      uint80 answeredInRound\\n    );\\n\\n  function latestRoundData()\\n    external\\n    view\\n    returns (\\n      uint80 roundId,\\n      int256 answer,\\n      uint256 startedAt,\\n      uint256 updatedAt,\\n      uint80 answeredInRound\\n  
+  );\\n}\\n","keccak256":"0xf2b6c9adb3552254df1445b73563cf014434ff5e78663e9b961b6c059506ceb5","license":"MIT"},"contracts/FundMe.sol":{"content":"// \\uc0ac\\uc6a9\\uc790\\ub85c\\ubd80\\ud130 \\ud380\\ub529\\uae30\\uae08 \\ubc1b\\uc544\\uc624\\uae30\\r\\n// \\uae30\\uae08 \\uc778\\ucd9c\\ud558\\uae30\\r\\n// \\ub2ec\\ub7ec\\ub85c \\ucd5c\\uc18c \\ud380\\ub529 \\uae08\\uc561 \\uc124\\uc815\\ud558\\uae30\\r\\n\\r\\n//SPDX-License-Identifier: MIT\\r\\npragma solidity ^0.8.8;\\r\\n\\r\\nimport \\"@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol\\";\\r\\nimport \\"./PriceConverter.sol\\";\\r\\n\\r\\nerror NotOwner();\\r\\n\\r\\ncontract FundMe {\\r\\n    using PriceConverter for uint256;\\r\\n\\r\\n    uint256 public constant MINIMUM_USD = 50 * 1e18;\\r\\n    // uint256 public number;\\r\\n\\r\\n    address[] public funders;\\r\\n   
+ mapping(address => uint256) public addressToAmountFunded;\\r\\n\\r\\n    address public immutable i_owner;\\r\\n\\r\\n    AggregatorV3Interface public priceFeed;\\r\\n\\r\\n    constructor (address priceFeedAddress){\\r\\n        i_owner = msg.sender;\\r\\n        priceFeed = AggregatorV3Interface(priceFeedAddress);\\r\\n    }\\r\\n\\r\\n    function fund() public payable {\\r\\n        // \\ub2ec\\ub7ec\\ub85c \\ucd5c\\uc18c \\uae08\\uc561\\uc744 \\uc124\\uc815\\ud558\\ub824 \\ud569\\ub2c8\\ub2e4.\\r\\n        // 1. \\uc5b4\\ub5bb\\uac8c \\uc774 \\uacc4\\uc57d\\uc73c\\ub85c ETH\\ub97c \\ubcf4\\ub0bc\\uae4c\\uc694?\\r\\n        // number = 5;\\r\\n        require(msg.value.getConversionRate(priceFeed) >= 
+MINIMUM_USD, unicode\\"\\ucd5c\\uc18c \\ud380\\ub529\\uae08\\uc561\\uc5d0 \\ubbf8\\ub2ec\\ud569\\ub2c8\\ub2e4.\\");\\r\\n        // revert \\ub420 \\uacbd\\uc6b0 \\uc774\\ud6c4 \\uc561\\uc158\\uc5d0\\uc11c \\uc18c\\ubaa8\\ub41c \\uac00\\uc2a4\\ub294 \\ubc18\\ud658\\ub429\\ub2c8\\ub2e4.\\r\\n        funders.push(msg.sender);\\r\\n        addressToAmountFunded[msg.sender] += msg.value;\\r\\n    }\\r\\n\\r\\n    function withdraw() public onlyOwner {\\r\\n        // require(msg.sender == owner, unicode\\"\\ud380\\ub529 \\uc18c\\uc720\\uc790\\ub9cc \\uc778\\ucd9c\\ud560 \\uc218 \\uc788\\uc2b5\\ub2c8\\ub2e4.\\");\\r\\n        // for loop\\r\\n        /* starting index, ending index, step amount*/\\r\\n        for(uint256 funderIndex = 0; funderIndex < funders.length; funderIndex++) {\\r\\n            address funder = funders[funderIndex];\\r\\n       
+     addressToAmountFunded[funder] = 0;\\r\\n        }\\r\\n        // reset the array\\r\\n        funders = new address[](0);\\r\\n        // actually withdraw the funds\\r\\n        (bool callSuccess,/*bytes dataReturned*/) = payable(msg.sender).call{value: address(this).balance}(\\"\\");\\r\\n        require(callSuccess, unicode\\"\\ud638\\ucd9c \\uc2e4\\ud328\\");\\r\\n    }\\r\\n\\r\\n    modifier onlyOwner {\\r\\n     
+   require(msg.sender == i_owner, unicode\\"\\ud380\\ub529 \\uc18c\\uc720\\uc790\\ub9cc \\uc778\\ucd9c\\ud560 \\uc218 \\uc788\\uc2b5\\ub2c8\\ub2e4.\\");\\r\\n        // if(msg.sender != i_owner) { revert NotOwner();}\\r\\n        _;\\r\\n    }\\r\\n\\r\\n    receive() external payable 
+{\\r\\n        fund();\\r\\n    }\\r\\n\\r\\n    fallback() external payable {\\r\\n        fund();\\r\\n    }\\r\\n}","keccak256":"0x43d112768ce1e886dd5051413bfe724d6c33ec4ab64a22139e2953160debc624","license":"MIT"},"contracts/PriceConverter.sol":{"content":"// SPDX-License-Identifier: MIT\\r\\n\\r\\npragma solidity ^0.8.0;\\r\\n\\r\\nimport \\"@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol\\";\\r\\n\\r\\nlibrary PriceConverter {\\r\\n        function getDecimals() internal view returns (uint8) {\\r\\n        AggregatorV3Interface priceFeed = AggregatorV3Interface(0xECe365B379E1dD183B20fc5f022230C044d51404);\\r\\n        return priceFeed.decimals();\\r\\n        // 18 decimals\\r\\n   
+ }\\r\\n\\r\\n    function getPrice(AggregatorV3Interface priceFeed) internal view returns(uint256) {\\r\\n        // ABI\\r\\n        // Address \\r\\n        // AggregatorV3Interface priceFeed = AggregatorV3Interface(0xECe365B379E1dD183B20fc5f022230C044d51404);\\r\\n        // (uint80 roundId, int price, uint startedAt, uint updateAt, uint80 answeredInRound) = priceFeed.latestRoundData();\\r\\n        (, int256 price, , , ) = priceFeed.latestRoundData();\\r\\n        // ETH in term of USD\\r\\n        // 1800.00000000\\r\\n        return uint256(price * 1e10); // 
+* 1 ** 10;\\r\\n    }\\r\\n\\r\\n    function getVersion() internal view returns (uint256) {\\r\\n        AggregatorV3Interface priceFeed = AggregatorV3Interface(0xECe365B379E1dD183B20fc5f022230C044d51404);\\r\\n        return priceFeed.version();\\r\\n    }\\r\\n\\r\\n    function getConversionRate(uint256 ethAmount, AggregatorV3Interface priceFeed) internal view returns(uint256) {\\r\\n        uint256 ethPrice = getPrice(priceFeed);\\r\\n        uint256 ethAmountInUsd = (ethPrice * ethAmount) / 1e18;\\r\\n        // 2999.999999999999999999\\r\\n        return ethAmountInUsd;\\r\\n    }\\r\\n    // function withdraw(){}\\r\\n}","keccak256":"0x2e94b3fc25dba247c8046e7c0b943ac62f15d6985dc684081b6f5696d3404785","license":"MIT"}},"version":1}',
+  bytecode: '0x60a06040523480156200001157600080fd5b50604051620010b9380380620010b9833981810160405281019062000037919062000120565b3373ffffffffffffffffffffffffffffffffffffffff1660808173ffffffffffffffffffffffffffffffffffffffff1660601b8152505080600260006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff1602179055505062000152565b600080fd5b600073ffffffffffffffffffffffffffffffffffffffff82169050919050565b6000620000e882620000bb565b9050919050565b620000fa81620000db565b81146200010657600080fd5b50565b6000815190506200011a81620000ef565b92915050565b600060208284031215620001395762000138620000b6565b5b6000620001498482850162000109565b91505092915050565b60805160601c610f4162000178600039600081816102e6015261057a0152610f416000f3fe6080604052600436106100745760003560e01c8063741bef1a1161004e578063741bef1a1461010c578063b60d428814610137578063dba6335f14610141578063dc0d3dff1461016c57610083565b80633ccfd60b1461008d5780633e47d6f3146100a45780636b69a592146100e157610083565b36610083576100816101a9565b005b61008b6101a9565b005b34801561009957600080fd5b506100a26102e4565b005b3480156100b057600080fd5b506100cb60048036038101906100c691906107c1565b61052d565b6040516100d89190610807565b60405180910390f35b3480156100ed57600080fd5b506100f6610545565b6040516101039190610807565b60405180910390f35b34801561011857600080fd5b50610121610552565b60405161012e9190610881565b60405180910390f35b61013f6101a9565b005b34801561014d57600080fd5b50610156610578565b60405161016391906108ab565b60405180910390f35b34801561017857600080fd5b50610193600480360381019061018e91906108f2565b61059c565b6040516101a091906108ab565b60405180910390f35b6802b5e3af16b18800006101e8600260009054906101000a900473ffffffffffffffffffffffffffffffffffffffff16346105db90919063ffffffff16565b1015610229576040517f08c379a0000000000000000000000000000000000000000000000000000000008152600401610220906109a2565b60405180910390fd5b6000339080600181540180825580915050600190039060005260206000200160009091909190916101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555034600160003373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060008282546102db91906109f1565b92505081905550565b7f000000000000000000000000000000000000000000000000000000000000000073ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614610372576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040161036990610ab9565b60405180910390fd5b60005b60008054905081101561041d57600080828154811061039757610396610ad9565b5b9060005260206000200160009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1690506000600160008373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000208190555050808061041590610b08565b915050610375565b50600067ffffffffffffffff81111561043957610438610b51565b5b6040519080825280602002602001820160405280156104675781602001602082028036833780820191505090505b506000908051906020019061047d9291906106b7565b5060003373ffffffffffffffffffffffffffffffffffffffff16476040516104a490610bb1565b60006040518083038185875af1925050503d80600081146104e1576040519150601f19603f3d011682016040523d82523d6000602084013e6104e6565b606091505b505090508061052a576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040161052190610c12565b60405180910390fd5b50565b60016020528060005260406000206000915090505481565b6802b5e3af16b188000081565b600260009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b7f000000000000000000000000000000000000000000000000000000000000000081565b600081815481106105ac57600080fd5b906000526020600020016000915054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b6000806105e783610617565b90506000670de0b6b3a764000085836106009190610c32565b61060a9190610cbb565b9050809250505092915050565b6000808273ffffffffffffffffffffffffffffffffffffffff1663feaf968c6040518163ffffffff1660e01b815260040160a06040518083038186803b15801561066057600080fd5b505afa158015610674573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906106989190610d79565b5050509150506402540be400816106af9190610df4565b915050919050565b828054828255906000526020600020908101928215610730579160200282015b8281111561072f5782518260006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff160217905550916020019190600101906106d7565b5b50905061073d9190610741565b5090565b5b8082111561075a576000816000905550600101610742565b5090565b600080fd5b600073ffffffffffffffffffffffffffffffffffffffff82169050919050565b600061078e82610763565b9050919050565b61079e81610783565b81146107a957600080fd5b50565b6000813590506107bb81610795565b92915050565b6000602082840312156107d7576107d661075e565b5b60006107e5848285016107ac565b91505092915050565b6000819050919050565b610801816107ee565b82525050565b600060208201905061081c60008301846107f8565b92915050565b6000819050919050565b600061084761084261083d84610763565b610822565b610763565b9050919050565b60006108598261082c565b9050919050565b600061086b8261084e565b9050919050565b61087b81610860565b82525050565b60006020820190506108966000830184610872565b92915050565b6108a581610783565b82525050565b60006020820190506108c0600083018461089c565b92915050565b6108cf816107ee565b81146108da57600080fd5b50565b6000813590506108ec816108c6565b92915050565b6000602082840312156109085761090761075e565b5b6000610916848285016108dd565b91505092915050565b600082825260208201905092915050565b7fecb59cec868c20ed8e80eb94a9eab888ec95a1ec979020ebafb8eb8baced95a960008201527feb8b88eb8ba42e00000000000000000000000000000000000000000000000000602082015250565b600061098c60278361091f565b915061099782610930565b604082019050919050565b600060208201905081810360008301526109bb8161097f565b9050919050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052601160045260246000fd5b60006109fc826107ee565b9150610a07836107ee565b9250827fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff03821115610a3c57610a3b6109c2565b5b828201905092915050565b7fed8e80eb94a920ec868cec9ca0ec9e90eba78c20ec9db8ecb69ced95a020ec8860008201527f9820ec9e88ec8ab5eb8b88eb8ba42e0000000000000000000000000000000000602082015250565b6000610aa3602f8361091f565b9150610aae82610a47565b604082019050919050565b60006020820190508181036000830152610ad281610a96565b9050919050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052603260045260246000fd5b6000610b13826107ee565b91507fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff821415610b4657610b456109c2565b5b600182019050919050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052604160045260246000fd5b600081905092915050565b50565b6000610b9b600083610b80565b9150610ba682610b8b565b600082019050919050565b6000610bbc82610b8e565b9150819050919050565b7fed98b8ecb69c20ec8ba4ed8ca800000000000000000000000000000000000000600082015250565b6000610bfc600d8361091f565b9150610c0782610bc6565b602082019050919050565b60006020820190508181036000830152610c2b81610bef565b9050919050565b6000610c3d826107ee565b9150610c48836107ee565b9250817fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0483118215151615610c8157610c806109c2565b5b828202905092915050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052601260045260246000fd5b6000610cc6826107ee565b9150610cd1836107ee565b925082610ce157610ce0610c8c565b5b828204905092915050565b600069ffffffffffffffffffff82169050919050565b610d0b81610cec565b8114610d1657600080fd5b50565b600081519050610d2881610d02565b92915050565b6000819050919050565b610d4181610d2e565b8114610d4c57600080fd5b50565b600081519050610d5e81610d38565b92915050565b600081519050610d73816108c6565b92915050565b600080600080600060a08688031215610d9557610d9461075e565b5b6000610da388828901610d19565b9550506020610db488828901610d4f565b9450506040610dc588828901610d64565b9350506060610dd688828901610d64565b9250506080610de788828901610d19565b9150509295509295909350565b6000610dff82610d2e565b9150610e0a83610d2e565b9250827f7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0482116000841360008413161615610e4957610e486109c2565b5b817f80000000000000000000000000000000000000000000000000000000000000000583126000841260008413161615610e8657610e856109c2565b5b827f80000000000000000000000000000000000000000000000000000000000000000582126000841360008412161615610ec357610ec26109c2565b5b827f7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0582126000841260008412161615610f0057610eff6109c2565b5b82820290509291505056fea264697066735822122070c7a81cf73e77e810d5e9b0ec6436a6615f63143cc5e2ceddd66baf77a0b89364736f6c63430008080033', 
+  deployedBytecode: '0x6080604052600436106100745760003560e01c8063741bef1a1161004e578063741bef1a1461010c578063b60d428814610137578063dba6335f14610141578063dc0d3dff1461016c57610083565b80633ccfd60b1461008d5780633e47d6f3146100a45780636b69a592146100e157610083565b36610083576100816101a9565b005b61008b6101a9565b005b34801561009957600080fd5b506100a26102e4565b005b3480156100b057600080fd5b506100cb60048036038101906100c691906107c1565b61052d565b6040516100d89190610807565b60405180910390f35b3480156100ed57600080fd5b506100f6610545565b6040516101039190610807565b60405180910390f35b34801561011857600080fd5b50610121610552565b60405161012e9190610881565b60405180910390f35b61013f6101a9565b005b34801561014d57600080fd5b50610156610578565b60405161016391906108ab565b60405180910390f35b34801561017857600080fd5b50610193600480360381019061018e91906108f2565b61059c565b6040516101a091906108ab565b60405180910390f35b6802b5e3af16b18800006101e8600260009054906101000a900473ffffffffffffffffffffffffffffffffffffffff16346105db90919063ffffffff16565b1015610229576040517f08c379a0000000000000000000000000000000000000000000000000000000008152600401610220906109a2565b60405180910390fd5b6000339080600181540180825580915050600190039060005260206000200160009091909190916101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555034600160003373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060008282546102db91906109f1565b92505081905550565b7f000000000000000000000000000000000000000000000000000000000000000073ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614610372576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040161036990610ab9565b60405180910390fd5b60005b60008054905081101561041d57600080828154811061039757610396610ad9565b5b9060005260206000200160009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1690506000600160008373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000208190555050808061041590610b08565b915050610375565b50600067ffffffffffffffff81111561043957610438610b51565b5b6040519080825280602002602001820160405280156104675781602001602082028036833780820191505090505b506000908051906020019061047d9291906106b7565b5060003373ffffffffffffffffffffffffffffffffffffffff16476040516104a490610bb1565b60006040518083038185875af1925050503d80600081146104e1576040519150601f19603f3d011682016040523d82523d6000602084013e6104e6565b606091505b505090508061052a576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040161052190610c12565b60405180910390fd5b50565b60016020528060005260406000206000915090505481565b6802b5e3af16b188000081565b600260009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b7f000000000000000000000000000000000000000000000000000000000000000081565b600081815481106105ac57600080fd5b906000526020600020016000915054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b6000806105e783610617565b90506000670de0b6b3a764000085836106009190610c32565b61060a9190610cbb565b9050809250505092915050565b6000808273ffffffffffffffffffffffffffffffffffffffff1663feaf968c6040518163ffffffff1660e01b815260040160a06040518083038186803b15801561066057600080fd5b505afa158015610674573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906106989190610d79565b5050509150506402540be400816106af9190610df4565b915050919050565b828054828255906000526020600020908101928215610730579160200282015b8281111561072f5782518260006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff160217905550916020019190600101906106d7565b5b50905061073d9190610741565b5090565b5b8082111561075a576000816000905550600101610742565b5090565b600080fd5b600073ffffffffffffffffffffffffffffffffffffffff82169050919050565b600061078e82610763565b9050919050565b61079e81610783565b81146107a957600080fd5b50565b6000813590506107bb81610795565b92915050565b6000602082840312156107d7576107d661075e565b5b60006107e5848285016107ac565b91505092915050565b6000819050919050565b610801816107ee565b82525050565b600060208201905061081c60008301846107f8565b92915050565b6000819050919050565b600061084761084261083d84610763565b610822565b610763565b9050919050565b60006108598261082c565b9050919050565b600061086b8261084e565b9050919050565b61087b81610860565b82525050565b60006020820190506108966000830184610872565b92915050565b6108a581610783565b82525050565b60006020820190506108c0600083018461089c565b92915050565b6108cf816107ee565b81146108da57600080fd5b50565b6000813590506108ec816108c6565b92915050565b6000602082840312156109085761090761075e565b5b6000610916848285016108dd565b91505092915050565b600082825260208201905092915050565b7fecb59cec868c20ed8e80eb94a9eab888ec95a1ec979020ebafb8eb8baced95a960008201527feb8b88eb8ba42e00000000000000000000000000000000000000000000000000602082015250565b600061098c60278361091f565b915061099782610930565b604082019050919050565b600060208201905081810360008301526109bb8161097f565b9050919050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052601160045260246000fd5b60006109fc826107ee565b9150610a07836107ee565b9250827fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff03821115610a3c57610a3b6109c2565b5b828201905092915050565b7fed8e80eb94a920ec868cec9ca0ec9e90eba78c20ec9db8ecb69ced95a020ec8860008201527f9820ec9e88ec8ab5eb8b88eb8ba42e0000000000000000000000000000000000602082015250565b6000610aa3602f8361091f565b9150610aae82610a47565b604082019050919050565b60006020820190508181036000830152610ad281610a96565b9050919050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052603260045260246000fd5b6000610b13826107ee565b91507fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff821415610b4657610b456109c2565b5b600182019050919050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052604160045260246000fd5b600081905092915050565b50565b6000610b9b600083610b80565b9150610ba682610b8b565b600082019050919050565b6000610bbc82610b8e565b9150819050919050565b7fed98b8ecb69c20ec8ba4ed8ca800000000000000000000000000000000000000600082015250565b6000610bfc600d8361091f565b9150610c0782610bc6565b602082019050919050565b60006020820190508181036000830152610c2b81610bef565b9050919050565b6000610c3d826107ee565b9150610c48836107ee565b9250817fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0483118215151615610c8157610c806109c2565b5b828202905092915050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052601260045260246000fd5b6000610cc6826107ee565b9150610cd1836107ee565b925082610ce157610ce0610c8c565b5b828204905092915050565b600069ffffffffffffffffffff82169050919050565b610d0b81610cec565b8114610d1657600080fd5b50565b600081519050610d2881610d02565b92915050565b6000819050919050565b610d4181610d2e565b8114610d4c57600080fd5b50565b600081519050610d5e81610d38565b92915050565b600081519050610d73816108c6565b92915050565b600080600080600060a08688031215610d9557610d9461075e565b5b6000610da388828901610d19565b9550506020610db488828901610d4f565b9450506040610dc588828901610d64565b9350506060610dd688828901610d64565b9250506080610de788828901610d19565b9150509295509295909350565b6000610dff82610d2e565b9150610e0a83610d2e565b9250827f7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0482116000841360008413161615610e4957610e486109c2565b5b817f80000000000000000000000000000000000000000000000000000000000000000583126000841260008413161615610e8657610e856109c2565b5b827f80000000000000000000000000000000000000000000000000000000000000000582126000841360008412161615610ec357610ec26109c2565b5b827f7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0582126000841260008412161615610f0057610eff6109c2565b5b82820290509291505056fea264697066735822122070c7a81cf73e77e810d5e9b0ec6436a6615f63143cc5e2ceddd66baf77a0b89364736f6c63430008080033',
+  devdoc: { kind: 'dev', methods: {}, version: 1 },
+  userdoc: { kind: 'user', methods: {}, version: 1 },
+  storageLayout: {
+    storage: [ [Object], [Object], [Object] ],
+    types: {
+      t_address: [Object],
+      't_array(t_address)dyn_storage': [Object],
+      't_contract(AggregatorV3Interface)45': [Object],
+      't_mapping(t_address,t_uint256)': [Object],
+      t_uint256: [Object]
+    }
+  },
+  newlyDeployed: false
+}
+계약 검증을 진행하고 있습니다...
+Nothing to compile
+에러발생!에러발생! NomicLabsHardhatPluginError: The constructor for contracts/FundMe.sol:FundMe has 1 parameters
+but 0 arguments were provided instead.
+    at encodeArguments (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\node_modules\@nomiclabs\hardhat-etherscan\src\ABIEncoder.ts:29:13)       
+    at SimpleTaskDefinition.verifySubtask [as action] (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\node_modules\@nomiclabs\hardhat-etherscan\src\index.ts:283:34)
+    at Environment._runTaskDefinition (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\node_modules\hardhat\src\internal\core\runtime-environment.ts:219:14)
+    at Environment.run (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\node_modules\hardhat\src\internal\core\runtime-environment.ts:131:14)    
+    at verify (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\utils\verify.js:6:9)
+    at Object.module.exports [as func] (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\deploy\01-deploy-fund-me.js:51:5)
+    at DeploymentsManager.executeDeployScripts (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\node_modules\hardhat-deploy\src\DeploymentsManager.ts:1219:22)
+    at DeploymentsManager.runDeploy (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\node_modules\hardhat-deploy\src\DeploymentsManager.ts:1052:5)
+    at SimpleTaskDefinition.action (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\node_modules\hardhat-deploy\src\index.ts:438:5)
+    at Environment._runTaskDefinition (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\node_modules\hardhat\src\internal\core\runtime-environment.ts:219:14)
+
+    Caused by: Error: types/values length mismatch (count={"types":1,"values":0}, value={"types":[{"name":"priceFeedAddress","type":"address","indexed":null,"components":null,"arrayLength":null,"arrayChildren":null,"baseType":"address","_isParamType":true}],"values":[]}, code=INVALID_ARGUMENT, version=abi/5.6.3)
+        at Logger.makeError (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\node_modules\@ethersproject\logger\src.ts\index.ts:261:28)
+        at Logger.throwError (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\node_modules\@ethersproject\logger\src.ts\index.ts:273:20)
+        at AbiCoder.encode (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\node_modules\@ethersproject\abi\src.ts\abi-coder.ts:101:20)
+        at Interface._encodeParams (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\node_modules\@ethersproject\abi\src.ts\interface.ts:323:31)  
+        at Interface.encodeDeploy (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\node_modules\@ethersproject\abi\src.ts\interface.ts:327:21)   
+        at encodeArguments (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\node_modules\@nomiclabs\hardhat-etherscan\src\ABIEncoder.ts:22:8)    
+        at SimpleTaskDefinition.verifySubtask [as action] (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\node_modules\@nomiclabs\hardhat-etherscan\src\index.ts:283:34)
+        at Environment._runTaskDefinition (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\node_modules\hardhat\src\internal\core\runtime-environment.ts:219:14)
+        at Environment.run (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\node_modules\hardhat\src\internal\core\runtime-environment.ts:131:14)        at verify (C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\utils\verify.js:6:9)
+---------------------------------------------------------------
+Done in 4.99s.
+
+```
+
+```bash
+yarn run v1.22.15
+warning package.json: No license field
+$ C:\Users\ESO\Desktop\Dev\web3\hardhat-fund-me\node_modules\.bin\hardhat deploy --network rinkeby
+Nothing to compile
+프라이스피드주소0x8A753747A1Fa494EC906cE90E9f37563A8AF630e
+reusing "FundMe" at 0x463e4c05D8165A339bfB94B9A6F2D0Ad57a8E0e0
+배포된 계약 {
+  address: '0x463e4c05D8165A339bfB94B9A6F2D0Ad57a8E0e0',
+  abi: [
+    {
+      inputs: [Array],
+      stateMutability: 'nonpayable',
+      type: 'constructor'
+    },
+    { stateMutability: 'payable', type: 'fallback' },
+    {
+      inputs: [],
+      name: 'MINIMUM_USD',
+      outputs: [Array],
+      stateMutability: 'view',
+      type: 'function'
+    },
+    {
+      inputs: [Array],
+      name: 'addressToAmountFunded',
+      outputs: [Array],
+      stateMutability: 'view',
+      type: 'function'
+    },
+    {
+      inputs: [],
+      name: 'fund',
+      outputs: [],
+      stateMutability: 'payable',
+      type: 'function'
+    },
+    {
+      inputs: [Array],
+      name: 'funders',
+      outputs: [Array],
+      stateMutability: 'view',
+      type: 'function'
+    },
+    {
+      inputs: [],
+      name: 'i_owner',
+      outputs: [Array],
+      stateMutability: 'view',
+      type: 'function'
+    },
+    {
+      inputs: [],
+      name: 'priceFeed',
+      outputs: [Array],
+      stateMutability: 'view',
+      type: 'function'
+    },
+    {
+      inputs: [],
+      name: 'withdraw',
+      outputs: [],
+      stateMutability: 'nonpayable',
+      type: 'function'
+    },
+    { stateMutability: 'payable', type: 'receive' }
+  ],
+  transactionHash: '0x3c230fe2180a79d89c80adb6db2f4dc3524fb577e18196914b2836ca16d6f3ba',
+  receipt: {
+    to: null,
+    from: '0xC2a354ac356d3c4BC00432A4989C5fD7a6c4e199',
+    contractAddress: '0x463e4c05D8165A339bfB94B9A6F2D0Ad57a8E0e0',
+    transactionIndex: 21,
+    gasUsed: '919272',
+    logsBloom: '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
+    blockHash: '0x8e0882ddece681e1ef48aed97746f9d78ace95c77add5ab595f16cf012843d80',
+    transactionHash: '0x3c230fe2180a79d89c80adb6db2f4dc3524fb577e18196914b2836ca16d6f3ba',
+    logs: [],
+    blockNumber: 10867706,
+    cumulativeGasUsed: '12940071',
+    status: 1,
+    byzantium: true
+  },
+  args: [ '0x8A753747A1Fa494EC906cE90E9f37563A8AF630e' ],
+  numDeployments: 1,
+  solcInputHash: '1cdb5b296904958fdbae21c7b8d7e46d',
+  metadata: '{"compiler":{"version":"0.8.8+commit.dddeac2f"},"language":"Solidity","output":{"abi":[{"inputs":[{"internalType":"address","name":"priceFeedAddress","type":"address"}],"stateMutability":"nonpayable","type":"constructor"},{"stateMutability":"payable","type":"fallback"},{"inputs":[],"name":"MINIMUM_USD","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"address","name":"","type":"address"}],"name":"addressToAmountFunded","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"fund","outputs":[],"stateMutability":"payable","type":"function"},{"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"funders","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"i_owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"priceFeed","outputs":[{"internalType":"contract AggregatorV3Interface","name":"","type":"address"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"withdraw","outputs":[],"stateMutability":"nonpayable","type":"function"},{"stateMutability":"payable","type":"receive"}],"devdoc":{"kind":"dev","methods":{},"version":1},"userdoc":{"kind":"user","methods":{},"version":1}},"settings":{"compilationTarget":{"contracts/FundMe.sol":"FundMe"},"evmVersion":"london","libraries":{},"metadata":{"bytecodeHash":"ipfs","useLiteralContent":true},"optimizer":{"enabled":false,"runs":200},"remappings":[]},"sources":{"@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol":{"content":"// SPDX-License-Identifier: MIT\\npragma solidity ^0.8.0;\\n\\ninterface AggregatorV3Interface {\\n  function decimals() external view returns (uint8);\\n\\n  function description() external view returns (string memory);\\n\\n 
+ function version() external view returns (uint256);\\n\\n  // getRoundData and latestRoundData should both raise \\"No data present\\"\\n  // 
+if they do not have data to report, instead of returning unset values\\n  // which could be misinterpreted as actual reported values.\\n  function getRoundData(uint80 _roundId)\\n    external\\n    view\\n    returns (\\n      uint80 roundId,\\n      int256 answer,\\n      uint256 startedAt,\\n      uint256 updatedAt,\\n      uint80 answeredInRound\\n    );\\n\\n  function latestRoundData()\\n    external\\n    view\\n    returns (\\n      uint80 roundId,\\n      int256 answer,\\n      uint256 startedAt,\\n      uint256 updatedAt,\\n      uint80 answeredInRound\\n  
+  );\\n}\\n","keccak256":"0xf2b6c9adb3552254df1445b73563cf014434ff5e78663e9b961b6c059506ceb5","license":"MIT"},"contracts/FundMe.sol":{"content":"// \\uc0ac\\uc6a9\\uc790\\ub85c\\ubd80\\ud130 \\ud380\\ub529\\uae30\\uae08 \\ubc1b\\uc544\\uc624\\uae30\\r\\n// \\uae30\\uae08 \\uc778\\ucd9c\\ud558\\uae30\\r\\n// \\ub2ec\\ub7ec\\ub85c \\ucd5c\\uc18c \\ud380\\ub529 \\uae08\\uc561 \\uc124\\uc815\\ud558\\uae30\\r\\n\\r\\n//SPDX-License-Identifier: MIT\\r\\npragma solidity ^0.8.8;\\r\\n\\r\\nimport \\"@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol\\";\\r\\nimport \\"./PriceConverter.sol\\";\\r\\n\\r\\nerror NotOwner();\\r\\n\\r\\ncontract FundMe {\\r\\n    using PriceConverter for uint256;\\r\\n\\r\\n    uint256 public constant MINIMUM_USD = 50 * 1e18;\\r\\n    // uint256 public number;\\r\\n\\r\\n    address[] public funders;\\r\\n   
+ mapping(address => uint256) public addressToAmountFunded;\\r\\n\\r\\n    address public immutable i_owner;\\r\\n\\r\\n    AggregatorV3Interface public priceFeed;\\r\\n\\r\\n    constructor (address priceFeedAddress){\\r\\n        i_owner = msg.sender;\\r\\n        priceFeed = AggregatorV3Interface(priceFeedAddress);\\r\\n    }\\r\\n\\r\\n    function fund() public payable {\\r\\n        // \\ub2ec\\ub7ec\\ub85c \\ucd5c\\uc18c \\uae08\\uc561\\uc744 \\uc124\\uc815\\ud558\\ub824 \\ud569\\ub2c8\\ub2e4.\\r\\n        // 1. \\uc5b4\\ub5bb\\uac8c \\uc774 \\uacc4\\uc57d\\uc73c\\ub85c ETH\\ub97c \\ubcf4\\ub0bc\\uae4c\\uc694?\\r\\n        // number = 5;\\r\\n        require(msg.value.getConversionRate(priceFeed) >= 
+MINIMUM_USD, unicode\\"\\ucd5c\\uc18c \\ud380\\ub529\\uae08\\uc561\\uc5d0 \\ubbf8\\ub2ec\\ud569\\ub2c8\\ub2e4.\\");\\r\\n        // revert \\ub420 \\uacbd\\uc6b0 \\uc774\\ud6c4 \\uc561\\uc158\\uc5d0\\uc11c \\uc18c\\ubaa8\\ub41c \\uac00\\uc2a4\\ub294 \\ubc18\\ud658\\ub429\\ub2c8\\ub2e4.\\r\\n        funders.push(msg.sender);\\r\\n        addressToAmountFunded[msg.sender] += msg.value;\\r\\n    }\\r\\n\\r\\n    function withdraw() public onlyOwner {\\r\\n        // require(msg.sender == owner, unicode\\"\\ud380\\ub529 \\uc18c\\uc720\\uc790\\ub9cc \\uc778\\ucd9c\\ud560 \\uc218 \\uc788\\uc2b5\\ub2c8\\ub2e4.\\");\\r\\n        // for loop\\r\\n        /* starting index, ending index, step amount*/\\r\\n        for(uint256 funderIndex = 0; funderIndex < funders.length; funderIndex++) {\\r\\n            address funder = funders[funderIndex];\\r\\n       
+     addressToAmountFunded[funder] = 0;\\r\\n        }\\r\\n        // reset the array\\r\\n        funders = new address[](0);\\r\\n        // actually withdraw the funds\\r\\n        (bool callSuccess,/*bytes dataReturned*/) = payable(msg.sender).call{value: address(this).balance}(\\"\\");\\r\\n        require(callSuccess, unicode\\"\\ud638\\ucd9c \\uc2e4\\ud328\\");\\r\\n    }\\r\\n\\r\\n    modifier onlyOwner {\\r\\n     
+   require(msg.sender == i_owner, unicode\\"\\ud380\\ub529 \\uc18c\\uc720\\uc790\\ub9cc \\uc778\\ucd9c\\ud560 \\uc218 \\uc788\\uc2b5\\ub2c8\\ub2e4.\\");\\r\\n        // if(msg.sender != i_owner) { revert NotOwner();}\\r\\n        _;\\r\\n    }\\r\\n\\r\\n    receive() external payable 
+{\\r\\n        fund();\\r\\n    }\\r\\n\\r\\n    fallback() external payable {\\r\\n        fund();\\r\\n    }\\r\\n}","keccak256":"0x43d112768ce1e886dd5051413bfe724d6c33ec4ab64a22139e2953160debc624","license":"MIT"},"contracts/PriceConverter.sol":{"content":"// SPDX-License-Identifier: MIT\\r\\n\\r\\npragma solidity ^0.8.0;\\r\\n\\r\\nimport \\"@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol\\";\\r\\n\\r\\nlibrary PriceConverter {\\r\\n        function getDecimals() internal view returns (uint8) {\\r\\n        AggregatorV3Interface priceFeed = AggregatorV3Interface(0xECe365B379E1dD183B20fc5f022230C044d51404);\\r\\n        return priceFeed.decimals();\\r\\n        // 18 decimals\\r\\n   
+ }\\r\\n\\r\\n    function getPrice(AggregatorV3Interface priceFeed) internal view returns(uint256) {\\r\\n        // ABI\\r\\n        // Address \\r\\n        // AggregatorV3Interface priceFeed = AggregatorV3Interface(0xECe365B379E1dD183B20fc5f022230C044d51404);\\r\\n        // (uint80 roundId, int price, uint startedAt, uint updateAt, uint80 answeredInRound) = priceFeed.latestRoundData();\\r\\n        (, int256 price, , , ) = priceFeed.latestRoundData();\\r\\n        // ETH in term of USD\\r\\n        // 1800.00000000\\r\\n        return uint256(price * 1e10); // 
+* 1 ** 10;\\r\\n    }\\r\\n\\r\\n    function getVersion() internal view returns (uint256) {\\r\\n        AggregatorV3Interface priceFeed = AggregatorV3Interface(0xECe365B379E1dD183B20fc5f022230C044d51404);\\r\\n        return priceFeed.version();\\r\\n    }\\r\\n\\r\\n    function getConversionRate(uint256 ethAmount, AggregatorV3Interface priceFeed) internal view returns(uint256) {\\r\\n        uint256 ethPrice = getPrice(priceFeed);\\r\\n        uint256 ethAmountInUsd = (ethPrice * ethAmount) / 1e18;\\r\\n        // 2999.999999999999999999\\r\\n        return ethAmountInUsd;\\r\\n    }\\r\\n    // function withdraw(){}\\r\\n}","keccak256":"0x2e94b3fc25dba247c8046e7c0b943ac62f15d6985dc684081b6f5696d3404785","license":"MIT"}},"version":1}',
+  bytecode: '0x60a06040523480156200001157600080fd5b50604051620010b9380380620010b9833981810160405281019062000037919062000120565b3373ffffffffffffffffffffffffffffffffffffffff1660808173ffffffffffffffffffffffffffffffffffffffff1660601b8152505080600260006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff1602179055505062000152565b600080fd5b600073ffffffffffffffffffffffffffffffffffffffff82169050919050565b6000620000e882620000bb565b9050919050565b620000fa81620000db565b81146200010657600080fd5b50565b6000815190506200011a81620000ef565b92915050565b600060208284031215620001395762000138620000b6565b5b6000620001498482850162000109565b91505092915050565b60805160601c610f4162000178600039600081816102e6015261057a0152610f416000f3fe6080604052600436106100745760003560e01c8063741bef1a1161004e578063741bef1a1461010c578063b60d428814610137578063dba6335f14610141578063dc0d3dff1461016c57610083565b80633ccfd60b1461008d5780633e47d6f3146100a45780636b69a592146100e157610083565b36610083576100816101a9565b005b61008b6101a9565b005b34801561009957600080fd5b506100a26102e4565b005b3480156100b057600080fd5b506100cb60048036038101906100c691906107c1565b61052d565b6040516100d89190610807565b60405180910390f35b3480156100ed57600080fd5b506100f6610545565b6040516101039190610807565b60405180910390f35b34801561011857600080fd5b50610121610552565b60405161012e9190610881565b60405180910390f35b61013f6101a9565b005b34801561014d57600080fd5b50610156610578565b60405161016391906108ab565b60405180910390f35b34801561017857600080fd5b50610193600480360381019061018e91906108f2565b61059c565b6040516101a091906108ab565b60405180910390f35b6802b5e3af16b18800006101e8600260009054906101000a900473ffffffffffffffffffffffffffffffffffffffff16346105db90919063ffffffff16565b1015610229576040517f08c379a0000000000000000000000000000000000000000000000000000000008152600401610220906109a2565b60405180910390fd5b6000339080600181540180825580915050600190039060005260206000200160009091909190916101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555034600160003373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060008282546102db91906109f1565b92505081905550565b7f000000000000000000000000000000000000000000000000000000000000000073ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614610372576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040161036990610ab9565b60405180910390fd5b60005b60008054905081101561041d57600080828154811061039757610396610ad9565b5b9060005260206000200160009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1690506000600160008373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000208190555050808061041590610b08565b915050610375565b50600067ffffffffffffffff81111561043957610438610b51565b5b6040519080825280602002602001820160405280156104675781602001602082028036833780820191505090505b506000908051906020019061047d9291906106b7565b5060003373ffffffffffffffffffffffffffffffffffffffff16476040516104a490610bb1565b60006040518083038185875af1925050503d80600081146104e1576040519150601f19603f3d011682016040523d82523d6000602084013e6104e6565b606091505b505090508061052a576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040161052190610c12565b60405180910390fd5b50565b60016020528060005260406000206000915090505481565b6802b5e3af16b188000081565b600260009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b7f000000000000000000000000000000000000000000000000000000000000000081565b600081815481106105ac57600080fd5b906000526020600020016000915054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b6000806105e783610617565b90506000670de0b6b3a764000085836106009190610c32565b61060a9190610cbb565b9050809250505092915050565b6000808273ffffffffffffffffffffffffffffffffffffffff1663feaf968c6040518163ffffffff1660e01b815260040160a06040518083038186803b15801561066057600080fd5b505afa158015610674573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906106989190610d79565b5050509150506402540be400816106af9190610df4565b915050919050565b828054828255906000526020600020908101928215610730579160200282015b8281111561072f5782518260006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff160217905550916020019190600101906106d7565b5b50905061073d9190610741565b5090565b5b8082111561075a576000816000905550600101610742565b5090565b600080fd5b600073ffffffffffffffffffffffffffffffffffffffff82169050919050565b600061078e82610763565b9050919050565b61079e81610783565b81146107a957600080fd5b50565b6000813590506107bb81610795565b92915050565b6000602082840312156107d7576107d661075e565b5b60006107e5848285016107ac565b91505092915050565b6000819050919050565b610801816107ee565b82525050565b600060208201905061081c60008301846107f8565b92915050565b6000819050919050565b600061084761084261083d84610763565b610822565b610763565b9050919050565b60006108598261082c565b9050919050565b600061086b8261084e565b9050919050565b61087b81610860565b82525050565b60006020820190506108966000830184610872565b92915050565b6108a581610783565b82525050565b60006020820190506108c0600083018461089c565b92915050565b6108cf816107ee565b81146108da57600080fd5b50565b6000813590506108ec816108c6565b92915050565b6000602082840312156109085761090761075e565b5b6000610916848285016108dd565b91505092915050565b600082825260208201905092915050565b7fecb59cec868c20ed8e80eb94a9eab888ec95a1ec979020ebafb8eb8baced95a960008201527feb8b88eb8ba42e00000000000000000000000000000000000000000000000000602082015250565b600061098c60278361091f565b915061099782610930565b604082019050919050565b600060208201905081810360008301526109bb8161097f565b9050919050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052601160045260246000fd5b60006109fc826107ee565b9150610a07836107ee565b9250827fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff03821115610a3c57610a3b6109c2565b5b828201905092915050565b7fed8e80eb94a920ec868cec9ca0ec9e90eba78c20ec9db8ecb69ced95a020ec8860008201527f9820ec9e88ec8ab5eb8b88eb8ba42e0000000000000000000000000000000000602082015250565b6000610aa3602f8361091f565b9150610aae82610a47565b604082019050919050565b60006020820190508181036000830152610ad281610a96565b9050919050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052603260045260246000fd5b6000610b13826107ee565b91507fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff821415610b4657610b456109c2565b5b600182019050919050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052604160045260246000fd5b600081905092915050565b50565b6000610b9b600083610b80565b9150610ba682610b8b565b600082019050919050565b6000610bbc82610b8e565b9150819050919050565b7fed98b8ecb69c20ec8ba4ed8ca800000000000000000000000000000000000000600082015250565b6000610bfc600d8361091f565b9150610c0782610bc6565b602082019050919050565b60006020820190508181036000830152610c2b81610bef565b9050919050565b6000610c3d826107ee565b9150610c48836107ee565b9250817fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0483118215151615610c8157610c806109c2565b5b828202905092915050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052601260045260246000fd5b6000610cc6826107ee565b9150610cd1836107ee565b925082610ce157610ce0610c8c565b5b828204905092915050565b600069ffffffffffffffffffff82169050919050565b610d0b81610cec565b8114610d1657600080fd5b50565b600081519050610d2881610d02565b92915050565b6000819050919050565b610d4181610d2e565b8114610d4c57600080fd5b50565b600081519050610d5e81610d38565b92915050565b600081519050610d73816108c6565b92915050565b600080600080600060a08688031215610d9557610d9461075e565b5b6000610da388828901610d19565b9550506020610db488828901610d4f565b9450506040610dc588828901610d64565b9350506060610dd688828901610d64565b9250506080610de788828901610d19565b9150509295509295909350565b6000610dff82610d2e565b9150610e0a83610d2e565b9250827f7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0482116000841360008413161615610e4957610e486109c2565b5b817f80000000000000000000000000000000000000000000000000000000000000000583126000841260008413161615610e8657610e856109c2565b5b827f80000000000000000000000000000000000000000000000000000000000000000582126000841360008412161615610ec357610ec26109c2565b5b827f7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0582126000841260008412161615610f0057610eff6109c2565b5b82820290509291505056fea264697066735822122070c7a81cf73e77e810d5e9b0ec6436a6615f63143cc5e2ceddd66baf77a0b89364736f6c63430008080033', 
+  deployedBytecode: '0x6080604052600436106100745760003560e01c8063741bef1a1161004e578063741bef1a1461010c578063b60d428814610137578063dba6335f14610141578063dc0d3dff1461016c57610083565b80633ccfd60b1461008d5780633e47d6f3146100a45780636b69a592146100e157610083565b36610083576100816101a9565b005b61008b6101a9565b005b34801561009957600080fd5b506100a26102e4565b005b3480156100b057600080fd5b506100cb60048036038101906100c691906107c1565b61052d565b6040516100d89190610807565b60405180910390f35b3480156100ed57600080fd5b506100f6610545565b6040516101039190610807565b60405180910390f35b34801561011857600080fd5b50610121610552565b60405161012e9190610881565b60405180910390f35b61013f6101a9565b005b34801561014d57600080fd5b50610156610578565b60405161016391906108ab565b60405180910390f35b34801561017857600080fd5b50610193600480360381019061018e91906108f2565b61059c565b6040516101a091906108ab565b60405180910390f35b6802b5e3af16b18800006101e8600260009054906101000a900473ffffffffffffffffffffffffffffffffffffffff16346105db90919063ffffffff16565b1015610229576040517f08c379a0000000000000000000000000000000000000000000000000000000008152600401610220906109a2565b60405180910390fd5b6000339080600181540180825580915050600190039060005260206000200160009091909190916101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555034600160003373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060008282546102db91906109f1565b92505081905550565b7f000000000000000000000000000000000000000000000000000000000000000073ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614610372576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040161036990610ab9565b60405180910390fd5b60005b60008054905081101561041d57600080828154811061039757610396610ad9565b5b9060005260206000200160009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1690506000600160008373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000208190555050808061041590610b08565b915050610375565b50600067ffffffffffffffff81111561043957610438610b51565b5b6040519080825280602002602001820160405280156104675781602001602082028036833780820191505090505b506000908051906020019061047d9291906106b7565b5060003373ffffffffffffffffffffffffffffffffffffffff16476040516104a490610bb1565b60006040518083038185875af1925050503d80600081146104e1576040519150601f19603f3d011682016040523d82523d6000602084013e6104e6565b606091505b505090508061052a576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040161052190610c12565b60405180910390fd5b50565b60016020528060005260406000206000915090505481565b6802b5e3af16b188000081565b600260009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b7f000000000000000000000000000000000000000000000000000000000000000081565b600081815481106105ac57600080fd5b906000526020600020016000915054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b6000806105e783610617565b90506000670de0b6b3a764000085836106009190610c32565b61060a9190610cbb565b9050809250505092915050565b6000808273ffffffffffffffffffffffffffffffffffffffff1663feaf968c6040518163ffffffff1660e01b815260040160a06040518083038186803b15801561066057600080fd5b505afa158015610674573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906106989190610d79565b5050509150506402540be400816106af9190610df4565b915050919050565b828054828255906000526020600020908101928215610730579160200282015b8281111561072f5782518260006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff160217905550916020019190600101906106d7565b5b50905061073d9190610741565b5090565b5b8082111561075a576000816000905550600101610742565b5090565b600080fd5b600073ffffffffffffffffffffffffffffffffffffffff82169050919050565b600061078e82610763565b9050919050565b61079e81610783565b81146107a957600080fd5b50565b6000813590506107bb81610795565b92915050565b6000602082840312156107d7576107d661075e565b5b60006107e5848285016107ac565b91505092915050565b6000819050919050565b610801816107ee565b82525050565b600060208201905061081c60008301846107f8565b92915050565b6000819050919050565b600061084761084261083d84610763565b610822565b610763565b9050919050565b60006108598261082c565b9050919050565b600061086b8261084e565b9050919050565b61087b81610860565b82525050565b60006020820190506108966000830184610872565b92915050565b6108a581610783565b82525050565b60006020820190506108c0600083018461089c565b92915050565b6108cf816107ee565b81146108da57600080fd5b50565b6000813590506108ec816108c6565b92915050565b6000602082840312156109085761090761075e565b5b6000610916848285016108dd565b91505092915050565b600082825260208201905092915050565b7fecb59cec868c20ed8e80eb94a9eab888ec95a1ec979020ebafb8eb8baced95a960008201527feb8b88eb8ba42e00000000000000000000000000000000000000000000000000602082015250565b600061098c60278361091f565b915061099782610930565b604082019050919050565b600060208201905081810360008301526109bb8161097f565b9050919050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052601160045260246000fd5b60006109fc826107ee565b9150610a07836107ee565b9250827fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff03821115610a3c57610a3b6109c2565b5b828201905092915050565b7fed8e80eb94a920ec868cec9ca0ec9e90eba78c20ec9db8ecb69ced95a020ec8860008201527f9820ec9e88ec8ab5eb8b88eb8ba42e0000000000000000000000000000000000602082015250565b6000610aa3602f8361091f565b9150610aae82610a47565b604082019050919050565b60006020820190508181036000830152610ad281610a96565b9050919050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052603260045260246000fd5b6000610b13826107ee565b91507fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff821415610b4657610b456109c2565b5b600182019050919050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052604160045260246000fd5b600081905092915050565b50565b6000610b9b600083610b80565b9150610ba682610b8b565b600082019050919050565b6000610bbc82610b8e565b9150819050919050565b7fed98b8ecb69c20ec8ba4ed8ca800000000000000000000000000000000000000600082015250565b6000610bfc600d8361091f565b9150610c0782610bc6565b602082019050919050565b60006020820190508181036000830152610c2b81610bef565b9050919050565b6000610c3d826107ee565b9150610c48836107ee565b9250817fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0483118215151615610c8157610c806109c2565b5b828202905092915050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052601260045260246000fd5b6000610cc6826107ee565b9150610cd1836107ee565b925082610ce157610ce0610c8c565b5b828204905092915050565b600069ffffffffffffffffffff82169050919050565b610d0b81610cec565b8114610d1657600080fd5b50565b600081519050610d2881610d02565b92915050565b6000819050919050565b610d4181610d2e565b8114610d4c57600080fd5b50565b600081519050610d5e81610d38565b92915050565b600081519050610d73816108c6565b92915050565b600080600080600060a08688031215610d9557610d9461075e565b5b6000610da388828901610d19565b9550506020610db488828901610d4f565b9450506040610dc588828901610d64565b9350506060610dd688828901610d64565b9250506080610de788828901610d19565b9150509295509295909350565b6000610dff82610d2e565b9150610e0a83610d2e565b9250827f7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0482116000841360008413161615610e4957610e486109c2565b5b817f80000000000000000000000000000000000000000000000000000000000000000583126000841260008413161615610e8657610e856109c2565b5b827f80000000000000000000000000000000000000000000000000000000000000000582126000841360008412161615610ec357610ec26109c2565b5b827f7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0582126000841260008412161615610f0057610eff6109c2565b5b82820290509291505056fea264697066735822122070c7a81cf73e77e810d5e9b0ec6436a6615f63143cc5e2ceddd66baf77a0b89364736f6c63430008080033',
+  devdoc: { kind: 'dev', methods: {}, version: 1 },
+  userdoc: { kind: 'user', methods: {}, version: 1 },
+  storageLayout: {
+    storage: [ [Object], [Object], [Object] ],
+    types: {
+      t_address: [Object],
+      't_array(t_address)dyn_storage': [Object],
+      't_contract(AggregatorV3Interface)45': [Object],
+      't_mapping(t_address,t_uint256)': [Object],
+      t_uint256: [Object]
+    }
+  },
+  newlyDeployed: false
+}
+계약 검증을 진행하고 있습니다...
+Nothing to compile
+Successfully submitted source code for contract
+contracts/FundMe.sol:FundMe at 0x463e4c05D8165A339bfB94B9A6F2D0Ad57a8E0e0
+for verification on the block explorer. Waiting for verification result...
+
+Successfully verified contract FundMe on Etherscan.
+https://rinkeby.etherscan.io/address/0x463e4c05D8165A339bfB94B9A6F2D0Ad57a8E0e0#code
+---------------------------------------------------------------
+Done in 33.95s.
+```
+
+이제 어느 네트워크에서나 배포하고 검증할 수 있게 되었습니다.
+
+hardhat.config.js 의 network와, hardat-helper-config.js의 networkConfig만 상황에 맞춰 업데이트해준다면 말이죠.
+
+테스트넷에 배포했으니 이더스캔에서도 확인이 가능합니다.
+
+이더스캔의 contract 탭을 보면 배포된 계약들이 보입니다.
+
+![](rinkeby.etherscan.io_address_0x463e4c05d8165a339bfb94b9a6f2d0ad57a8e0e0.png)
+
+## Solidity Style Guide
+
+테스트 코드를 작성으로 넘어가기 전에 FundMe 계약을 좀 더 수정하고 솔리디티 문법을 보강하는 시간을 가지겠습니다.
+
+솔리디티 컨벤션에 대해서 얘기할 것이고 왜 이런 컨벤션이 존재하고 있는지, 저수준을 다루는 솔리디티를 조금 배우면서 알아보겠습니다.
+
+```solidity
+event Funded(address indexed from. uint256 amount);
+```
+이 코드는 나중에 event에 대해서 다룰때 설명하겠습니다. 지금은 무시해도 좋습니다.
+
+솔리디티에는 `스타일 가이드`가 있습니다.
+
+https://docs.soliditylang.org/en/v0.8.13/style-guide.html
+
+지금 얘기해드리는것은 조금 장황한 얘기라 약간은 선택적인 것이 될 수 도 있습니다. 그리고 별로 달라지는 것은 없지만, 코드의 가독성을 높이고 더 나아보이게 합니다.
+
+### Order of Layout
+
+https://docs.soliditylang.org/en/v0.8.13/style-guide.html#order-of-layout
+
+솔리디티 코드의 큰틀을 작성하는 전체적인 순서입니다.
+
+솔리디티 요소는 다음과 같은 순서로 작성되어야 합니다.
+1. Pragma statements
+2. Import statements
+3. Interfaces
+4. Libraries
+5. Contracts
+
+Interface와 Libraries 안에는 다음과 같은 순서로 사용되어야합니다.
+
+1. Type declarations
+2. State variables
+3. Events
+4. Modifiers
+5. Functions
+
+그리고 여기 없는게 있는데
+
+2번과 3번 사이에 Error codes 가 들어와야합니다.
+
+에러코드는 `error 계약이름__에러명`으로 표현하면 좋습니다.
+
+```solidity
+// error NotOwner();
+error FundMe__NotOwner();
+```
+이렇게 하면 이 에러가 어떤 계약에 속한 에러인지 구분이 확실해집니다.
+
+다음으로는 Interfaces, Libraries, Contracts 가 차례로 옵니다.
+
+FundMe 계약에는 Interface와 Libraries가 없고 Contracts 하나가 있습니다.
+
+### NatSpec
+
+https://docs.soliditylang.org/en/v0.8.15/natspec-format.html?highlight=natspec#
+
+다음은 `NatSpec`에 대해 알아보겠습니다.
+
+Ethereum Natural Language Specification Format 의 약자입니다.
+
+`Doxygen`에서 영향을 받아 만들어진 계약을 문서화시키는 방법론입니다.
+
+이렇게 사용할 수 있습니다.
+
+```solidity
+/**주석이 시작하는줄
+주석이 끝나는줄*/
+
+/// 빗금 3개 주석
+
+/// 계약을 시작을 알리는 예시
+/** @title 앞으로 나올 컨트렉트 제목 혹은 목적설명
+*   @author 계약 작성자
+*   @notice 이 계약에 대한 알림이나 설명
+*   @dev 개발자에게 알려야 하는 내용
+*/
+```
+```solidity
+/** @title 크라우드 펀딩을 위한 계약
+ */
+contract FundMe {
+    using PriceConverter for uint256;
+}
+```
+
+이렇게 사용하는 이유는 NatSpec을 이용해서 자동적으로 문서를 생성할 수 있기 때문입니다. 
+
+나중에 이 프로토콜과 상호작용하는 사람들에게 유용할 겁니다.
+
+https://docs.soliditylang.org/en/v0.8.15/natspec-format.html?highlight=natspec#documentation-output
+
+solc를 설치한 후에 다음과 같이 입력하면 됩니다.
+
+```bash
+solc --userdoc --devdoc ex1.sol
+```
+
+이러한 방식의 주석을 다른 함수에도 사용할 수 있습니다.
+
+또한 내가 구현한 계약이나 함수들이 난해하다고 생각된다면, 스타일가이드 대로 작성하는것이 좋습니다.
+
+계약 order는 이렇습니다.
+
+1. 첫째로 Type 선언으로 시작합니다.
+2. state variable을 작성합니다.
+현재 fundMe에 작성된 이름들은 곧 바꾸는 과정을 거칠겁니다. 그러나 지금은 아직 아닙니다.
+3. Events
+4. Modifier 모디파이어가 있습니다. 
+5. 마지막으로 함수들이 오면 됩니다.
+
+함수의 순서는 이렇게 됩니다.
+
+Function Order
+0. constructor
+1. receive
+2. fallback
+3. external
+4. public
+5. internal
+6. private
+7. view / pure
+
+또한 함수에도 natSpec 문을 달 수 있습니다.
+
+```solidity
+    /**
+     *  @notice 이 함수가 계약에 모금을 해줍니다.
+     *  @dev 트랜스퍼는 call로 구현되어있습니다.
+     */
+```
+함수에 들어가는 arguments와 returns 타입이 있다면 이들도 설정해줄 수 있습니다.
+
+```solidity
+    /**
+     *  @notice 좋아하는 숫자에 1을 더해줘서 보여줍니다...
+     *  @dev 이것은 테스트 함수입니다.
+     *  @param myNumber 내가 좋아하는 숫자
+     *  @return uint256 내가 좋아하는 숫자에 1을 더해서 돌려줍니다
+     */
+    function tess(uint256 myNumber) public pure returns(uint256){
+        return myNumber + 1;
+    }
+```
+
+그리고 깃허브리포에 가보시면 상태변수명들이 조금 바뀌어있는걸 볼 수 있을 겁니다. 그리고 왜 바뀌었는지 알게 되실겁니다.
+
+## Testing Fund Me
+
+테스트를 작성 한 후 가스예측기 (gas estimator)를 작동시킬겁니다.
+가스 예측기를 사용한 후 우리는 다시 계약코드로 돌아가서 가스를 더 저렴하게 사용할 수 있도록 코드를 조금 업데이트 할 겁니다.
+
+그리고 그것이 바로 테스트를 작성하는 이유입니다. 더 빠르고, 가스효율적인 코드를 작성 할 수 있도록요.
+
+그리고 이번엔 좀 더 전문적인 셋업을 한 뒤 확실한 테스트를 시작할겁니다.
+
+지난 시간에는 아주 단순한 테스트를 했습니다.
+하지만 프로젝트가 커지면 커질수록 테스트할 것도 많아질 겁니다.
+
+두가지 형식의 테스트를 하게 될겁니다.
+
+test 폴더에 `staging`폴더와 `unit`폴더를 만들겠습니다.
+
+자 이제 두가지 종류의 다른 테스트 방법에 대해 살펴보겠습니다.
+
+### unit test
+첫번재는 `unit` 테스트라 불리는 겁니다.
+
+https://en.wikipedia.org/wiki/Unit_testing
+
+>유닛 테스트(unit test)는 컴퓨터 프로그래밍에서 소스 코드의 특정 모듈이 의도된 대로 정확히 작동하는지 검증하는 절차다. 즉, 모든 함수와 메소드에 대한 테스트 케이스(Test case)를 작성하는 절차를 말한다. 이를 통해서 언제라도 코드 변경으로 인해 문제가 발생할 경우, 단시간 내에 이를 파악하고 바로 잡을 수 있도록 해준다. 이상적으로, 각 테스트 케이스는 서로 분리되어야 한다. 이를 위해 가짜 객체(Mock object)를 생성하는 것도 좋은 방법이다. 유닛 테스트는 (일반적인 테스트와 달리) 개발자(developer) 뿐만 아니라 보다 더 심도있는 테스트를 위해 테스터(tester)에 의해 수행되기도 한다.
+
+계약코드에 코드의 최소부분만 테스트하여 제대로 작동하는지 확인하고, 작은부분들이 제대로 작동한다면, 우리는 스테이징(`staging`)혹은 통합(`integration`)테스트를 원합니다.
+
+이 staging 폴더가 실제 네트워크 혹은 테스트넷에서 실행될 코드를 테스트할 코드가 들어갈 폴더입니다.
+
+스테이징 테스트는 마지막으로 행해져야 합니다만 100% 그런것은 아닙니다. 이것이 꼭 필요한 것은 아니지만 굉장히 굉장히 도움이 됩니다.
+
+테스트서버는 양심적으로 사용하십시오, 허나 테스트는 반드시 반드시 로컬에서 100% 확실하게 실행되는지를 확인 한 후, 스테이징 테스트를 이용하면 됩니다. 코드가 다른 계약과 잘 작동하는지를 말이죠.
+
+유닛테스트는 
+
+- `local hardhat`네트워크와 
+- `forked hardhat`네트워크 
+
+두가지 곳에서 실시할 수 있습니다.
+유닛 테스트를 먼저 작성해보겠습니다. 유닛테스트는 저번에 본것과 비슷합니다.
+
+unit 폴더에 `FundMe.test.js`파일을 생성합니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-17%20233406.png)
+
+저번 시간과 약간 다를겁니다.
+hardhat-deploy 플러그인을 통해서 배포함수의 실행과 함께 자동적으로 테스트를 셋업할겁니다.
+
+똑같이 시작하면 됩니다.
+
+```js
+describe("FundMe", function () {
+  beforeEach()
+})
+```
+
+`yarn hardhat test`
+
+```bash
+
+  0 passing (1ms)
+
+Done in 3.43s.
+
+```
+
+`yarn hardhat coverage`
+```bash
+
+Version
+=======
+> solidity-coverage: v0.7.21
+
+Instrumenting for coverage...
+=============================
+
+> FundMe.sol
+> mocks\MockV3Aggregator.sol
+> PriceConverter.sol
+
+Compilation:
+============
+
+Compiled 8 Solidity files successfully
+
+Network Info
+============
+> HardhatEVM: v2.9.9
+> network:    hardhat
+
+
+
+  0 passing (0ms)
+
+-----------------------|----------|----------|----------|----------|----------------|
+File                   |  % Stmts | % Branch |  % Funcs |  % Lines |Uncovered Lines |
+-----------------------|----------|----------|----------|----------|----------------|
+ contracts\            |        0 |        0 |        0 |        0 |                |
+  FundMe.sol           |        0 |        0 |        0 |        0 |... ,99,101,105 |
+  PriceConverter.sol   |        0 |      100 |        0 |        0 |... 27,31,32,34 |
+ contracts\mocks\      |      100 |      100 |      100 |      100 |                |
+  MockV3Aggregator.sol |      100 |      100 |      100 |      100 |                |
+-----------------------|----------|----------|----------|----------|----------------|
+All files              |        0 |        0 |        0 |        0 |                |
+-----------------------|----------|----------|----------|----------|----------------|
+
+> Istanbul reports written to ./coverage/ and ./coverage.json
+Done in 4.12s.
+
+```
+
+많은 양의 코드를 커버리지 하지 못하고 있다고 나옵니다.
+
+많은 양의 테스트를 진행할땐 함수를 그룹으로 만들어서 진행하는 것이 좋습니다.
+
+첫번째 테스트는 constructor 로 합시다.
+
+```js
+describe("FundMe", function () {
+    describe("constructor", function () {})
+})
+```
+FundMe 가 들어간 describe는 전체 FundMe 계약을 말한다 보시면 되고 안의describe("constructor")는 FundMe 안의 constructor와 함수가 들어간다 보시면 됩니다.
+
+하지만 컨스트럭터로 넘어가기 전에 먼저 배포를 해야합니다.
+
+```js
+describe("FundMe", function () {
+
+    beforeEach(async function () {
+        // fundMe 계약 배포
+        // hardhat-deploy 플러그인으로
+    })
+
+    describe("constructor", function () {
+
+    })
+})
+```
+
+hardhat-deploy로 배포했기 때문에, fundMe 계약이 mocks와 다른것들과 함께 따라옵니다. 
+
+deployments를 불러옵니다.
+
+deployments에는 fixture라는 것이 있는데 deploy 폴더에 있는 모든것들을 tag에 따라 원하는 것만 실행할 수 있습니다.
+지난번에 module.exports.tags = [all]로 지정한거 기억나나요
+
+여기서도 마찬가지입니다. all로 지정하면 deploy 폴더에서 배포할 모든 계약들을 배포하게 됩니다.
+
+이 한줄로 deploy폴더에 있는 모든것들을 배포할 수 있습니다.
+
+getContract는 우리가 재배포한 계약중 가장 최신의 것을 가져오게 됩니다.
+
+```js
+const {deployments, ethers} = require("hardhat");
+
+describe("FundMe", function () {
+    let fundMe;
+    beforeEach(async function () {
+        // fundMe 계약 배포
+        // hardhat-deploy 플러그인으로
+        await deployments.fixture(["all"]);
+        fundMe = await ethers.getContract()
+    })
+
+    describe("constructor", function () {
+
+    })
+})
+```
+
+어떤 계좌가 연결되었는지도 확인합니다.
+deployer 값을 얻었다면 이를 다시 getContract에 넣어줍니다.
+
+```js
+const { deployments, ethers, getNamedAccounts } = require("hardhat");
+
+describe("FundMe", function () {
+  let fundMe;
+  beforeEach(async function () {
+    // fundMe 계약 배포
+    // hardhat-deploy 플러그인으로
+    const { deployer } = await getNamedAccounts();
+    await deployments.fixture(["all"]);
+    fundMe = await ethers.getContract("FundMe", deployer);
+  });
+
+  describe("constructor", function () {});
+});
+
+```
+
+또다른 계정을 가져오는 다른 방법은 getSigners를 이용하는 방법입니다.
+
+getSingners는 `hardhat.config.js` 의 networks에 있는 accounts배열 안의 계정 정보를 모두 가져옵니다.
+
+만약 default로 hardhat 네트워크에 연결한다면 10개의 가계정을 가지게 되겠죠
+
+그러므로 이렇게 작성할 수 도 있습니다.
+
+```js
+const { deployments, ethers, getNamedAccounts } = require("hardhat");
+
+describe("FundMe", function () {
+  let fundMe;
+  beforeEach(async function () {
+    // fundMe 계약 배포
+    // hardhat-deploy 플러그인으로
+    // const accounts = await ethers.getSigners()
+    // const accountZero = accounts[0];
+    const { deployer } = await getNamedAccounts();
+    await deployments.fixture(["all"]);
+    fundMe = await ethers.getContract("FundMe", deployer);
+  });
+
+  describe("constructor", function () {});
+});
+```
+
+deployer 오브젝트를 deployer 변수에 할당하기 위해 이렇게 수정했습니다.
+
+```js
+const { deployments, ethers, getNamedAccounts } = require("hardhat");
+
+describe("FundMe", function () {
+  let fundMe;
+  let deployer
+  beforeEach(async function () {
+    // fundMe 계약 배포
+    // hardhat-deploy 플러그인으로
+    // const accounts = await ethers.getSigners()
+    // const accountZero = accounts[0];
+    deployer = (await getNamedAccounts()).deployer;
+    await deployments.fixture(["all"]);
+    fundMe = await ethers.getContract("FundMe", deployer);
+  });
+
+  describe("constructor", function () {});
+});
+
+```
+
+이제 첫번째 테스트를 작성해보겠습니다.
+모의계약의 프라이스피드 주소와 배포된 fundMe의 프라이스피드 주소를 비교합니다.
+
+```js
+const { assert } = require("chai");
+const { deployments, ethers, getNamedAccounts } = require("hardhat");
+
+describe("FundMe", function () {
+  let fundMe;
+  let deployer
+  let mockV3Aggregator
+  beforeEach(async function () {
+    // fundMe 계약 배포
+    // hardhat-deploy 플러그인으로
+    // const accounts = await ethers.getSigners()
+    // const accountZero = accounts[0];
+    deployer = (await getNamedAccounts()).deployer;
+    await deployments.fixture(["all"]);
+    fundMe = await ethers.getContract("FundMe", deployer);
+    mockV3Aggregator = ethers.getContract("MockV3Aggregator",deployer)
+  });
+
+  describe("constructor", function () {
+    it("aggregator 주소를 알맞게 가지고 있는지", async function () {
+      const response = await fundMe.priceFeed();
+      assert(response, mockV3Aggregator.address);
+    })
+  });
+});
+```
+
+```bash
+
+
+  FundMe
+    constructor
+프라이스피드주소0x8464135c8F25Da09e49BC8782676a84730C318bC
+배포된 계약 {
+  _format: 'hh-sol-artifact-1',
+  contractName: 'FundMe',
+  sourceName: 'contracts/FundMe.sol',
+  abi: [
+    {
+      inputs: [Array],
+      stateMutability: 'nonpayable',
+      type: 'constructor'
+    },
+    { stateMutability: 'payable', type: 'fallback' },  
+    {
+      inputs: [],
+      name: 'MINIMUM_USD',
+      outputs: [Array],
+      stateMutability: 'view',
+      type: 'function'
+    },
+    {
+      inputs: [Array],
+      name: 'addressToAmountFunded',
+      outputs: [Array],
+      stateMutability: 'view',
+      type: 'function'
+    },
+    {
+      inputs: [],
+      name: 'fund',
+      outputs: [],
+      stateMutability: 'payable',
+      type: 'function'
+    },
+    {
+      inputs: [Array],
+      name: 'funders',
+      outputs: [Array],
+      stateMutability: 'view',
+      type: 'function'
+    },
+    {
+      inputs: [],
+      name: 'i_owner',
+      outputs: [Array],
+      stateMutability: 'view',
+      type: 'function'
+    },
+    {
+      inputs: [],
+      name: 'priceFeed',
+      outputs: [Array],
+      stateMutability: 'view',
+      type: 'function'
+    },
+    {
+      inputs: [],
+      name: 'withdraw',
+      outputs: [],
+      stateMutability: 'nonpayable',
+      type: 'function'
+    },
+    { stateMutability: 'payable', type: 'receive' }    
+  ],
+  bytecode: '0x60a06040523480156200001157600080fd5b50604051620010b9380380620010b9833981810160405281019062000037919062000120565b3373ffffffffffffffffffffffffffffffffffffffff1660808173ffffffffffffffffffffffffffffffffffffffff1660601b8152505080600260006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff1602179055505062000152565b600080fd5b600073ffffffffffffffffffffffffffffffffffffffff82169050919050565b6000620000e882620000bb565b9050919050565b620000fa81620000db565b81146200010657600080fd5b50565b6000815190506200011a81620000ef565b92915050565b600060208284031215620001395762000138620000b6565b5b6000620001498482850162000109565b91505092915050565b60805160601c610f4162000178600039600081816102e6015261057a0152610f416000f3fe6080604052600436106100745760003560e01c8063741bef1a1161004e578063741bef1a1461010c578063b60d428814610137578063dba6335f14610141578063dc0d3dff1461016c57610083565b80633ccfd60b1461008d5780633e47d6f3146100a45780636b69a592146100e157610083565b36610083576100816101a9565b005b61008b6101a9565b005b34801561009957600080fd5b506100a26102e4565b005b3480156100b057600080fd5b506100cb60048036038101906100c691906107c1565b61052d565b6040516100d89190610807565b60405180910390f35b3480156100ed57600080fd5b506100f6610545565b6040516101039190610807565b60405180910390f35b34801561011857600080fd5b50610121610552565b60405161012e9190610881565b60405180910390f35b61013f6101a9565b005b34801561014d57600080fd5b50610156610578565b60405161016391906108ab565b60405180910390f35b34801561017857600080fd5b50610193600480360381019061018e91906108f2565b61059c565b6040516101a091906108ab565b60405180910390f35b6802b5e3af16b18800006101e8600260009054906101000a900473ffffffffffffffffffffffffffffffffffffffff16346105db90919063ffffffff16565b1015610229576040517f08c379a0000000000000000000000000000000000000000000000000000000008152600401610220906109a2565b60405180910390fd5b6000339080600181540180825580915050600190039060005260206000200160009091909190916101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555034600160003373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060008282546102db91906109f1565b92505081905550565b7f000000000000000000000000000000000000000000000000000000000000000073ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614610372576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040161036990610ab9565b60405180910390fd5b60005b60008054905081101561041d57600080828154811061039757610396610ad9565b5b9060005260206000200160009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1690506000600160008373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000208190555050808061041590610b08565b915050610375565b50600067ffffffffffffffff81111561043957610438610b51565b5b6040519080825280602002602001820160405280156104675781602001602082028036833780820191505090505b506000908051906020019061047d9291906106b7565b5060003373ffffffffffffffffffffffffffffffffffffffff16476040516104a490610bb1565b60006040518083038185875af1925050503d80600081146104e1576040519150601f19603f3d011682016040523d82523d6000602084013e6104e6565b606091505b505090508061052a576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040161052190610c12565b60405180910390fd5b50565b60016020528060005260406000206000915090505481565b6802b5e3af16b188000081565b600260009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b7f000000000000000000000000000000000000000000000000000000000000000081565b600081815481106105ac57600080fd5b906000526020600020016000915054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b6000806105e783610617565b90506000670de0b6b3a764000085836106009190610c32565b61060a9190610cbb565b9050809250505092915050565b6000808273ffffffffffffffffffffffffffffffffffffffff1663feaf968c6040518163ffffffff1660e01b815260040160a06040518083038186803b15801561066057600080fd5b505afa158015610674573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906106989190610d79565b5050509150506402540be400816106af9190610df4565b915050919050565b828054828255906000526020600020908101928215610730579160200282015b8281111561072f5782518260006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff160217905550916020019190600101906106d7565b5b50905061073d9190610741565b5090565b5b8082111561075a576000816000905550600101610742565b5090565b600080fd5b600073ffffffffffffffffffffffffffffffffffffffff82169050919050565b600061078e82610763565b9050919050565b61079e81610783565b81146107a957600080fd5b50565b6000813590506107bb81610795565b92915050565b6000602082840312156107d7576107d661075e565b5b60006107e5848285016107ac565b91505092915050565b6000819050919050565b610801816107ee565b82525050565b600060208201905061081c60008301846107f8565b92915050565b6000819050919050565b600061084761084261083d84610763565b610822565b610763565b9050919050565b60006108598261082c565b9050919050565b600061086b8261084e565b9050919050565b61087b81610860565b82525050565b60006020820190506108966000830184610872565b92915050565b6108a581610783565b82525050565b60006020820190506108c0600083018461089c565b92915050565b6108cf816107ee565b81146108da57600080fd5b50565b6000813590506108ec816108c6565b92915050565b6000602082840312156109085761090761075e565b5b6000610916848285016108dd565b91505092915050565b600082825260208201905092915050565b7fecb59cec868c20ed8e80eb94a9eab888ec95a1ec979020ebafb8eb8baced95a960008201527feb8b88eb8ba42e00000000000000000000000000000000000000000000000000602082015250565b600061098c60278361091f565b915061099782610930565b604082019050919050565b600060208201905081810360008301526109bb8161097f565b9050919050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052601160045260246000fd5b60006109fc826107ee565b9150610a07836107ee565b9250827fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff03821115610a3c57610a3b6109c2565b5b828201905092915050565b7fed8e80eb94a920ec868cec9ca0ec9e90eba78c20ec9db8ecb69ced95a020ec8860008201527f9820ec9e88ec8ab5eb8b88eb8ba42e0000000000000000000000000000000000602082015250565b6000610aa3602f8361091f565b9150610aae82610a47565b604082019050919050565b60006020820190508181036000830152610ad281610a96565b9050919050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052603260045260246000fd5b6000610b13826107ee565b91507fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff821415610b4657610b456109c2565b5b600182019050919050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052604160045260246000fd5b600081905092915050565b50565b6000610b9b600083610b80565b9150610ba682610b8b565b600082019050919050565b6000610bbc82610b8e565b9150819050919050565b7fed98b8ecb69c20ec8ba4ed8ca800000000000000000000000000000000000000600082015250565b6000610bfc600d8361091f565b9150610c0782610bc6565b602082019050919050565b60006020820190508181036000830152610c2b81610bef565b9050919050565b6000610c3d826107ee565b9150610c48836107ee565b9250817fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0483118215151615610c8157610c806109c2565b5b828202905092915050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052601260045260246000fd5b6000610cc6826107ee565b9150610cd1836107ee565b925082610ce157610ce0610c8c565b5b828204905092915050565b600069ffffffffffffffffffff82169050919050565b610d0b81610cec565b8114610d1657600080fd5b50565b600081519050610d2881610d02565b92915050565b6000819050919050565b610d4181610d2e565b8114610d4c57600080fd5b50565b600081519050610d5e81610d38565b92915050565b600081519050610d73816108c6565b92915050565b600080600080600060a08688031215610d9557610d9461075e565b5b6000610da388828901610d19565b9550506020610db488828901610d4f565b9450506040610dc588828901610d64565b9350506060610dd688828901610d64565b9250506080610de788828901610d19565b9150509295509295909350565b6000610dff82610d2e565b9150610e0a83610d2e565b9250827f7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0482116000841360008413161615610e4957610e486109c2565b5b817f80000000000000000000000000000000000000000000000000000000000000000583126000841260008413161615610e8657610e856109c2565b5b827f80000000000000000000000000000000000000000000000000000000000000000582126000841360008412161615610ec357610ec26109c2565b5b827f7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0582126000841260008412161615610f0057610eff6109c2565b5b82820290509291505056fea264697066735822122043bc21e9169ca267c1518eb83c1f0fd3f541507c836da9b42688cf51ecc8e70564736f6c63430008080033', 
+  deployedBytecode: '0x6080604052600436106100745760003560e01c8063741bef1a1161004e578063741bef1a1461010c578063b60d428814610137578063dba6335f14610141578063dc0d3dff1461016c57610083565b80633ccfd60b1461008d5780633e47d6f3146100a45780636b69a592146100e157610083565b36610083576100816101a9565b005b61008b6101a9565b005b34801561009957600080fd5b506100a26102e4565b005b3480156100b057600080fd5b506100cb60048036038101906100c691906107c1565b61052d565b6040516100d89190610807565b60405180910390f35b3480156100ed57600080fd5b506100f6610545565b6040516101039190610807565b60405180910390f35b34801561011857600080fd5b50610121610552565b60405161012e9190610881565b60405180910390f35b61013f6101a9565b005b34801561014d57600080fd5b50610156610578565b60405161016391906108ab565b60405180910390f35b34801561017857600080fd5b50610193600480360381019061018e91906108f2565b61059c565b6040516101a091906108ab565b60405180910390f35b6802b5e3af16b18800006101e8600260009054906101000a900473ffffffffffffffffffffffffffffffffffffffff16346105db90919063ffffffff16565b1015610229576040517f08c379a0000000000000000000000000000000000000000000000000000000008152600401610220906109a2565b60405180910390fd5b6000339080600181540180825580915050600190039060005260206000200160009091909190916101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff16021790555034600160003373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff16815260200190815260200160002060008282546102db91906109f1565b92505081905550565b7f000000000000000000000000000000000000000000000000000000000000000073ffffffffffffffffffffffffffffffffffffffff163373ffffffffffffffffffffffffffffffffffffffff1614610372576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040161036990610ab9565b60405180910390fd5b60005b60008054905081101561041d57600080828154811061039757610396610ad9565b5b9060005260206000200160009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1690506000600160008373ffffffffffffffffffffffffffffffffffffffff1673ffffffffffffffffffffffffffffffffffffffff1681526020019081526020016000208190555050808061041590610b08565b915050610375565b50600067ffffffffffffffff81111561043957610438610b51565b5b6040519080825280602002602001820160405280156104675781602001602082028036833780820191505090505b506000908051906020019061047d9291906106b7565b5060003373ffffffffffffffffffffffffffffffffffffffff16476040516104a490610bb1565b60006040518083038185875af1925050503d80600081146104e1576040519150601f19603f3d011682016040523d82523d6000602084013e6104e6565b606091505b505090508061052a576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040161052190610c12565b60405180910390fd5b50565b60016020528060005260406000206000915090505481565b6802b5e3af16b188000081565b600260009054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b7f000000000000000000000000000000000000000000000000000000000000000081565b600081815481106105ac57600080fd5b906000526020600020016000915054906101000a900473ffffffffffffffffffffffffffffffffffffffff1681565b6000806105e783610617565b90506000670de0b6b3a764000085836106009190610c32565b61060a9190610cbb565b9050809250505092915050565b6000808273ffffffffffffffffffffffffffffffffffffffff1663feaf968c6040518163ffffffff1660e01b815260040160a06040518083038186803b15801561066057600080fd5b505afa158015610674573d6000803e3d6000fd5b505050506040513d601f19601f820116820180604052508101906106989190610d79565b5050509150506402540be400816106af9190610df4565b915050919050565b828054828255906000526020600020908101928215610730579160200282015b8281111561072f5782518260006101000a81548173ffffffffffffffffffffffffffffffffffffffff021916908373ffffffffffffffffffffffffffffffffffffffff160217905550916020019190600101906106d7565b5b50905061073d9190610741565b5090565b5b8082111561075a576000816000905550600101610742565b5090565b600080fd5b600073ffffffffffffffffffffffffffffffffffffffff82169050919050565b600061078e82610763565b9050919050565b61079e81610783565b81146107a957600080fd5b50565b6000813590506107bb81610795565b92915050565b6000602082840312156107d7576107d661075e565b5b60006107e5848285016107ac565b91505092915050565b6000819050919050565b610801816107ee565b82525050565b600060208201905061081c60008301846107f8565b92915050565b6000819050919050565b600061084761084261083d84610763565b610822565b610763565b9050919050565b60006108598261082c565b9050919050565b600061086b8261084e565b9050919050565b61087b81610860565b82525050565b60006020820190506108966000830184610872565b92915050565b6108a581610783565b82525050565b60006020820190506108c0600083018461089c565b92915050565b6108cf816107ee565b81146108da57600080fd5b50565b6000813590506108ec816108c6565b92915050565b6000602082840312156109085761090761075e565b5b6000610916848285016108dd565b91505092915050565b600082825260208201905092915050565b7fecb59cec868c20ed8e80eb94a9eab888ec95a1ec979020ebafb8eb8baced95a960008201527feb8b88eb8ba42e00000000000000000000000000000000000000000000000000602082015250565b600061098c60278361091f565b915061099782610930565b604082019050919050565b600060208201905081810360008301526109bb8161097f565b9050919050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052601160045260246000fd5b60006109fc826107ee565b9150610a07836107ee565b9250827fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff03821115610a3c57610a3b6109c2565b5b828201905092915050565b7fed8e80eb94a920ec868cec9ca0ec9e90eba78c20ec9db8ecb69ced95a020ec8860008201527f9820ec9e88ec8ab5eb8b88eb8ba42e0000000000000000000000000000000000602082015250565b6000610aa3602f8361091f565b9150610aae82610a47565b604082019050919050565b60006020820190508181036000830152610ad281610a96565b9050919050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052603260045260246000fd5b6000610b13826107ee565b91507fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff821415610b4657610b456109c2565b5b600182019050919050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052604160045260246000fd5b600081905092915050565b50565b6000610b9b600083610b80565b9150610ba682610b8b565b600082019050919050565b6000610bbc82610b8e565b9150819050919050565b7fed98b8ecb69c20ec8ba4ed8ca800000000000000000000000000000000000000600082015250565b6000610bfc600d8361091f565b9150610c0782610bc6565b602082019050919050565b60006020820190508181036000830152610c2b81610bef565b9050919050565b6000610c3d826107ee565b9150610c48836107ee565b9250817fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0483118215151615610c8157610c806109c2565b5b828202905092915050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052601260045260246000fd5b6000610cc6826107ee565b9150610cd1836107ee565b925082610ce157610ce0610c8c565b5b828204905092915050565b600069ffffffffffffffffffff82169050919050565b610d0b81610cec565b8114610d1657600080fd5b50565b600081519050610d2881610d02565b92915050565b6000819050919050565b610d4181610d2e565b8114610d4c57600080fd5b50565b600081519050610d5e81610d38565b92915050565b600081519050610d73816108c6565b92915050565b600080600080600060a08688031215610d9557610d9461075e565b5b6000610da388828901610d19565b9550506020610db488828901610d4f565b9450506040610dc588828901610d64565b9350506060610dd688828901610d64565b9250506080610de788828901610d19565b9150509295509295909350565b6000610dff82610d2e565b9150610e0a83610d2e565b9250827f7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0482116000841360008413161615610e4957610e486109c2565b5b817f80000000000000000000000000000000000000000000000000000000000000000583126000841260008413161615610e8657610e856109c2565b5b827f80000000000000000000000000000000000000000000000000000000000000000582126000841360008412161615610ec357610ec26109c2565b5b827f7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0582126000841260008412161615610f0057610eff6109c2565b5b82820290509291505056fea264697066735822122043bc21e9169ca267c1518eb83c1f0fd3f541507c836da9b42688cf51ecc8e70564736f6c63430008080033',
+  linkReferences: {},
+  deployedLinkReferences: {},
+  transactionHash: '0xd6ca1309a0194bd52c175ea3dd90a69a3d069bf5bdc77c4a603d70b426e3d41f',
+  args: [ '0x8464135c8F25Da09e49BC8782676a84730C318bC' 
+],
+  linkedData: undefined,
+  address: '0x71C95911E9a5D330f4D621842EC243EE1343292e',
+  receipt: {
+    to: null,
+    from: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8',    contractAddress: '0x71C95911E9a5D330f4D621842EC243EE1343292e',
+    transactionIndex: 0,
+    gasUsed: BigNumber { _hex: '0x0e06e8', _isBigNumber: true },
+    logsBloom: '0x00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000',
+    blockHash: '0xa17bd7269d7c14d22b5c618fd48e738f3efc610c81bf7e7dc87d18a4803f2e59',
+    transactionHash: '0xd6ca1309a0194bd52c175ea3dd90a69a3d069bf5bdc77c4a603d70b426e3d41f',
+    logs: [],
+    blockNumber: 2,
+    confirmations: 1,
+    cumulativeGasUsed: BigNumber { _hex: '0x0e06e8', _isBigNumber: true },
+    effectiveGasPrice: BigNumber { _hex: '0x697cad9d', 
+_isBigNumber: true },
+    status: 1,
+    type: 2,
+    byzantium: true
+  },
+  libraries: undefined,
+  newlyDeployed: true
+}
+      ✔ aggregator 주소를 알맞게 가지고 있는지
+
+
+  1 passing (1s)
+
+Done in 2.85s.
+
+```
+
+통과했습니다.
+
+이 말은 mockv3에 pricefeed주소를 알맞게 들어갔다는 뜻입니다.
+
+즉 constructor에 인수가 제대로 들어가있음을 뜻합니다.
+
+
+### 참고:테스트 1 - 계약 인스턴스 얻기
+배포된 계약코드 실행가능
+```ps1
+심플스토리지 <ref *1> Contract {
+  interface: Interface {
+    fragments: [
+      [FunctionFragment],
+      [FunctionFragment],
+      [FunctionFragment],
+      [FunctionFragment],
+      [FunctionFragment]
+    ],
+    _abiCoder: AbiCoder { coerceFunc: null },
+    functions: {
+      'addPerson(string,uint256)': [FunctionFragment],
+      'nameToFavoriteNumber(string)': [FunctionFragment],
+      'people(uint256)': [FunctionFragment],
+      'retrieve()': [FunctionFragment],
+      'store(uint256)': [FunctionFragment]
+    },
+    errors: {},
+    events: {},
+    structs: {},
+    deploy: ConstructorFragment {
+      name: null,
+      type: 'constructor',
+      inputs: [],
+      payable: false,
+      stateMutability: 'nonpayable',
+      gas: null,
+      _isFragment: true
+    },
+    _isInterface: true
+  },
+  provider: EthersProviderWrapper {
+    _isProvider: true,
+    _events: [],
+    _emitted: {
+      block: -2,
+      't:0x5e3adde287bd12272122535d165105ae8a4cd07c908e25e34920db8bb2287fa7': 1,
+      't:0x7131d29fbcdae70ea50031a66f919ce30ad31f0f6241a7dca6b5b02ee7182481': 2,
+      't:0xea8283dcb09a236fea172cc05310c462c3b16d60b404ba6bad31b75037fb0e6d': 3
+    },
+    disableCcipRead: false,
+    formatter: Formatter { formats: [Object] },
+    anyNetwork: false,
+    _networkPromise: Promise { [Object] },
+    _maxInternalBlockNumber: 0,
+    _lastBlockNumber: -2,
+    _maxFilterBlockRange: 10,
+    _pollingInterval: 4000,
+    _fastQueryDate: 1655536501828,
+    connection: { url: 'http://localhost:8545' },
+    _nextId: 42,
+    _hardhatProvider: BackwardsCompatibilityProviderAdapter {
+      _wrapped: [FixedGasProvider],
+      _provider: [FixedGasProvider],
+      sendAsync: [Function: bound sendAsync],
+      send: [Function: bound send],
+      _sendJsonRpcRequest: [Function: bound _sendJsonRpcRequest] AsyncFunction
+    },
+    _eventLoopCache: { detectNetwork: null },
+    _network: { chainId: 31337, name: 'unknown' },
+    _internalBlockNumber: Promise { [Object] },
+    _fastBlockNumber: 0,
+    _fastBlockNumberPromise: Promise { 0 }
+  },
+  signer: SignerWithAddress {
+    _isSigner: true,
+    address: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+    _signer: JsonRpcSigner {
+      _isSigner: true,
+      provider: [EthersProviderWrapper],
+      _address: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+      _index: null
+    },
+    provider: EthersProviderWrapper {
+      _isProvider: true,
+      _events: [],
+      _emitted: [Object],
+      disableCcipRead: false,
+      formatter: [Formatter],
+      anyNetwork: false,
+      _networkPromise: [Promise],
+      _maxInternalBlockNumber: 0,
+      _lastBlockNumber: -2,
+      _maxFilterBlockRange: 10,
+      _pollingInterval: 4000,
+      _fastQueryDate: 1655536501828,
+      connection: [Object],
+      _nextId: 42,
+      _hardhatProvider: [BackwardsCompatibilityProviderAdapter],
+      _eventLoopCache: [Object],
+      _network: [Object],
+      _internalBlockNumber: [Promise],
+      _fastBlockNumber: 0,
+      _fastBlockNumberPromise: [Promise]
+    }
+  },
+  callStatic: {
+    'addPerson(string,uint256)': [Function (anonymous)],
+    'nameToFavoriteNumber(string)': [Function (anonymous)],
+    'people(uint256)': [Function (anonymous)],
+    'retrieve()': [Function (anonymous)],
+    'store(uint256)': [Function (anonymous)],
+    addPerson: [Function (anonymous)],
+    nameToFavoriteNumber: [Function (anonymous)],
+    people: [Function (anonymous)],
+    retrieve: [Function (anonymous)],
+    store: [Function (anonymous)]
+  },
+  estimateGas: {
+    'addPerson(string,uint256)': [Function (anonymous)],
+    'nameToFavoriteNumber(string)': [Function (anonymous)],
+    'people(uint256)': [Function (anonymous)],
+    'retrieve()': [Function (anonymous)],
+    'store(uint256)': [Function (anonymous)],
+    addPerson: [Function (anonymous)],
+    nameToFavoriteNumber: [Function (anonymous)],
+    people: [Function (anonymous)],
+    retrieve: [Function (anonymous)],
+    store: [Function (anonymous)]
+  },
+  functions: {
+    'addPerson(string,uint256)': [Function (anonymous)],
+    'nameToFavoriteNumber(string)': [Function (anonymous)],
+    'people(uint256)': [Function (anonymous)],
+    'retrieve()': [Function (anonymous)],
+    'store(uint256)': [Function (anonymous)],
+    addPerson: [Function (anonymous)],
+    nameToFavoriteNumber: [Function (anonymous)],
+    people: [Function (anonymous)],
+    retrieve: [Function (anonymous)],
+    store: [Function (anonymous)]
+  },
+  populateTransaction: {
+    'addPerson(string,uint256)': [Function (anonymous)],
+    'nameToFavoriteNumber(string)': [Function (anonymous)],
+    'people(uint256)': [Function (anonymous)],
+    'retrieve()': [Function (anonymous)],
+    'store(uint256)': [Function (anonymous)],
+    addPerson: [Function (anonymous)],
+    nameToFavoriteNumber: [Function (anonymous)],
+    people: [Function (anonymous)],
+    retrieve: [Function (anonymous)],
+    store: [Function (anonymous)]
+  },
+  filters: {},
+  _runningEvents: {},
+  _wrappedEmits: {},
+  address: '0x5FbDB2315678afecb367f032d93F642f64180aa3',
+  resolvedAddress: Promise { '0x5FbDB2315678afecb367f032d93F642f64180aa3' },
+  'addPerson(string,uint256)': [Function (anonymous)],
+  'nameToFavoriteNumber(string)': [Function (anonymous)],
+  'people(uint256)': [Function (anonymous)],
+  'retrieve()': [Function (anonymous)],
+  'store(uint256)': [Function (anonymous)],
+  addPerson: [Function (anonymous)],
+  nameToFavoriteNumber: [Function (anonymous)],
+  people: [Function (anonymous)],
+  retrieve: [Function (anonymous)],
+  store: [Function (anonymous)],
+  deployTransaction: {
+    hash: '0x5e3adde287bd12272122535d165105ae8a4cd07c908e25e34920db8bb2287fa7',
+    type: 2,
+    accessList: [],
+    blockHash: '0x3924f3f768f261336dee99525883f53752af70f74e71bc4d9f471e7dddb75654',
+    blockNumber: 1,
+    transactionIndex: 0,
+    confirmations: 1,
+    from: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+    gasPrice: BigNumber { value: "1875000000" },
+    maxPriorityFeePerGas: BigNumber { value: "1000000000" },
+    maxFeePerGas: BigNumber { value: "2750000000" },
+    gasLimit: BigNumber { value: "463682" },
+    to: null,
+    value: BigNumber { value: "0" },
+    nonce: 0,
+    data: '0x608060405234801561001057600080fd5b50610771806100206000396000f3fe608060405234801561001057600080fd5b50600436106100575760003560e01c80632e64cec11461005c5780636057361d1461007a5780636f760f41146100965780638bab8dd5146100b25780639e7a13ad146100e2575b600080fd5b610064610113565b604051610071919061035c565b60405180910390f35b610094600480360381019061008f91906103b7565b61011c565b005b6100b060048036038101906100ab919061052a565b610126565b005b6100cc60048036038101906100c79190610586565b6101b6565b6040516100d9919061035c565b60405180910390f35b6100fc60048036038101906100f791906103b7565b6101e4565b60405161010a929190610657565b60405180910390f35b60008054905090565b8060008190555050565b6001604051806040016040528083815260200184815250908060018154018082558091505060019003906000526020600020906002020160009091909190915060008201518160000155602082015181600101908051906020019061018c9291906102a0565b505050806002836040516101a091906106c3565b9081526020016040518091039020819055505050565b6002818051602081018201805184825260208301602085012081835280955050505050506000915090505481565b600181815481106101f457600080fd5b906000526020600020906002020160009150905080600001549080600101805461021d90610709565b80601f016020809104026020016040519081016040528092919081815260200182805461024990610709565b80156102965780601f1061026b57610100808354040283529160200191610296565b820191906000526020600020905b81548152906001019060200180831161027957829003601f168201915b5050505050905082565b8280546102ac90610709565b90600052602060002090601f0160209004810192826102ce5760008555610315565b82601f106102e757805160ff1916838001178555610315565b82800160010185558215610315579182015b828111156103145782518255916020019190600101906102f9565b5b5090506103229190610326565b5090565b5b8082111561033f576000816000905550600101610327565b5090565b6000819050919050565b61035681610343565b82525050565b6000602082019050610371600083018461034d565b92915050565b6000604051905090565b600080fd5b600080fd5b61039481610343565b811461039f57600080fd5b50565b6000813590506103b18161038b565b92915050565b6000602082840312156103cd576103cc610381565b5b60006103db848285016103a2565b91505092915050565b600080fd5b600080fd5b6000601f19601f8301169050919050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052604160045260246000fd5b610437826103ee565b810181811067ffffffffffffffff82111715610456576104556103ff565b5b80604052505050565b6000610469610377565b9050610475828261042e565b919050565b600067ffffffffffffffff821115610495576104946103ff565b5b61049e826103ee565b9050602081019050919050565b82818337600083830152505050565b60006104cd6104c88461047a565b61045f565b9050828152602081018484840111156104e9576104e86103e9565b5b6104f48482856104ab565b509392505050565b600082601f830112610511576105106103e4565b5b81356105218482602086016104ba565b91505092915050565b6000806040838503121561054157610540610381565b5b600083013567ffffffffffffffff81111561055f5761055e610386565b5b61056b858286016104fc565b925050602061057c858286016103a2565b9150509250929050565b60006020828403121561059c5761059b610381565b5b600082013567ffffffffffffffff8111156105ba576105b9610386565b5b6105c6848285016104fc565b91505092915050565b600081519050919050565b600082825260208201905092915050565b60005b838110156106095780820151818401526020810190506105ee565b83811115610618576000848401525b50505050565b6000610629826105cf565b61063381856105da565b93506106438185602086016105eb565b61064c816103ee565b840191505092915050565b600060408201905061066c600083018561034d565b818103602083015261067e818461061e565b90509392505050565b600081905092915050565b600061069d826105cf565b6106a78185610687565b93506106b78185602086016105eb565b80840191505092915050565b60006106cf8284610692565b915081905092915050565b7f4e487b7100000000000000000000000000000000000000000000000000000000600052602260045260246000fd5b6000600282049050600182168061072157607f821691505b60208210811415610735576107346106da565b5b5091905056fea26469706673582212201946d8b0cfcd4e9fc0363dd12ae16596f9fd659d6680e59196583005ac381a2664736f6c63430008080033',
+    r: '0xe223b973d0c59ae6382d5cc0baefa59b151305bc8611d2506639bdb38659d799',
+    s: '0x3c4d3034cc7c90b662348be1cd8e8440f0199743dfc264e25fcc3d05e3098cd8',
+    v: 1,
+    creates: '0x5FbDB2315678afecb367f032d93F642f64180aa3',
+    chainId: 31337,
+    wait: [Function (anonymous)]
+  },
+  _deployedPromise: Promise { [Circular *1] }
+}
+```
+
+### fund() 테스트
+constructor에 대한 테스트가 끝났습니다.
+
+이 다음의 receive 함수와 fallback 함수는 좀 더 좋은 코드로 수정 후에 테스트 하도록 하겠습니다. 
+
+```solidity
+    receive() external payable {
+        fund();
+    }
+
+    fallback() external payable {
+        fund();
+    }
+```
+
+이 줄은 지우고 진행합니다.
+
+fund를 테스트 해보겠습니다.
+
+fund가 실행되었을 때 eth가 모자르면 실패하는지 여부에 대해 테스트합니다.
+
+그렇다면 실패는 어떻게 테스트해야할까요?
+
+fund에 인자를 넣지 않고 고의로 에러를 발생시켜보겠습니다.
+```js
+  describe("fund", async function() {
+    it("eth량이 기준미달일때 실패해야 함", async function () {
+      await fundMe.fund();
+    })
+  })
+```
+
+```bash
+    fund
+undefined
+      1) eth량이 기준미달일때 실패해야 함
+
+
+  1 passing (1s)
+  1 failing
+
+  1) FundMe
+       fund
+         eth량이 기준미달일때 실패해야 함:
+     Error: VM Exception while processing transaction: reverted with reason string '최소 펀딩금액에 미달합니다.'    at FundMe.fund (contracts/FundMe.sol:86)
+    at HardhatNode._mineBlockWithPendingTxs (node_modules\hardhat\src\internal\hardhat-network\provider\node.ts:1773:23)
+    at HardhatNode.mineBlock (node_modules\hardhat\src\internal\hardhat-network\provider\node.ts:466:16)        
+    at EthModule._sendTransactionAndReturnHash (node_modules\hardhat\src\internal\hardhat-network\provider\modules\eth.ts:1504:18)
+    at HardhatNetworkProvider.request (node_modules\hardhat\src\internal\hardhat-network\provider\provider.ts:118:18)
+    at EthersProviderWrapper.send (node_modules\@nomiclabs\hardhat-ethers\src\internal\ethers-provider-wrapper.ts:13:20)
+```
+
+VM이 에러를 발생시킵니다. 에러가 생기는게 정상적인 동작이지만 이 테스트에서만큼은 괜찮다고 말해줘야합니다.
+
+여기에선 와플을 이용해 예외처리해볼겁니다.
+
+expect의 revert를 사용해서 트랜잭션이 실패할 경우 되돌려줄 값을 정합니다.
+
+https://ethereum-waffle.readthedocs.io/en/latest/matchers.html?highlight=matcher#revert
+
+>Revert
+>Testing if transaction was reverted:
+>
+>```js
+>await expect(token.transfer(walletTo.address, 1007)).to.be.reverted;
+>```
+
+```js
+  describe("fund", async function() {
+    it("eth량이 기준미달일 때 실패해야 함", async function () {
+      await expect(fundMe.fund()).to.be.reverted
+    })
+  })
+```
+
+더 확실하게 말하고 싶다면 이렇게 하면 됩니다.
+
+```js
+  describe("fund", async function () {
+    it("eth량이 기준미달일 때 실패해야 함", async function () {
+      await expect(fundMe.fund()).to.be.revertedWith("eth가 더 필요합니다!")
+    })
+  })
+```
+
+>chai패키지는 현재 waffle에 의해 overwritten된 상태입니다.
+
+이런 에러가 발생합니다.
+
+```bash
+  1 failing
+
+  1) FundMe
+       fund
+         eth량이 기준미달일때 실패해야 함:
+     AssertionError: Expected transaction to be reverted with more eth, okay?, but other exception was thrown: Error: VM Exception while processing transaction: reverted with reason string '최소 펀딩금액에 미달합니다.'
+```
+
+revertedWith이 `'최소 펀딩금액에 미달합니다.'`와 동일한 string을 기대했지만, `eth가 더 필요합니다!` 라는 string을 아규먼트로 보냈습니다. 따라서 `FundMe.sol` 안의 `fund()`안의 revert 문에서 정한 string 값 그대로 revertedWith 안에 넣어서 보내줘야합니다.
+
+```js
+  describe("fund", function() {
+    it("eth량이 기준미달일때 실패해야 함", async function () {
+      await expect(fundMe.fund()).to.be.revertedWith("최소 펀딩금액에 미달합니다.")
+    })
+  })
+```
+```bash
+MockV3cont.address === getFundMe.priceFeed() ? true
+undefined
+      ✔ aggregator 주소를 알맞게 가지고 있는지
+    fund
+undefined
+      ✔ eth량이 기준미달일때 실패해야 함 (60ms)
+
+
+  2 passing (1s)
+
+Done in 2.97s.
+
+```
+
+성공적으로 실패할 경우 해당 에러를 발생시키는지에 대한 테스트가 끝났습니다!
+
+```solidity
+    address[] public funders;
+    mapping(address => uint256) public addressToAmountFunded;
+
+    function fund() public payable {
+        // 달러로 최소 금액을 설정하려 합니다.
+        // 1. 어떻게 이 계약으로 ETH를 보낼까요?
+        // number = 5;
+        require(
+            msg.value.getConversionRate(priceFeed) >= MINIMUM_USD,
+            unicode"최소 펀딩금액에 미달합니다."
+        );
+        // revert 될 경우 이후 액션에서 소모된 가스는 반환됩니다.
+        funders.push(msg.sender);
+        addressToAmountFunded[msg.sender] += msg.value;
+    }
+```
+
+이제 `fund()`안의 `addressToAmountFunded` 맵핑 같은 자료구조가 제대로 구조를 갖추어서 들어오는지 확인하는 테스트를 진행하겠습니다.
+
+지금은 일단 보내는 값을 하드코딩하겠습니다.
+여기서 `ethers.utils.parseEthers`를 사용하면 `1000000000000000000`를 입력할 필요없이 간편하게 gwei단위를 입력할 수 있습니다.
+
+fund()에 값을 넣어서 실행한 뒤 addressToAmountFunded를 호출합니다.
+
+addressToAmountFunded가 인수로 값는값을 다시 기억해봅시다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-19%20231229.png)
+
+```js
+    it("addressToAmountFunded에 주소와 기부자가 업데이트 되었나", async function () {
+      await fundMe.fund({ value: sendValue });
+      const response = await fundMe.addressToAmountFunded(deployer);
+      assert.equal(response.toString(), sendValue.toString());
+    });
+```
+
+> deployer 는 그 자체로 배포자address 값입니다.
+> deployer -> (O) 0x70997970C51812dc3....
+> deployer.addresss -> (X) undefined 
+
+`--grep`을 이용해서 방금 작성한 테스트코드만 실행해봅시다.
+
+```bash
+yarn hardhat test --grep 'addressToAmountFunded'
+```
+
+```bash
+  FundMe
+    fund
+모의계약주소 0x8464135c8F25Da09e49BC8782676a84730C318bC
+보낸금액 1000000000000000000
+deployer 0x70997970C51812dc3A010C7d01b50e0d17dc79C8     
+      ✔ addressToAmountFunded에 주소와 기부자가 업데이트
+ 되었나 (67ms)
+
+
+  1 passing (493ms)
+
+Done in 2.86s.
+```
+
+성공적으로 테스트가 완료되었습니다.
+
+커버리지를 확인해보겠습니다.
+
+```bash
+yarn hardhat coverage
+```
+```bash
+Version
+=======
+> solidity-coverage: v0.7.21
+
+Instrumenting for coverage...
+=============================
+
+> FundMe.sol
+> mocks\MockV3Aggregator.sol
+> PriceConverter.sol
+
+Compilation:
+============
+
+Nothing to compile
+
+Network Info
+============
+> HardhatEVM: v2.9.9
+> network:    hardhat
+
+
+
+  FundMe
+    constructor
+모의계약주소 0x8464135c8F25Da09e49BC8782676a84730C318bC
+보낸 금액 1000000000000000000
+deployer 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+      ✔ aggregator 주소를 알맞게 가지고 있는지
+    fund
+모의계약주소 0x8464135c8F25Da09e49BC8782676a84730C318bC
+보낸 금액 1000000000000000000
+deployer 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+      ✔ eth량이 기준미달일때 실패해야 함 (62ms)
+모의계약주소 0x8464135c8F25Da09e49BC8782676a84730C318bC
+보낸 금액 1000000000000000000
+deployer 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+      ✔ addressToAmountFunded에 주소와 기부자가 업데이트 되었나 (46ms)
+
+
+  3 passing (457ms)
+
+-----------------------|----------|----------|----------|----------|----------------|
+File                   |  % Stmts | % Branch |  % Funcs |  % Lines |Uncovered Lines |
+-----------------------|----------|----------|----------|----------|----------------|
+ contracts\            |    47.62 |    33.33 |       50 |    45.45 |                |
+  FundMe.sol           |    41.67 |    33.33 |       50 |    38.46 |... ,99,101,105 |
+  PriceConverter.sol   |    55.56 |      100 |       50 |    55.56 |     9,10,26,27 |
+ contracts\mocks\      |      100 |      100 |      100 |      100 |                |
+  MockV3Aggregator.sol |      100 |      100 |      100 |      100 |                |
+-----------------------|----------|----------|----------|----------|----------------|
+All files              |    47.62 |    33.33 |       50 |    45.45 |                |
+-----------------------|----------|----------|----------|----------|----------------|
+
+> Istanbul reports written to ./coverage/ and ./coverage.json
+Done in 3.78s.
+
+```
+
+funders에 제대로 값이 들어가는지 테스트해봅시다.
+
+```solidity
+address[] public funders;
+
+...
+...
+
+funders.push(msg.sender);
+```
+
+```js
+    it("funders에 기부자 주소가 들어와야 합니다.", async function () {
+      await fundMe.fund({ value: sendValue });
+      const funder = await fundMe.funders(0);
+      assert.equal(funder, deployer);
+    })
+```
+
+```bash
+yarn hardhat test --grep "funders"
+```
+```bash
+
+  FundMe
+    fund
+모의계약주소 0x8464135c8F25Da09e49BC8782676a84730C318bC
+보낸 금액 1000000000000000000
+deployer 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+      ✔ funders에 기부자 주소가 들어와야 합니다. (75ms)
+
+
+  1 passing (542ms)
+
+Done in 3.53s.
+
+```
+
+성공적으로 마쳤습니다.
+
+### withdraw() test
+
+이제 withdraw 함수를 테스트해보겠습니다.
+
+새 describe를 만들어줍니다.
+withdraw를 하려면 먼저 fund()를 통해 들어온 eth가 있어야 합니다.
+
+따라서 beforeEach()문으로 fund에 value를 넣어서 보내줍니다.
+
+이제 it()문으로 테스트를 작성할 겁니다.
+
+```js
+  describe("withdraw", function () {
+    beforeEach(async function () {
+      await fundMe.fund({value: sendValue});
+    });
+
+    it("하나의 기부자에게서 ETH 인출", async function () {
+      // Arrange
+      // Act
+      // Assert
+    })
+  })
+```
+
+이 테스트는 조금 길어지므로 Arrange, Act, Assert 세 부분으로 나누어 진행합니다.
+
+Arrange, Act, Assert는 테스트를 순서를 정하는 방법 중 하나입니다.
+
+먼저, 정렬(Arrange)에서는 FundMe계약이 가지고 있는 자금과 배포자(deployer)가 가지고 있는 자금을 설정하겠습니다.
+
+```js
+  describe("withdraw", function () {
+    beforeEach(async function () {
+      await fundMe.fund({value: sendValue});
+    });
+    it("하나의 기부자에게서 ETH 인출", async function () {
+      // Arrange
+      const startingFundMeBalance = await fundMe.provider.getBalance(fundMe.address);
+      const startingDeployerBalance = await fundMe.provider.getBalance(deployer);
+      // Act
+      // Assert
+    })
+  })
+```
+beforeEach에서 미리 FundMe 계약을 자금을 보냈기 때문에 FundMe가 가지고 있는 자금과 sender(deployer)가 가지고 있는 자금을 설정 할 수 있습니다.
+이 값들을 가기고 값이 얼만큼 바뀌었는지에 따라 테스트를 할 수 있습니다.
+
+이제 Act 에서는 withdraw 함수를 실행시킵니다.
+widthdraw를 실행시키고 블록이 추가될때까지 기다립니다.
+
+그런다음 FundMe계약의 자금(`startingFundMeBalance`)이 배포자에게로 모두 인출된 후에 배포자자금(`startingDeployerBalance`) 값과 같은지 여부를 따져야합니다.
+따라서 인출함수 실행(withdraw()) 후 FundMe계약자금(`endingFundMeBalance`)과 배포자자금(`endingDeployerBalance`)을 설정합니다.
+
+```js
+    it("하나의 기부자에게서 ETH 인출", async function () {
+      // Arrange
+      const startingFundMeBalance = await fundMe.provider.getBalance(fundMe.address);
+      const startingDeployerBalance = await fundMe.provider.getBalance(deployer);
+      // Act
+      const transactionResponse =  await fundMe.withdraw();
+      const transactionReceipt = await transactionResponse.wait(1);
+
+      const endingFundMeBalance = await fundMe.provider.getBalance(fundMe.address);
+      const endingDeployerBalance = await fundMe.provider.getBalance(deployer);
+      // Assert
+    })
+```
+
+이제 Assert에서 본격적으로 비교테스트를 실시합니다.
+`endingFundMeBalance`는 모두 인출되었으니 0이 되어야 할겁니다.
+인출된 자금이 모두 배포자가 가진 자금으로 이동되었으니(`startingDeployerBalance + startingFundMeBalance`) 이는 인출 후 금액(`endingDeployerBalance`)과 똑같아야합니다.
+
+참고로, 여기서 `startingFundMeBalance`이 블록체인에서 호출되게 되면 `BigNumber()` 타입으로 바뀌게 됩니다.
+따라서 `+` 연산이 아닌 빅넘버 연산 `BigNumber.add()`로 계산해줘야 합니다.
+
+>https://docs.ethers.io/v5/api/utils/bignumber/#BigNumber--BigNumber--methods--math-operations
+
+또한 빅넘버는 오브젝트이기때문에 정확한 비교를 위해 `toString()`으로 문자열로 변환해서 비교합시다.
+
+```js
+    it("하나의 기부자에게서 ETH 인출", async function () {
+      // Arrange
+      const startingFundMeBalance = await fundMe.provider.getBalance(fundMe.address);
+      const startingDeployerBalance = await fundMe.provider.getBalance(deployer);
+      // Act
+      const transactionResponse =  await fundMe.withdraw();
+      const transactionReceipt = await transactionResponse.wait(1);
+
+      const endingFundMeBalance = await fundMe.provider.getBalance(fundMe.address);
+      const endingDeployerBalance = await fundMe.provider.getBalance(deployer);
+      // Assert
+      assert.equal(endingFundMeBalance, 0);
+      assert.equal(startingDeployerBalance.add(startingFundMeBalance).toString(), endingDeployerBalance.toStirng());
+    })
+```
+
+**여기서 한가지 더 고려해야될 사항이 있습니다.**
+
+`withdraw()`를 호출할때 배포자(deployer)는 가스(`gas`)를 소모하게 됩니다.
+
+따라서,
+```js
+assert.equal(startingDeployerBalance.add(startingFundMeBalance).toString(), endingDeployerBalance.toStirng());
+```
+이 연산은 정확하지 않습니다. 가스 요금까지 계산해줘야 합니다.
+
+```js
+    it("하나의 기부자에게서 ETH 인출", async function () {
+      // Arrange
+      const startingFundMeBalance = await fundMe.provider.getBalance(fundMe.address);
+      const startingDeployerBalance = await fundMe.provider.getBalance(deployer);
+      // Act
+      const transactionResponse =  await fundMe.withdraw();
+      const transactionReceipt = await transactionResponse.wait(1);
+
+      const endingFundMeBalance = await fundMe.provider.getBalance(fundMe.address);
+      const endingDeployerBalance = await fundMe.provider.getBalance(deployer);
+      // Assert
+      assert.equal(endingFundMeBalance, 0);
+      assert.equal(
+        startingDeployerBalance.add(startingFundMeBalance).toString(),
+        endingDeployerBalance.toStirng()
+      );
+    })
+```
+
+## Breakpoints & Debugging
+
+현재 gasCost 값을 가지고 있지 않습니다. gasCost 값을 얻을 수 있는 방법에 대해 알아봅시다.
+
+`transactionReceipt`에서 가스 요금을 가져올 수 있습니다.
+
+더불어 vscode의 트릭하나를 소개해드리겠습니다.
+
+vscode에서 사용할 수 있는 기능 중에 중단점(`Breakpoint`)라는 기능이 있습니다.
+코드 줄 숫자의 왼쪽을 호버링 하고 클릭하면 나오는 빨간 점 입니다.
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-20%20092539.png)
+
+다음과 같이 `endingFundMeBalance`전의 공백 줄에 중단점을 설정해보겠습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-20%20092721.png)
+
+중단점이 하는일은 해당 코드라인에 코드실행을 멈추고 디버그 콘솔(`DEBUG CONSOLE`)로 이동할 수 있게 해줍니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-20%20093231.png)
+
+그리고 이곳에서 이 시점에서 일어나는 변수들의 변화에 대해서 알 수 있게 해줍니다.
+
+이 때 transactionReceipt를 분석하면, gas 소모량을 알 수 있으며, 이는 테스트나 배포를 할때 매우 유용하게 쓰입니다.
+
+vscode의 `실행 및 디버그` 탭에서 `JavaScript Debug Terminal`을 선택합니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-20%20093456.png)
+
+디버그 전용 터미널이 생성됩니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-20%20093654.png)
+
+
+현재는 gasCost가 정해지지 않았기때문에 일단 해당 코드를(`add(gasCost)`)를 지우고 시작하겠습니다.
+
+디버그 터미널에 다음과 같이 입력합니다.
+```bash
+yarn hardhat test
+```
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-20%20094223.png)
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-20%20094311.png)
+
+debugger가 attach되고 위와 같은 화면이 됩니다.
+
+`디버그 콘솔`에서 transactionReceipt를 입력해봅시다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-20%20100437.png)
+
+transactionRecipt 오브젝트의 구조를 알아볼 수 있습니다.
+
+화살표를 눌러 프로퍼티를 살펴보면 gasUsed 항목이 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-20%20100638.png)
+
+혹은 탭 옆의 `변수` 항목에서도 찾아볼 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-20%20100804.png)
+
+또한 effectiveGasPrice라는 항목도 볼 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-20%20101217.png)
+
+```
+transactionReceipt.effectiveGasPrice
+{
+  _hex: "0x5f130b2e",
+  _isBigNumber: true,
+}
+gasUsed
+{
+  _hex: "0x8b14",
+  _isBigNumber: true,
+}
+```
+
+따라서 가스소모량(`gasUsed`) 에 가스가격(`effectiveGasPrice`)를 곱하면 지불한 가스요금을 알 수 있습니다.
+
+>https://docs.ethers.io/v5/api/providers/types/#providers-TransactionReceipt
+
+디버그모드와 디버그터미널을 종료하겠습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-20%20101827.png)
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-20%20101837.png)
+
+## Gas 3
+
+이제 위의 두 항목(`gasUsed`,`effectiveGasPrice`)를 `transactionReceipt 객체에서 가져옵니다.
+그 후 둘을 `BigNumber.mul()` 메소드로 곱하여 `gasCost`에 할당합니다.
+이것을 다시 `endingDeployerBalnace`에 `BigNumber.add()`로 더해줍니다. 
+
+이제 지불한 가스요금도 포함했기 때문에 식이 정확해졌습니다.
+
+```js
+    it("하나의 기부자에게서 ETH 인출", async function () {
+      // Arrange
+      const startingFundMeBalance = await fundMe.provider.getBalance(
+        fundMe.address
+      );
+      const startingDeployerBalance = await fundMe.provider.getBalance(
+        deployer
+      );
+      // Act
+      const transactionResponse = await fundMe.withdraw();
+      const transactionReceipt = await transactionResponse.wait(1);
+      const { effectiveGasPrice, gasUsed } = transactionReceipt;
+      const gasCost = gasUsed.mul(effectiveGasPrice);
+
+      const endingFundMeBalance = await fundMe.provider.getBalance(
+        fundMe.address
+      );
+      const endingDeployerBalance = await fundMe.provider.getBalance(deployer);
+      // Assert
+      assert.equal(endingFundMeBalance, 0);
+      assert.equal(
+        startingDeployerBalance.add(startingFundMeBalance).toString(),
+        endingDeployerBalance.add(gasCost).toString()
+      );
+    });
+```
+
+>참고: `await fundMe.provider.getBalance` 는 `await ethers.provider.getBalance`로도 사용할 수 있습니다.
+
+>에러기록: endingDeployerBalance.add(gasCost).toString()을 toStiring으로 써서 에러가 발생했습니다.
+
+완성된 코드를 테스트해보겠습니다.
+```
+yarn hardhat test --grep "인출"
+```
+```bash
+
+
+  FundMe
+    withdraw
+모의계약주소 0x8464135c8F25Da09e49BC8782676a84730C318bC
+보낸 금액 1000000000000000000
+deployer 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+      ✔ 하나의 기부자에게서 ETH 인출
+
+
+  1 passing (512ms)
+
+Done in 2.81s.
+
+```
+
+만약 gasPrice를 더해주지 않는다면 어떻게 될까요?
+```js
+      assert.equal(
+        startingDeployerBalance.add(startingFundMeBalance).toString(),
+        endingDeployerBalance.toString()
+      );
+```
+이렇게 설정 후 테스트해보겠습니다.
+
+```bash
+
+
+  FundMe
+    withdraw
+모의계약주소 0x8464135c8F25Da09e49BC8782676a84730C318bC
+보낸 금액 1000000000000000000
+deployer 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+      1) 하나의 기부자에게서 ETH 인출
+
+
+  0 passing (522ms)
+  1 failing
+
+  1) FundMe
+       withdraw
+         하나의 기부자에게서 ETH 인출:
+
+      AssertionError: expected '9999997138877104686454' to equal '9999997082085749402590'
+      + expected - actual
+
+      -9999997138877104686454
+      +9999997082085749402590
+
+      at Context.<anonymous> (test\unit\FundMe.test.js:74:14)
+      at processTicksAndRejections (node:internal/process/task_queues:96:5)
+      at runNextTicks (node:internal/process/task_queues:65:3)
+      at listOnTimeout (node:internal/timers:528:9)
+      at processTimers (node:internal/timers:502:7)
+
+
+
+```
+
+## Conosle.log & Debugging
+
+하드햇 환경에서는 솔리디티에서도 console.log를 사용할 수 있습니다.
+
+https://hardhat.org/tutorial/debugging-with-hardhat-network#solidity--console.log
+
+```solidity
+pragma solidity ^0.8.0;
+
+import "hardhat/console.sol";
+
+contract Token {
+  //...
+}
+```
+
+```solidity
+function transfer(address to, uint256 amount) external {
+    console.log("Sender balance is %s tokens", balances[msg.sender]);
+    console.log("Trying to send %s tokens to %s", amount, to);
+
+    require(balances[msg.sender] >= amount, "Not enough tokens");
+
+    balances[msg.sender] -= amount;
+    balances[to] += amount;
+}
+```
+
+## Testing Fund Me 2
+
+다수의 사용자에게서 eth를 인출하는 테스트를 진행해보겠습니다.
+
+먼저 다수의 사용자로부터 eth를 받아야 합니다.
+```js
+const accounts = await ethers.getSigners()
+```
+받아온 accounts를 for 루프를 이용해 순회하며 각각의 계정마다 `fund()`를 호출합니다.
+
+accounts의 첫번째는 deployer가 되므로 인데스를 1부터 시작합니다.
+
+현재 FundMe 계약은 deployer에 연결되 있기 때문에 순회마다 각 계정에 fundMe 계정을 `connect`로 연결해줍니다.
+
+연결된 계정 인스턴스에서 fund를 실행시키고 인수로 eth를 입력해 입금합니다.
+
+```js
+    it("다수의 기부자들로부터 인출이 가능해야함", async function () {
+      const accounts = await ethers.getSigners();
+      for(let i=0; i < 6; i++) {
+        const fundMeConnectedContract = await fundMe.connect(accoutns[i]);
+        await fundMeConnectedContract.fund({value: sendValue})
+      }
+    })
+```
+
+그리고 바로 전 테스트 처럼 계약자금과 기부자계정자금을 변수에 할당합니다.
+
+바로 전 테스트와 동일하게 진행하면 됩니다. 기부자금액 + 가스 = 배포자자금
+
+```js
+    it("다수의 기부자들로부터 인출이 가능해야함", async function () {
+      const accounts = await ethers.getSigners();
+      for (let i = 0; i < 6; i++) {
+        // Arrange
+        const fundMeConnectedContract = await fundMe.connect(accounts[i]);
+        await fundMeConnectedContract.fund({ value: sendValue });
+        const startingFundMeBalance = await fundMe.provider.getBalance(
+          fundMe.address
+        );
+        const startingDeployerBalance = await fundMe.provider.getBalance(
+          deployer
+        );
+        // Act
+        const transactionResponse = await fundMe.withdraw();
+        const transactionReceipt = await transactionResponse.wait(1);
+        const { effectiveGasPrice, gasUsed } = transactionReceipt;
+        const gasCost = gasUsed.mul(effectiveGasPrice);
+        const endingFundMeBalance = await fundMe.provider.getBalance(
+          fundMe.address
+        );
+        const endingDeployerBalance = await fundMe.provider.getBalance(
+          deployer
+        );
+        // Assert
+        assert(
+          startingDeployerBalance.add(startingFundMeBalance).toString(),
+          endingDeployerBalance.add(gasCost).toString()
+        );
+        // 후원자목록(funders 배열) 초기화 확인
+        await expect(fundMe.funders(0)).to.be.reverted;
+        // 맵핑값이 0으로 초기화 되었는지 확인
+        for (let i = 0; i < 6; i++) {
+          const amountFunded = await fundMe.addressToAmountFunded(
+            accounts[i].address
+          );
+          assert.equal(amountFunded, 0);
+        }
+      }
+    });
+```
+
+
+```bash
+yarn hardhat test --grep "다수의"
+```
+```bash
+
+
+  FundMe
+    withdraw
+모의계약주소 0x8464135c8F25Da09e49BC8782676a84730C318bC
+보낸 금액 1000000000000000000
+deployer 0x70997970C51812dc3A010C7d01b50e0d17dc79C8     
+      ✔ 다수의 기부자들로부터 인출이 가능해야함 (903ms)
+
+
+  1 passing (1s)
+
+Done in 3.73s.
+
+```
+
+테스트를 통과하였습니다.
+
+### modifier 테스트 (계약소유자만 인출가능 테스트)
+
+getSingers로 가계정을 얻은 뒤 attacker 변수에 할당합니다.
+attacker는 공격을 위해 fundMe에 connect로 연결하고
+withdraw()를 실행시키지만, 계약소유자의 주소와 다르기 때문에 reverted 됩니다.
+
+```js
+    it("계약소유자만이 잔액을 인출할 수 있어야 함", async function () {
+      const accounts = await ethers.getSigners();
+      const attacker = accounts[1];
+      const attackerConnectedContract = await fundMe.connect(attacker);
+      await expect(attackerConnectedContract.withdraw()).to.be.revertedWith("펀딩 소유자만 인출할 수 있습니다.");
+    })
+
+```
+
+확실한 에러코드 반환을 위해 revertedWith으로 작성해보겠습니다.
+
+그전에 먼저 FundMe.sol 파일에 가서 커스텀 에러코드인 `NotOwner`의 이름을 `FundMe__NotOwner`로 수정해 FundMe 계약소유인걸 확실시 합니다.
+
+```solidity
+// Error codes
+error FundMe__NotOwner();
+
+    //modifier
+    modifier onlyOwner() {
+        // require(
+        //     msg.sender == i_owner,
+        //     unicode"펀딩 소유자만 인출할 수 있습니다."
+        // );
+        if(msg.sender != i_owner) { revert FundMe__NotOwner();}
+        _;
+    }
+```
+
+```js
+    it("계약소유자만이 잔액을 인출할 수 있어야 함", async function () {
+      const accounts = ethers.getSigners();
+      const attacker = accounts[1];
+      const attackerConnectedContract = await fundMe.connect(attacker);
+      await expect(attackerConnectedContract.withdraw()).to.be.revertedWith("FundMe__NotOwner");
+    })
+
+```
+
+>이 에러는 ethers.getSingers()에 await을 붙이지 않아서 발생한 에러입니다.
+```bash
+      1) 계약소유자만이 잔액을 인출할 수 있어야 함
+
+
+  0 passing (494ms)
+  1 failing
+
+  1) FundMe
+       withdraw
+         계약소유자만이 잔액을 인출할 수 있어야 함:     
+     AssertionError: Expected transaction to be reverted with 펀딩 소유자만 인출할 수 있습니다., but other exception was thrown: Error: sending a transaction requires a signer (operation="sendTransaction", code=UNSUPPORTED_OPERATION, version=contracts/5.6.2)
+
+
+
+
+error Command failed with exit code 1.
+info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command.
+```
+```bash
+
+
+  FundMe
+    withdraw
+모의계약주소 0x8464135c8F25Da09e49BC8782676a84730C318bC
+보낸 금액 1000000000000000000
+deployer 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+account0: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+account1: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+account2: 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC
+fundMe.i_owner(): 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+msg.sender 0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc
+i_owner 0x70997970c51812dc3a010c7d01b50e0d17dc79c8
+same? false
+      ✔ 계약소유자만이 잔액을 인출할 수 있어야 함 (66ms)
+
+
+  1 passing (667ms)
+
+Done in 3.09s.
+```
+> 여기서 fundMe 계약의 소유자가 account[1]이 되어버려서 다른 acocunt주소로 공격을 시도해야 테스트가 완료됬습니다.
+> 이유는 이렇습니다. `hardhat.config.js` 에 보면 테스트 코드의 `getNamedAccouts()`가 주소를 가져오는 프로퍼티 namedAccounts에 deployer가 default는 0으로 되어있지만 31337일 경우, 즉, 하드햇이나 로컬호스트가 31337 체인아이디를 가지므로 배포가 account[1]에 됩니다. 
+```js
+  namedAccounts: {
+    deployer: {
+      default: 0,
+      31337: 1
+    },
+    user: {
+      default: 1,
+    },
+  },
+```
+
+
+## Storage in Solidity
+
+스테이징 테스트를 하기 전에 gas Estimator를 사용해보겠습니다.
+
+`hardhat.config.js`로 가보면 이미 가스리포터를 하드햇에서 불러오고 있기때문에 coinmarketcap api가 필요없게되었습니다.
+
+```js
+require("hardhat-gas-reporter");
+
+//...
+//...
+
+  gasReporter: {
+    enabled: true,
+    outputFile: "gas-report.txt",
+    noColors: true,
+    currency: "USD",
+    // coinmarketcap: COINMARKETCAP_API_KEY,
+    token: "MATIC",
+  },
+
+```
+
+가스 리포터를 `true`로 바꿔주고 가스리포트를 작성하게 합니다.
+
+모든 테스트를 다시 실시합니다.
+```bash
+yarn hardhat test
+```
+```
+·-------------------------|----------------------------|-------------|-----------------------------·
+|   Solc version: 0.8.8   ·  Optimizer enabled: false  ·  Runs: 200  ·  Block limit: 30000000 gas  │
+··························|····························|·············|······························
+|  Methods                                                                                         │
+·············|············|·············|··············|·············|···············|··············
+|  Contract  ·  Method    ·  Min        ·  Max         ·  Avg        ·  # calls      ·  usd (avg)  │
+·············|············|·············|··············|·············|···············|··············
+|  FundMe    ·  fund      ·      87344  ·      104444  ·     102734  ·           10  ·          -  │
+·············|············|·············|··············|·············|···············|··············
+|  FundMe    ·  withdraw  ·      40128  ·       48669  ·      41552  ·           12  ·          -  │
+·············|············|·············|··············|·············|···············|··············
+|  Deployments            ·                                          ·  % of limit   ·             │
+··························|·············|··············|·············|···············|··············
+|  FundMe                 ·          -  ·           -  ·    1075574  ·        3.6 %  ·          -  │
+··························|·············|··············|·············|···············|··············
+|  MockV3Aggregator       ·          -  ·           -  ·     569635  ·        1.9 %  ·          -  │
+·-------------------------|-------------|--------------|-------------|---------------|-------------·
+```
+
+FundMe 계약이 예상보다 많은 가스를 소모하는것을 알 수 있습니다.
+
+`FundMe.sol` 파일의 `withdraw`함수를 최적화 해보겠습니다.
+
+바로 `Storage variable`이 필요한 시점입니다.
+
+이번시간이 첫번재 가스 최적화 시간일겁니다.
+
+FundMe 계약은 아래와 같은 상태변수들을 어떻게 저장하고 추적하는 걸까요?
+
+```solidity
+    // State Variables
+    uint256 public constant MINIMUM_USD = 50 * 1e18;
+    // uint256 public number;
+
+    address[] public funders;
+    mapping(address => uint256) public addressToAmountFunded;
+
+    address public immutable i_owner;
+
+    AggregatorV3Interface public priceFeed;
+```
+
+이 전역변수, 즉 `저장 변수(storage variable)`가 어떻게 작동하는지 살펴보겠습니다.
+
+>https://docs.soliditylang.org/en/v0.8.15/internals/layout_in_storage.html
+
+전역변수를 선언하거나 이같은 변수가 영구적으로 보관된다면, `storage`라 불리는 곳에 보관됩니다.
+
+`storage`는 엄청 큰 배열 혹은 우리가 만들수 있는 변수들의 엄청 큰 리스트라 생각하시면 됩니다.
+
+따라서
+```
+contract FunWithStorage {
+  uint256 favoriteNumber;
+  bool someBool;
+
+  constructor() {
+    favoriteNumber = 25;
+  }
+}
+```
+`FunWithStorage` 계약을 호출했을때 우리는 `favoriteNumber`라는 변수를 갖게되고,
+우리는 이 `favoriteNumber` 변수가 지속되는걸 원합니다. 전에 작성한 simpleSotrage.sol에서 처럼 favoriteNumber를 아무대서나 부를 수 있고
+이 계약의 `favoriteNumber` 뭔지 알고싶을 때 호출할 수 있었습니다. 이것이 이렇게 지속이 가능한 방법은 `storage`라 불리는 곳에 보관되기 때문입니다.
+
+스토리지 박스는 이 계약과 연관된 거대한 리스트입니다. 스토리지 박스의 모든 변수들은 각각 이 스토리지 배열에 있는 32byte 길이의 슬롯에 끼워지게(slotted) 됩니다. 
+
+예를 들어 숫자 `25`는 bytes로 표현하면 0x000...19 가 됩니다. 이것이 `uint` `hex` 버전입니다. 그래서 우리가 헥스변환을 하는 이유기도 합니다. 헥스는 uint256을 바이트로 구현한 것이기 때문입니다.
+
+그리고 각각의 `store`는 증가하는 것처럼 보입니다. 마치 0부터 시작하는 배열처럼요
+
+```
+Storage
+[0] 0x000...19
+[1] 0x000...01
+[2]
+[3]
+[4]
+```
+예를 들어서 `favoriteNumber` 다음에 선언된 `bool someBool`는 `favoriteNumber`가 할당된 Storage[0]바로 뒤의 Storage[1]에 할당됩니다.
+불리언을 예로 들면 `bool` 버전에서 `hex`로 변환되게 됩니다. 그리고 우리가 bool을 true로 변경할 경우 true boolean의 hex에디션으로 바뀔겁니다.
+매번 전여변수를 추가로 저장할때마다, 더 정확히 말하면, 이 저장변수들은 추가로 스토리지 슬롯을 차지합니다.
+
+그렇다면 동적변수는 어떨까요? 길이를 변경하거나 그런거요. 동적배열이나, 매핑같은 동적인 값은 배열이나 매핑안의 요소가 해싱함수의 일종을 사용하여 보관되게 됩니다. 그리고 이 특정 함수는 솔리디티 문서에서 찾아볼 수 있습니다. 
+
+오브젝트 자체가 스토리지 슬롯을 차지하나, 전체 배열이 되거나 하지는 않습니다. 예를들어,
+
+```solidity
+contract FunWithStorage {
+  uint256 favoriteNumber;
+  bool someBool;
+  uint256[] myArray;
+
+  constructor() {
+    favoriteNumber = 25;
+    someBool = true;
+    myArray.push(222);
+  }
+}
+```
+```
+Storage
+[0] 0x000...19
+[1] 0x000...01
+[2] 0x000...02
+[3] [keccak256(2)]0x00...0de
+```
+
+위 코드의 myArray는 storage[2]에 끼워넣어지지만 해당 배열의 전체 요소를 가지고 있지는 않습니다.
+사실 이것이 정확히 가지고 있는것은 배열의 길이(array length)입니다. 배열의 길이가 storage[2]에 저장된겁니다.
+
+하지만 예를들어, 우리가 `myArray.push(222)`를 실행시키게 되면 우리는 문서에 있는 해싱함수를 사용하게 됩니다.
+그리고 숫자 222를 그 위치에 저장하게 됩니다. 이것의 헥스값은 0x00...0de rk ehlqslek. 그래서 이것은 이렇게 말도 안되는 곳에 보관되게 되고 이건 좋은 일입니다. 그리고 이것은 의도적입니다(intentional), 왜냐하면 32bytes는 myArrray를 저장하기에 충분히 크지 않을지도 모르기 때문이죠. 만약에 myArray 배열이 엄청크다면요. 
+
+And it wouldn't make sense for to put the elements inside the array at subsequent numbers because again, the size of the array can change and you're never going to be sure how many subsequence that you need.
+
+또한, 배열의 크기가 바뀔 수 있고 얼마나 많은 배열이 필요한지 알 수 없기 때문에 배열 내부에 요소를 넣는 것은 의미가 없습니다.
+
+그래서 myArray 에는 매핑이 사용할 수 있는 길이(length)를 위한 저장슬롯을 가지고 있습니다. 배열 비슷한 저장 공간은 가지고 있지만, 그냥 비어있을 뿐입니다.
+
+하지만 비어있는것은 의도적인 것이고, 그렇게 비워놓음으로써 솔리디티가 "아하, 여기에 매핑이 들어가겠군. 그리고 해싱함수가 제대로 동작하기 위한 저장슬롯이 필요하겠군." 이라는 사실을 알게됩니다. 
+
+그리고 흥미롭게도, 상수(`constant`) 변수와 불변(`immutable`) 변수는 저장 공간을 차지하지 않습니다.
+이유는 constant 변수는 사실 계약 바이트코드 자체이자 그것의 일부이기 때문입니다. 좀 이상하게 들리시죠.
+
+```solidity
+contract FunWithStorage {
+  uint256 favoriteNumber;
+  bool someBool;
+  uint256[] myArray;
+  uint256 constant NOT_IN_STORAGE = 123;
+
+  constructor() {
+    favoriteNumber = 25;
+    someBool = true;
+    myArray.push(222);
+  }
+}
+```
+
+But you can imagine what solidity does is anytime it sees constant variables name is it just automatically swaps it out with whatever number it actually is.
+
+하지만 여러분은 상상이 가실 겁니다. 항상 일정한 변수들을 볼 때, 실제 숫자와 자동으로 교환되는 이름이죠.
+
+이렇게 생각하셔도 됩니다. 저장되는것이 아니고 그냥 123을 가리키는(pointer) 것이고,  스토리지 슬롯을 차지하지 않는다는 것 이라고요.
+
+함수안에 있는 변수들은 함수가 실행되는 동안에만 존재합니다. 함수 안의 변수들은 계약에 계속 머무르지 않습니다. 지속되지 않고, 영구적이지 않습니다.
+
+그래서 함수안의 변수들은 `storage`에 추가되지 않습니다.
+
+따라서 여기 doStuff() 안에 있는 newVar나 otherVar 같은 변수들은 `storage`에 추가되지 않습니다.
+그들은 그들이 가지고 있는 자료구조에 추가됩니다. 함수실행이 끝나면 삭제되는 자료구조입니다.
+그럼 이렇게 물어볼 수 도 있습니다. 그럼 memory 키워드는 왜 필요한 건가요?
+
+```solidity
+contract FunWithStorage {
+  uint256 favoriteNumber;
+  bool someBool;
+  uint256[] myArray;
+  uint256 constant NOT_IN_STORAGE = 123;
+
+  constructor() {
+    favoriteNumber = 25;
+    someBool = true;
+    myArray.push(222);
+  }
+
+  function doStuff() public {
+    uint256 newVar = favoriteNumber + 1;
+    uint256 otherVar = 7;
+  }
+}
+```
+
+String memory 우리가 string 이 필요한 이유는 왜냐하면 문자열들은 기술적으로 앞서 살펴봤던 동적 배열로 볼 수 있기 때문입니다.
+그리고 솔리디티에게 "이봐, 우리 이걸 저장 공간(storage location)에서 할거야" 아니면 "한번 쓰고 지울 수 있는 메모리 공간(memory location)에서 할거야" 라고 알려줘야 합니다. 배열 및 매핑은 훨씬 더 많은 공간을 차지할 수 있습니다. 그래서 솔리디티는 단지 확실히 하고 싶을 뿐입니다. "좋아요, 우리가 이걸 어디서 작업하죠? 스토리지인가요? 메모리인가요? 저한테 알려주셔야 해요, 스토리지 데이터 구조에 공간을 할당해야 하는지 알아야 하거든요."
+
+https://github.com/PatrickAlphaC/hardhat-fund-me-fcc
+
+이곳에 스토리지 관련된 코드가 있습니다. 직접 실습해보시고, 챌린지에도 도전해보세요.
+
+스토리지에 대해 이야기 하는 이유는 스토리지에 변수가 저장될때마다 gas가 많이 소모되기 때문입니다.
+앞서 말했듯이 코드를 컴파일하게 되면 바이트코드로 변환되게 되는데, remix에서 Compliation Data의 BYTECODE 항목을 살펴보면 object 필드에 헥스 오브젝트를 찾을 수 있습니다. 그 밑에는 opcodes 가 있는데 각가의 opcodes마다 object 안의 바이트코드 일부를 나타냅니다.
+
+이것은 하드햇의 artifacts/build-info 에서도 찾을 수 있습니다.
+
+이 옵코드는 머신코드가 무얼 하는지 알려줍니다. 그리고 코드를 실행하거나 아니면 다른 작업을 위해 얼마나 많은 계산작업을 하는지를 나타냅니다.
+Gas가 바로 이 opcodes에 의해 계산됩니다.
+
+>https://github.com/crytic/evm-opcodes
+
+여기에 가보시면 각각의 옵코드마다 얼만큼의 가스를 소모하는지에 대한 도표가 작성되어있습니다.
+
+# Ethereum VM (EVM) Opcodes and Instruction Reference
+
+This reference consolidates EVM opcode information from the [yellow paper](http://gavwood.com/paper.pdf), [stack exchange](https://ethereum.stackexchange.com/questions/119/what-opcodes-are-available-for-the-ethereum-evm), [solidity source](https://github.com/ethereum/solidity/blob/c61610302aa2bfa029715b534719d25fe3949059/libevmasm/Instruction.h#L40), [parity source](https://github.com/paritytech/parity/blob/d365281cce919edc42340c97ce212f49d9447d2d/ethcore/evm/src/instructions.rs#L311), [evm-opcode-gas-costs](https://github.com/djrtwo/evm-opcode-gas-costs/blob/master/opcode-gas-costs_EIP-150_revision-1e18248_2017-04-12.csv) and [Manticore](https://github.com/trailofbits/manticore/blob/c6f457d72e1164c4c8c6d0256fe9b8b765d2cb24/manticore/platforms/evm.py#L590).
+
+New issues and contributions are welcome, and are covered by bounties from Trail of Bits. Join us in #ethereum on the [Empire Hacking Slack](https://empireslacking.herokuapp.com) to discuss Ethereum security tool development.
+
+## Notes
+
+The size of a "word" in EVM is 256 bits.
+
+The gas information is a work in progress. If an asterisk is in the Gas column, the base cost is shown but may vary based on the opcode arguments.
+
+## Table
+
+| Opcode | Name | Description | Extra Info | Gas |
+| --- | --- | --- | --- | --- |
+| `0x00` | STOP | Halts execution | - | 0 |
+| `0x01` | ADD | Addition operation | - | 3 |
+| `0x02` | MUL | Multiplication operation | - | 5 |
+| `0x03` | SUB | Subtraction operation | - | 3 |
+| `0x04` | DIV | Integer division operation | - | 5 |
+| `0x05` | SDIV | Signed integer division operation (truncated) | - | 5 |
+| `0x06` | MOD | Modulo remainder operation | - | 5 |
+| `0x07` | SMOD | Signed modulo remainder operation | - | 5 |
+| `0x08` | ADDMOD | Modulo addition operation | - | 8 |
+| `0x09` | MULMOD | Modulo multiplication operation | - | 8 |
+| `0x0a` | EXP | Exponential operation | - | 10* |
+| `0x0b` | SIGNEXTEND | Extend length of two's complement signed integer | - | 5 |
+| `0x0c` - `0x0f` | Unused | Unused | - |
+| `0x10` | LT | Less-than comparison | - | 3 |
+| `0x11` | GT | Greater-than comparison | - | 3 |
+| `0x12` | SLT | Signed less-than comparison | - | 3 |
+| `0x13` | SGT | Signed greater-than comparison | - | 3 |
+| `0x14` | EQ | Equality comparison | - | 3 |
+| `0x15` | ISZERO | Simple not operator | - | 3 |
+| `0x16` | AND | Bitwise AND operation | - | 3 |
+| `0x17` | OR | Bitwise OR operation | - | 3 |
+| `0x18` | XOR | Bitwise XOR operation | - | 3 |
+| `0x19` | NOT | Bitwise NOT operation | - | 3 |
+| `0x1a` | BYTE | Retrieve single byte from word | - | 3 |
+| `0x1b` | SHL | Shift Left | [EIP145](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-145.md) | 3 |
+| `0x1c` | SHR | Logical Shift Right | [EIP145](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-145.md) | 3 |
+| `0x1d` | SAR | Arithmetic Shift Right | [EIP145](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-145.md) | 3 |
+| `0x20` | KECCAK256 | Compute Keccak-256 hash | - | 30* |
+| `0x21` - `0x2f`| Unused | Unused |
+| `0x30` | ADDRESS | Get address of currently executing account | - | 2 |
+| `0x31` | BALANCE | Get balance of the given account | - | 700 |
+| `0x32` | ORIGIN | Get execution origination address | - | 2 |
+| `0x33` | CALLER | Get caller address | - | 2 |
+| `0x34` | CALLVALUE | Get deposited value by the instruction/transaction responsible for this execution | - | 2 |
+| `0x35` | CALLDATALOAD | Get input data of current environment | - | 3 |
+| `0x36` | CALLDATASIZE | Get size of input data in current environment | - | 2* |
+| `0x37` | CALLDATACOPY | Copy input data in current environment to memory | - | 3 |
+| `0x38` | CODESIZE | Get size of code running in current environment | - | 2 |
+| `0x39` | CODECOPY | Copy code running in current environment to memory | - | 3* |
+| `0x3a` | GASPRICE | Get price of gas in current environment | - | 2 |
+| `0x3b` | EXTCODESIZE | Get size of an account's code | - | 700 |
+| `0x3c` | EXTCODECOPY | Copy an account's code to memory | - | 700* |
+| `0x3d` | RETURNDATASIZE | Pushes the size of the return data buffer onto the stack | [EIP 211](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-211.md) | 2 |
+| `0x3e` | RETURNDATACOPY | Copies data from the return data buffer to memory | [EIP 211](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-211.md) | 3 |
+| `0x3f` | EXTCODEHASH | Returns the keccak256 hash of a contract's code | [EIP 1052](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1052.md) | 700 |
+| `0x40` | BLOCKHASH | Get the hash of one of the 256 most recent complete blocks | - | 20 |
+| `0x41` | COINBASE | Get the block's beneficiary address | - | 2 |
+| `0x42` | TIMESTAMP | Get the block's timestamp | - | 2 |
+| `0x43` | NUMBER | Get the block's number | - | 2 |
+| `0x44` | DIFFICULTY | Get the block's difficulty | - | 2 |
+| `0x45` | GASLIMIT | Get the block's gas limit | - | 2 |
+| `0x46` | CHAINID | Returns the current chain’s EIP-155 unique identifier | [EIP 1344](https://github.com/ethereum/EIPs/blob/master/EIPS/eip-1344.md) | 2 |
+| `0x47` - `0x4f` | Unused | - |
+| `0x48` | BASEFEE | Returns the value of the base fee of the current block it is executing in. | [EIP 3198](https://eips.ethereum.org/EIPS/eip-3198) | 2 |
+| `0x50` | POP | Remove word from stack | - | 2 |
+| `0x51` | MLOAD | Load word from memory | - | 3* |
+| `0x52` | MSTORE | Save word to memory | - | 3* |
+| `0x53` | MSTORE8 | Save byte to memory | - | 3 |
+| `0x54` | SLOAD | Load word from storage | - | 800 |
+| `0x55` | SSTORE | Save word to storage | - | 20000** |
+| `0x56` | JUMP | Alter the program counter | - | 8 |
+| `0x57` | JUMPI | Conditionally alter the program counter | - | 10 |
+| `0x58` | GETPC | Get the value of the program counter prior to the increment | - | 2 |
+| `0x59` | MSIZE | Get the size of active memory in bytes | - | 2 |
+| `0x5a` | GAS | Get the amount of available gas, including the corresponding reduction for the cost of this instruction | - | 2 |
+| `0x5b` | JUMPDEST | Mark a valid destination for jumps | - | 1 |
+| `0x5c` - `0x5f` | Unused | - |
+| `0x60` | PUSH1 | Place 1 byte item on stack | - | 3 |
+| `0x61` | PUSH2 | Place 2-byte item on stack | - | 3 |
+| `0x62` | PUSH3 | Place 3-byte item on stack | - | 3 |
+| `0x63` | PUSH4 | Place 4-byte item on stack | - | 3 |
+| `0x64` | PUSH5 | Place 5-byte item on stack | - | 3 |
+| `0x65` | PUSH6 | Place 6-byte item on stack | - | 3 |
+| `0x66` | PUSH7 | Place 7-byte item on stack | - | 3 |
+| `0x67` | PUSH8 | Place 8-byte item on stack | - | 3 |
+| `0x68` | PUSH9 | Place 9-byte item on stack | - | 3 |
+| `0x69` | PUSH10 | Place 10-byte item on stack | - | 3 |
+| `0x6a` | PUSH11 | Place 11-byte item on stack | - | 3 |
+| `0x6b` | PUSH12 | Place 12-byte item on stack | - | 3 |
+| `0x6c` | PUSH13 | Place 13-byte item on stack | - | 3 |
+| `0x6d` | PUSH14 | Place 14-byte item on stack | - | 3 |
+| `0x6e` | PUSH15 | Place 15-byte item on stack | - | 3 |
+| `0x6f` | PUSH16 | Place 16-byte item on stack | - | 3 |
+| `0x70` | PUSH17 | Place 17-byte item on stack | - | 3 |
+| `0x71` | PUSH18 | Place 18-byte item on stack | - | 3 |
+| `0x72` | PUSH19 | Place 19-byte item on stack | - | 3 |
+| `0x73` | PUSH20 | Place 20-byte item on stack | - | 3 |
+| `0x74` | PUSH21 | Place 21-byte item on stack | - | 3 |
+| `0x75` | PUSH22 | Place 22-byte item on stack | - | 3 |
+| `0x76` | PUSH23 | Place 23-byte item on stack | - | 3 |
+| `0x77` | PUSH24 | Place 24-byte item on stack | - | 3 |
+| `0x78` | PUSH25 | Place 25-byte item on stack | - | 3 |
+| `0x79` | PUSH26 | Place 26-byte item on stack | - | 3 |
+| `0x7a` | PUSH27 | Place 27-byte item on stack | - | 3 |
+| `0x7b` | PUSH28 | Place 28-byte item on stack | - | 3 |
+| `0x7c` | PUSH29 | Place 29-byte item on stack | - | 3 |
+| `0x7d` | PUSH30 | Place 30-byte item on stack | - | 3 |
+| `0x7e` | PUSH31 | Place 31-byte item on stack | - | 3 |
+| `0x7f` | PUSH32 | Place 32-byte (full word) item on stack | - |  3 |
+| `0x80` | DUP1 | Duplicate 1st stack item | - |  3 |
+| `0x81` | DUP2 | Duplicate 2nd stack item | - | 3 |
+| `0x82` | DUP3 | Duplicate 3rd stack item | - | 3 |
+| `0x83` | DUP4 | Duplicate 4th stack item | - | 3 |
+| `0x84` | DUP5 | Duplicate 5th stack item | - | 3 |
+| `0x85` | DUP6 | Duplicate 6th stack item | - | 3 |
+| `0x86` | DUP7 | Duplicate 7th stack item | - | 3 |
+| `0x87` | DUP8 | Duplicate 8th stack item | - | 3 |
+| `0x88` | DUP9 | Duplicate 9th stack item | - | 3 |
+| `0x89` | DUP10 | Duplicate 10th stack item | - | 3 |
+| `0x8a` | DUP11 | Duplicate 11th stack item | - | 3 |
+| `0x8b` | DUP12 | Duplicate 12th stack item | - | 3 |
+| `0x8c` | DUP13 | Duplicate 13th stack item | - | 3 |
+| `0x8d` | DUP14 | Duplicate 14th stack item | - | 3 |
+| `0x8e` | DUP15 | Duplicate 15th stack item | - | 3 |
+| `0x8f` | DUP16 | Duplicate 16th stack item | - | 3 |
+| `0x90` | SWAP1 | Exchange 1st and 2nd stack items | - | 3 |
+| `0x91` | SWAP2 | Exchange 1st and 3rd stack items | - | 3 |
+| `0x92` | SWAP3 | Exchange 1st and 4th stack items | - | 3 |
+| `0x93` | SWAP4 | Exchange 1st and 5th stack items | - | 3 |
+| `0x94` | SWAP5 | Exchange 1st and 6th stack items | - | 3 |
+| `0x95` | SWAP6 | Exchange 1st and 7th stack items | - | 3 |
+| `0x96` | SWAP7 | Exchange 1st and 8th stack items | - | 3 |
+| `0x97` | SWAP8 | Exchange 1st and 9th stack items | - | 3 |
+| `0x98` | SWAP9 | Exchange 1st and 10th stack items | - | 3 |
+| `0x99` | SWAP10 | Exchange 1st and 11th stack items | - | 3 |
+| `0x9a` | SWAP11 | Exchange 1st and 12th stack items | - | 3 |
+| `0x9b` | SWAP12 | Exchange 1st and 13th stack items | - | 3 |
+| `0x9c` | SWAP13 | Exchange 1st and 14th stack items | - | 3 |
+| `0x9d` | SWAP14 | Exchange 1st and 15th stack items | - | 3 |
+| `0x9e` | SWAP15 | Exchange 1st and 16th stack items | - | 3 |
+| `0x9f` | SWAP16 | Exchange 1st and 17th stack items | - | 3 |
+| `0xa0` | LOG0 | Append log record with no topics | - | 375 |
+| `0xa1` | LOG1 | Append log record with one topic | - | 750 |
+| `0xa2` | LOG2 | Append log record with two topics | - | 1125 |
+| `0xa3` | LOG3 | Append log record with three topics | - | 1500 |
+| `0xa4` | LOG4 | Append log record with four topics | - | 1875 |
+| `0xa5` - `0xaf` | Unused | - |
+| `0xb0` | JUMPTO | Tentative [libevmasm has different numbers](https://github.com/ethereum/solidity/blob/c61610302aa2bfa029715b534719d25fe3949059/libevmasm/Instruction.h#L176)| [EIP 615](https://github.com/ethereum/EIPs/blob/606405b5ab7aa28d8191958504e8aad4649666c9/EIPS/eip-615.md) |
+| `0xb1` | JUMPIF | Tentative | [EIP 615](https://github.com/ethereum/EIPs/blob/606405b5ab7aa28d8191958504e8aad4649666c9/EIPS/eip-615.md) |
+| `0xb2` | JUMPSUB | Tentative | [EIP 615](https://github.com/ethereum/EIPs/blob/606405b5ab7aa28d8191958504e8aad4649666c9/EIPS/eip-615.md) |
+| `0xb4` | JUMPSUBV | Tentative | [EIP 615](https://github.com/ethereum/EIPs/blob/606405b5ab7aa28d8191958504e8aad4649666c9/EIPS/eip-615.md) |
+| `0xb5` | BEGINSUB | Tentative | [EIP 615](https://github.com/ethereum/EIPs/blob/606405b5ab7aa28d8191958504e8aad4649666c9/EIPS/eip-615.md) |
+| `0xb6` | BEGINDATA | Tentative | [EIP 615](https://github.com/ethereum/EIPs/blob/606405b5ab7aa28d8191958504e8aad4649666c9/EIPS/eip-615.md) |
+| `0xb8` | RETURNSUB | Tentative | [EIP 615](https://github.com/ethereum/EIPs/blob/606405b5ab7aa28d8191958504e8aad4649666c9/EIPS/eip-615.md) |
+| `0xb9` | PUTLOCAL | Tentative | [EIP 615](https://github.com/ethereum/EIPs/blob/606405b5ab7aa28d8191958504e8aad4649666c9/EIPS/eip-615.md) |
+| `0xba` | GETLOCAL | Tentative | [EIP 615](https://github.com/ethereum/EIPs/blob/606405b5ab7aa28d8191958504e8aad4649666c9/EIPS/eip-615.md) |
+| `0xbb` - `0xe0` | Unused | - |
+| `0xe1` | SLOADBYTES | Only referenced in pyethereum | - | - |
+| `0xe2` | SSTOREBYTES | Only referenced in pyethereum | - | - |
+| `0xe3` | SSIZE | Only referenced in pyethereum | - | - |
+| `0xe4` - `0xef` | Unused | - |
+| `0xf0` | CREATE | Create a new account with associated code | - | 32000 |
+| `0xf1` | CALL | Message-call into an account | - | Complicated |
+| `0xf2` | CALLCODE | Message-call into this account with alternative account's code | - | Complicated |
+| `0xf3` | RETURN | Halt execution returning output data | - | 0 |
+| `0xf4` | DELEGATECALL | Message-call into this account with an alternative account's code, but persisting into this account with an alternative account's code | - | Complicated |
+| `0xf5` | CREATE2 | Create a new account and set creation address to `sha3(sender + sha3(init code)) % 2**160` | - |
+| `0xf6` - `0xf9` | Unused | - | - |
+| `0xfa` | STATICCALL | Similar to CALL, but does not modify state | - | 40 |
+| `0xfb` | Unused | - | - |
+| `0xfc` | TXEXECGAS | Not in yellow paper FIXME | - | - |
+| `0xfd` | REVERT | Stop execution and revert state changes, without consuming all provided gas and providing a reason | - | 0 |
+| `0xfe` | INVALID | Designated invalid instruction | - | 0 |
+| `0xff` | SELFDESTRUCT | Halt execution and register account for later deletion | - | 5000* | 
+
+## Instruction Details
+
+### ADD
+
+Takes two words from stack, adds them, then pushes the result onto the stack.
+
+Pseudocode: `push(s[0]+s[1])`
+
+### PUSHX
+
+The following X bytes are read from PC, placed into a word, then this word is pushed onto the stack.
+
+### CALL
+
+
+
+한번 살펴볼까요? 기본적인 ADD MUL 등은 3 5 정도 소비하는 반면 Balance를 불러오는데 700을 소모합니다.
+그런데 세상에 이게 뭔가요
+
+
+| `0x55` | SSTORE | Save word to storage | - | 20000** |
+|--------|--------|----------------------|---|---------|
+| `0x54` | SLOAD | Load word from storage | - | 800 |
+
+단어(words)를 storage에 저장하는데 무려 20000의 가스가 필요합니다. 거기에 데이터를 불러오는데도 800의 가스가 필요합니다.
+
+이 스토리지 저장과 로드를 관장하는 이 둘은 제일 중요한 옵코드입니다.
+
+언제든 이 옵코드가 발생하면 우리는 800 이나 20000의 가스를 지불하게 됩니다.
+우리가 스토리지를 가지고 작업하면 많은 가스를 소모하게된다는 걸 알 수 있습니다.
+그래서 이렇게 엄청나게 많은 가스를 소모하는 작업들에게 붙이는 코드 컨벤션이 있습니다.
+
+바로 `s_`(storage) 를 붙이는 겁니다.
+
+```solidity
+    // State Variables
+    uint256 public constant MINIMUM_USD = 50 * 1e18;
+    // uint256 public number;
+
+    address[] public s_funders;
+    mapping(address => uint256) public s_addressToAmountFunded;
+
+    address public immutable i_owner;
+
+    AggregatorV3Interface public s_priceFeed;
+
+```
+
+```solidity
+//SPDX-License-Identifier: MIT
+// pragma
+pragma solidity ^0.8.8;
+// imports
+import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+import "./PriceConverter.sol";
+import "hardhat/console.sol";
+
+// Error codes
+error FundMe__NotOwner();
+
+// Interfaces, Libraries, Contracts
+
+/** @title 크라우드 펀딩을 위한 계약
+ *  @author iwipwq
+ *  @notice 이 계약은 펀딩 계약을 보여주기위한 예시입니다.
+ *  @dev 이 계약은 price feeds가 라이브러리로 구현되어있습니다.
+ */
+contract FundMe {
+    // Type Declarations
+    using PriceConverter for uint256;
+
+    // State Variables
+    uint256 public constant MINIMUM_USD = 50 * 1e18;
+    // uint256 public number;
+
+    address[] public s_funders;
+    mapping(address => uint256) public s_addressToAmountFunded;
+
+    address public immutable i_owner;
+
+    AggregatorV3Interface public s_priceFeed;
+
+    //modifier
+    modifier onlyOwner() {
+        console.log("msg.sender", msg.sender);
+        console.log("i_owner", i_owner);
+        console.log("same?", msg.sender == i_owner);
+        // require(
+        //     msg.sender == i_owner,
+        //     unicode"펀딩 소유자만 인출할 수 있습니다."
+        // );
+        if(msg.sender != i_owner) revert FundMe__NotOwner();
+        _;
+    }
+
+    // Functions Order:
+    //// constructor
+    //// receive
+    //// fallback
+    //// external
+    //// public
+    //// internal
+    //// private
+    //// view / pure
+
+    constructor(address priceFeedAddress) {
+        i_owner = msg.sender;
+        s_priceFeed = AggregatorV3Interface(priceFeedAddress);
+    }
+
+    // receive() external payable {
+    //     fund();
+    // }
+
+    // fallback() external payable {
+    //     fund();
+    // }
+
+    /**
+     *  @notice 이 함수가 계약에 모금을 해줍니다.
+     *  @dev 트랜스퍼는 call로 구현되어있습니다.
+     */
+    function fund() public payable {
+        // 달러로 최소 금액을 설정하려 합니다.
+        // 1. 어떻게 이 계약으로 ETH를 보낼까요?
+        // number = 5;
+        require(
+            msg.value.getConversionRate(s_priceFeed) >= MINIMUM_USD,
+            unicode"최소 펀딩금액에 미달합니다."
+        );
+        // revert 될 경우 이후 액션에서 소모된 가스는 반환됩니다.
+        s_funders.push(msg.sender);
+        s_addressToAmountFunded[msg.sender] += msg.value;
+    }
+
+    function withdraw() public onlyOwner {
+        // require(msg.sender == owner, unicode"펀딩 소유자만 인출할 수 있습니다.");
+        // for loop
+        /* starting index, ending index, step amount*/
+        for (
+            uint256 funderIndex = 0;
+            funderIndex < s_funders.length;
+            funderIndex++
+        ) {
+            address funder = s_funders[funderIndex];
+            s_addressToAmountFunded[funder] = 0;
+        }
+        // reset the array
+        s_funders = new address[](0);
+        // actually withdraw the funds
+        (
+            bool callSuccess, /*bytes dataReturned*/
+
+        ) = payable(msg.sender).call{value: address(this).balance}("");
+        require(callSuccess, unicode"호출 실패");
+    }
+}
+
+```
+
+이제 다시 본론으로 돌아와서, withdraw함수가 왜이렇게 가스가 많이 드는지 알아보고 가스사용을 최소해봅시다.
+
+첫째, for loop를 호출하고 있습니다. 매 loop마다 해당 코드블록을 다시 실행시킬 것이고 그 안의 비교연산을 수행할 것입니다.
+여기에서 for문은 index가  s_funders.length 보다 작을때만 작동하게 되어있는데, 만약 s_funders.length가 길어지면 길어질수록 storage를 그만큼 많이 읽어들일겁니다. 그리고 엄청나게 비싼 비용이 들겠죠.
+
+세상에, 심지어 반복문 안에서는 address funder에 s_funder[funderIndex]를 저장(sstore) 하고 있습니다. 그것도 매 루프마다요!
+
+가스소모를 최소해서 새 withdraw 함수를 만들어보겠습니다.
+
+```solidity
+funderIndex < s_funders.length;
+
+address funder = s_funders[funderIndex];
+```
+이 두 줄에서는 항상 s_funders의 값을 읽을 필요가 없습니다.
+s_funder를 두번씩 호출하지 않아도 되구요.
+
+s_funder를 storage에서 읽어들이는 대신 memory에 넣어논 뒤 memory에서 읽어들이면 됩니다.
+
+```solidity
+    function cheaperWithdraw() public payable onlyOwner {
+        address[] memory funders = s_funders;
+    }
+```
+
+자, 이제 왜 memory와 storage를 나누는지 이해가 가시나요?
+
+단, 매핑(mapping)은 memory가 될 수 없습니다. 미안해요!
+
+```solidity
+    function cheaperWithdraw() public payable onlyOwner {
+        address[] memory funders = s_funders;
+        // mapping은 memory에 들어갈 수 없습니다. 미안해요!
+        for(uint256 funderIndex = 0; funderIndex < funders.length; funderIndex++) {
+            address funder = funders[funderIndex];
+            s_addressToAmountFunded[funder] = 0;
+        }
+
+        s_funders = new address[](0);
+        (bool success, ) = i_owner.call{value: address(this).balance}("");
+        require(success, unicode"호출 실패");
+    }
+```
+
+이제 테스트코드로 돌아가서 withdraw 함수 테스트를 그대로 복사 한 후 withdraw를 cheaperWithdraw로 바꿔서 테스트해보겠습니다.
+
+FundMe에서 이름을 바꾼 변수들도 테스트코드에 적용해주셔야 합니다!
+```js
+funders               => s_funders
+priceFeed             => s_priceFeed
+addressToAmountFunded => s_addressToAmountFunded
+```
+
+```bash
+yarn hardhat test
+```
+```bash
+
+  FundMe
+    constructor
+모의계약주소 0x5FbDB2315678afecb367f032d93F642f64180aa3
+보낸 금액 1000000000000000000
+deployer 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+      √ aggregator 주소를 알맞게 가지고 있는지
+    fund
+모의계약주소 0x5FbDB2315678afecb367f032d93F642f64180aa3
+보낸 금액 1000000000000000000
+deployer 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+      √ eth량이 기준미달일때 실패해야 함
+모의계약주소 0x5FbDB2315678afecb367f032d93F642f64180aa3
+보낸 금액 1000000000000000000
+deployer 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+      √ s_addressToAmountFunded에 주소와 기부자가 맵핑되어 업데이트 되어야 합니다.
+모의계약주소 0x5FbDB2315678afecb367f032d93F642f64180aa3
+보낸 금액 1000000000000000000
+deployer 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+      √ s_funders에 기부자 주소가 들어와야 합니다.
+    withdraw
+모의계약주소 0x5FbDB2315678afecb367f032d93F642f64180aa3
+보낸 금액 1000000000000000000
+deployer 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+msg.sender 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+i_owner 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+same? true
+      √ 하나의 기부자에게서 ETH 인출
+모의계약주소 0x5FbDB2315678afecb367f032d93F642f64180aa3
+보낸 금액 1000000000000000000
+deployer 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+msg.sender 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+i_owner 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+same? true
+msg.sender 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+i_owner 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+same? true
+msg.sender 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+i_owner 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+same? true
+msg.sender 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+i_owner 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+same? true
+msg.sender 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+i_owner 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+same? true
+      √ 다수의 기부자들로부터 인출이 가능해야함
+모의계약주소 0x5FbDB2315678afecb367f032d93F642f64180aa3
+보낸 금액 1000000000000000000
+deployer 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+account0: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+account1: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+account2: 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC
+fundMe.i_owner(): 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+msg.sender 0x70997970c51812dc3a010c7d01b50e0d17dc79c8
+i_owner 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+same? false
+      √ 계약소유자만이 잔액을 인출할 수 있어야 함
+모의계약주소 0x5FbDB2315678afecb367f032d93F642f64180aa3
+보낸 금액 1000000000000000000
+deployer 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+msg.sender 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+i_owner 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+same? true
+msg.sender 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+i_owner 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+same? true
+msg.sender 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+i_owner 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+same? true
+msg.sender 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+i_owner 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+same? true
+msg.sender 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+i_owner 0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+same? true
+      √ cheaperWithdraw 테스트...
+
+
+  8 passing (3s)
+
+Done in 6.83s.
+```
+
+모든 테스트를 통과했습니다. 이제 gas-report.txt 파일을 살펴봅시다.
+
+더 많이 드네요....ㅠㅠ
+
+```
+·--------------------------------|----------------------------|-------------|-----------------------------·
+|      Solc version: 0.8.8       ·  Optimizer enabled: false  ·  Runs: 200  ·  Block limit: 30000000 gas  │
+·································|····························|·············|······························
+|  Methods                                                                                                │
+·············|···················|·············|··············|·············|···············|··············
+|  Contract  ·  Method           ·  Min        ·  Max         ·  Avg        ·  # calls      ·  usd (avg)  │
+·············|···················|·············|··············|·············|···············|··············
+|  FundMe    ·  cheaperWithdraw  ·      40231  ·       48631  ·      41911  ·           10  ·          -  │
+·············|···················|·············|··············|·············|···············|··············
+|  FundMe    ·  fund             ·      87344  ·      104444  ·     102307  ·           16  ·          -  │
+·············|···················|·············|··············|·············|···············|··············
+|  FundMe    ·  withdraw         ·      40163  ·       48704  ·      41587  ·           12  ·          -  │
+·············|···················|·············|··············|·············|···············|··············
+|  Deployments                   ·                                          ·  % of limit   ·             │
+·································|·············|··············|·············|···············|··············
+|  FundMe                        ·          -  ·           -  ·    1295084  ·        4.3 %  ·          -  │
+·································|·············|··············|·············|···············|··············
+|  MockV3Aggregator              ·          -  ·           -  ·     569635  ·        1.9 %  ·          -  │
+·--------------------------------|-------------|--------------|-------------|---------------|-------------·
+```
+
+좀 더 가스를 다이어트 하기 위해 솔리디티에서 콘솔로그 구문을 삭제했습니다.
+
+```
+·--------------------------------|----------------------------|-------------|-----------------------------·
+|      Solc version: 0.8.8       ·  Optimizer enabled: false  ·  Runs: 200  ·  Block limit: 30000000 gas  │
+·································|····························|·············|······························
+|  Methods                                                                                                │
+·············|···················|·············|··············|·············|···············|··············
+|  Contract  ·  Method           ·  Min        ·  Max         ·  Avg        ·  # calls      ·  usd (avg)  │
+·············|···················|·············|··············|·············|···············|··············
+|  FundMe    ·  cheaperWithdraw  ·      35708  ·       44108  ·      37388  ·           10  ·          -  │
+·············|···················|·············|··············|·············|···············|··············
+|  FundMe    ·  fund             ·      87344  ·      104444  ·     102307  ·           16  ·          -  │
+·············|···················|·············|··············|·············|···············|··············
+|  FundMe    ·  withdraw         ·      35640  ·       44181  ·      37064  ·           12  ·          -  │
+·············|···················|·············|··············|·············|···············|··············
+|  Deployments                   ·                                          ·  % of limit   ·             │
+·································|·············|··············|·············|···············|··············
+|  FundMe                        ·          -  ·           -  ·    1037105  ·        3.5 %  ·          -  │
+·································|·············|··············|·············|···············|··············
+|  MockV3Aggregator              ·          -  ·           -  ·     569635  ·        1.9 %  ·          -  │
+·--------------------------------|-------------|--------------|-------------|---------------|-------------·
+```
+
+### Solidity Chainlink Style Guide
+
+이번시간에는 지난시간에 이어서 리팩토링을 다시 한번 해보겠습니다.
+
+`s_`를 붙인 변수이름들은 다른사람들이 보기에 작업하기 불편할 수 도 있습니다.
+
+여기에 더해서 모든 state 변수가 public으로 선언되어있습니다. 사실 internal 이나 private 변수를 이용하면 가스를 저렴하게 이용할 수 있습니다.
+또한 아무나 이 변수들을 읽어들여서도 안되는 이유도 있구요.
+
+그래서 먼저 이 visibility 부터 수정해보겠습니다. 그리고 함수 마지막 부분에 getter 함수를 작성해보겠습니다.
+
+MINIMUM_USD는 다른사람들도 알아야하기 때문에 계속 public으로 놔두겠습니다.
+
+i_owner는 다른사람들이나 다른 계약에게 중요하지 않기 때문에 private으로 바꾸겠습니다.
+
+그리고 마지막 줄에 getter 함수를 추가하겠습니다.
+
+```solidity
+function getOwner() public view returns(address) {
+  return i_owner;
+}
+```
+
+s_funders는 역시 private이 될 수 있습니다. 이것도 마지막에 getter함수를 추가해줍니다.
+
+```solidity
+function getFunders(uint256 index) public view returns(address) {
+  return s_funders[index];
+}
+```
+
+s_addressToAmountFunded 역시 private이 될 수 있습니다. 이것도 getter 함수를 작성합니다.
+
+```solidity
+function getAddressToAmountFunded(address funder) public view returns(uint256) {
+  return s_addressToAmountFunded[funder];
+}
+```
+
+나머지 `s_` 변수들도 getter 함수를 작성해줍시다.
+
+```solidity
+function getPriceFeed() public view returns(AggregatorV3Interface) {
+    return s_priceFeed;
+}
+```
+
+이렇게 작성하는 이유는 이렇습니다. `s_`,`i_`같은 컨벤션을 개발자가 볼 경우에는 아 이 변수는 가스가 얼만큼 들겠구나 판단할 수 있어서 조심스럽게 다룰 수 있습니다. 하지만 개발자가 아닌 코드와 상호작용해야하는 일반 사용자라면 이러한 변수네이밍 컨벤션이 혼란을 가져올 수 있기 때문에 따로 getter 함수를 만들어 호출 할 수 있도록 만드는 것입니다. 또한 visibility를 용도에 맞게 적절히 변경해서 가스 소모량을 줄일 수 있습니다.
+
+이제 테스트 코드도 바꿔보겠습니다.
+
+테스트코드에서 해당 코드를 getter 함수로 바꿔주면 됩니다.
+
+```
+
+  FundMe
+    constructor
+모의계약주소 0x5FbDB2315678afecb367f032d93F642f64180aa3
+보낸 금액 1000000000000000000
+deployer 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+      √ aggregator 주소를 알맞게 가지고 있는지
+    fund
+모의계약주소 0x5FbDB2315678afecb367f032d93F642f64180aa3
+보낸 금액 1000000000000000000
+deployer 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+      √ eth량이 기준미달일때 실패해야 함
+모의계약주소 0x5FbDB2315678afecb367f032d93F642f64180aa3
+보낸 금액 1000000000000000000
+deployer 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+      √ s_addressToAmountFunded에 주소와 기부자가 맵핑되어 업데이트 되어야 합니다.
+모의계약주소 0x5FbDB2315678afecb367f032d93F642f64180aa3
+보낸 금액 1000000000000000000
+deployer 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+      √ s_funders에 기부자 주소가 들어와야 합니다.
+    withdraw
+모의계약주소 0x5FbDB2315678afecb367f032d93F642f64180aa3
+보낸 금액 1000000000000000000
+deployer 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+      √ 하나의 기부자에게서 ETH 인출
+모의계약주소 0x5FbDB2315678afecb367f032d93F642f64180aa3
+보낸 금액 1000000000000000000
+deployer 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+      √ 다수의 기부자들로부터 인출이 가능해야함
+모의계약주소 0x5FbDB2315678afecb367f032d93F642f64180aa3
+보낸 금액 1000000000000000000
+deployer 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+account0: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+account1: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+account2: 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC
+fundMe.getOwner(): 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+      √ 계약소유자만이 잔액을 인출할 수 있어야 함
+모의계약주소 0x5FbDB2315678afecb367f032d93F642f64180aa3
+보낸 금액 1000000000000000000
+deployer 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+      √ cheaperWithdraw 테스트...
+
+
+  8 passing (3s)
+
+Done in 67.42s.
+```
+
+정상적으로 통과되었습니다.
+
+한가지 더 가스를 최적화시킬 수 있는 방법은 requrie 문 대신 if문을 사용해 error 코드와 revert문을 사용하는 겁니다.
+
+```solidity
+    modifier onlyOwner() {
+        // require(
+        //     msg.sender == i_owner,
+        //     unicode"펀딩 소유자만 인출할 수 있습니다."
+        // );
+        if(msg.sender != i_owner) revert FundMe__NotOwner();
+        _;
+    }
+```
+
+require문을 사용할 경우 엄청난 양의 문자열로 이루어진 배열을 체인에 저장해야 하기 때문에 에러코드가 훨씬 저렴합니다.
+하지만 선택사항입니다.
+
+이번 시간에 이런것들을 배운 이유는 모두 솔리디티 스타일 가이드를 따르기 위해서였습니다.
+
+
+#### 완성된 `FundMe.sol` 코드
+
+```solidity
+// 사용자로부터 펀딩기금 받아오기
+// 기금 인출하기
+// 달러로 최소 펀딩 금액 설정하기
+
+//SPDX-License-Identifier: MIT
+// pragma
+pragma solidity ^0.8.8;
+// imports
+import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+import "./PriceConverter.sol";
+import "hardhat/console.sol";
+
+// Error codes
+error FundMe__NotOwner();
+
+// Interfaces, Libraries, Contracts
+
+/** @title 크라우드 펀딩을 위한 계약
+ *  @author iwipwq
+ *  @notice 이 계약은 펀딩 계약을 보여주기위한 예시입니다.
+ *  @dev 이 계약은 price feeds가 라이브러리로 구현되어있습니다.
+ */
+contract FundMe {
+    // Type Declarations
+    using PriceConverter for uint256;
+
+    // State Variables
+    uint256 public constant MINIMUM_USD = 50 * 1e18;
+    // uint256 public number;
+
+    address[] private s_funders;
+    mapping(address => uint256) private s_addressToAmountFunded;
+
+    address private immutable i_owner;
+
+    AggregatorV3Interface public s_priceFeed;
+
+    //modifier
+    modifier onlyOwner() {
+        // console.log("msg.sender", msg.sender);
+        // console.log("i_owner", i_owner);
+        // console.log("same?", msg.sender == i_owner);
+        // require(
+        //     msg.sender == i_owner,
+        //     unicode"펀딩 소유자만 인출할 수 있습니다."
+        // );
+        if(msg.sender != i_owner) revert FundMe__NotOwner();
+        _;
+    }
+
+    // Functions Order:
+    //// constructor
+    //// receive
+    //// fallback
+    //// external
+    //// public
+    //// internal
+    //// private
+    //// view / pure
+
+    constructor(address priceFeedAddress) {
+        i_owner = msg.sender;
+        s_priceFeed = AggregatorV3Interface(priceFeedAddress);
+    }
+
+    // receive() external payable {
+    //     fund();
+    // }
+
+    // fallback() external payable {
+    //     fund();
+    // }
+
+    /**
+     *  @notice 이 함수가 계약에 모금을 해줍니다.
+     *  @dev 트랜스퍼는 call로 구현되어있습니다.
+     */
+    function fund() public payable {
+        // 달러로 최소 금액을 설정하려 합니다.
+        // 1. 어떻게 이 계약으로 ETH를 보낼까요?
+        // number = 5;
+        require(
+            msg.value.getConversionRate(s_priceFeed) >= MINIMUM_USD,
+            unicode"최소 펀딩금액에 미달합니다."
+        );
+        // revert 될 경우 이후 액션에서 소모된 가스는 반환됩니다.
+        s_funders.push(msg.sender);
+        s_addressToAmountFunded[msg.sender] += msg.value;
+    }
+
+    function withdraw() public payable onlyOwner {
+        // require(msg.sender == owner, unicode"펀딩 소유자만 인출할 수 있습니다.");
+        // for loop
+        /* starting index, ending index, step amount*/
+        for (
+            uint256 funderIndex = 0;
+            funderIndex < s_funders.length;
+            funderIndex++
+        ) {
+            address funder = s_funders[funderIndex];
+            s_addressToAmountFunded[funder] = 0;
+        }
+        // reset the array
+        s_funders = new address[](0);
+        // actually withdraw the funds
+        (
+            bool callSuccess, /*bytes dataReturned*/
+
+        ) = payable(msg.sender).call{value: address(this).balance}("");
+        require(callSuccess, unicode"호출 실패");
+    }
+
+    function cheaperWithdraw() public payable onlyOwner {
+        address[] memory funders = s_funders;
+        // mapping은 memory에 들어갈 수 없습니다. 미안해요!
+        for(uint256 funderIndex = 0; funderIndex < funders.length; funderIndex++) {
+            address funder = funders[funderIndex];
+            s_addressToAmountFunded[funder] = 0;
+        }
+
+        s_funders = new address[](0);
+        (bool success, ) = i_owner.call{value: address(this).balance}("");
+        require(success, unicode"호출 실패");
+    }
+
+    //view / pure
+    function getOwner() public view returns(address) {
+        return i_owner;
+    }
+
+    function getFunders(uint256 index) public view returns(address) {
+        return s_funders[index];
+    }
+
+    function getAddressToAmountFunded(address funder) public view returns(uint256) {
+        return s_addressToAmountFunded[funder];
+    }
+
+    function getPriceFeed() public view returns(AggregatorV3Interface) {
+        return s_priceFeed;
+    }
+}
+
+```
+
+#### 완성된 `FundMe.test.js` 코드
+
+```js
+const { assert, expect } = require("chai");
+const { deployments, ethers, getNamedAccounts } = require("hardhat");
+
+describe("FundMe", function () {
+  let fundMe;
+  let deployer;
+  let mockV3Aggregator;
+  // const sendValue = "1000000000000000000" // 1eth
+  const sendValue = ethers.utils.parseEther("1"); // 1eth
+  beforeEach(async function () {
+    // fundMe 계약 배포
+    // hardhat-deploy 플러그인으로
+    // const accounts = await ethers.getSigners()
+    // const accountZero = accounts[0];
+    deployer = (await getNamedAccounts()).deployer;
+    await deployments.fixture(["all"]);
+    fundMe = await ethers.getContract("FundMe", deployer);
+    mockV3Aggregator = await ethers.getContract("MockV3Aggregator", deployer);
+    console.log("모의계약주소", mockV3Aggregator.address);
+    console.log("보낸 금액", sendValue.toString());
+    console.log("deployer", deployer);
+    // console.log(
+    //   "(await ethers.getSingers())[1]",
+    //   (await ethers.getSigners())[1]
+    // );
+  });
+
+  describe("constructor", function () {
+    it("aggregator 주소를 알맞게 가지고 있는지", async function () {
+      const response = await fundMe.getPriceFeed();
+      assert(response, mockV3Aggregator.address);
+    });
+  });
+
+  describe("fund", function () {
+    it("eth량이 기준미달일때 실패해야 함", async function () {
+      await expect(fundMe.fund()).to.be.revertedWith(
+        "최소 펀딩금액에 미달합니다."
+      );
+    });
+    it("s_addressToAmountFunded에 주소와 기부자가 맵핑되어 업데이트 되어야 합니다.", async function () {
+      await fundMe.fund({ value: sendValue });
+      const response = await fundMe.getAddressToAmountFunded(deployer);
+      assert.equal(response.toString(), sendValue.toString());
+    });
+    it("s_funders에 기부자 주소가 들어와야 합니다.", async function () {
+      await fundMe.fund({ value: sendValue });
+      const funder = await fundMe.getFunders(0);
+      assert.equal(funder, deployer);
+    });
+  });
+
+  describe("withdraw", function () {
+    beforeEach(async function () {
+      await fundMe.fund({ value: sendValue });
+    });
+
+    it("하나의 기부자에게서 ETH 인출", async function () {
+      // Arrange
+      const startingFundMeBalance = await fundMe.provider.getBalance(
+        fundMe.address
+      );
+      const startingDeployerBalance = await fundMe.provider.getBalance(
+        deployer
+      );
+      // Act
+      const transactionResponse = await fundMe.withdraw();
+      const transactionReceipt = await transactionResponse.wait(1);
+      const { effectiveGasPrice, gasUsed } = transactionReceipt;
+      const gasCost = gasUsed.mul(effectiveGasPrice);
+
+      const endingFundMeBalance = await fundMe.provider.getBalance(
+        fundMe.address
+      );
+      const endingDeployerBalance = await fundMe.provider.getBalance(deployer);
+      // Assert
+      assert.equal(endingFundMeBalance, 0);
+      assert.equal(
+        startingDeployerBalance.add(startingFundMeBalance).toString(),
+        endingDeployerBalance.add(gasCost).toString()
+      );
+    });
+
+    it("다수의 기부자들로부터 인출이 가능해야함", async function () {
+      const accounts = await ethers.getSigners();
+      for (let i = 1; i < 6; i++) {
+        // Arrange
+        const fundMeConnectedContract = await fundMe.connect(accounts[i]);
+        await fundMeConnectedContract.fund({ value: sendValue });
+        const startingFundMeBalance = await fundMe.provider.getBalance(
+          fundMe.address
+        );
+        const startingDeployerBalance = await fundMe.provider.getBalance(
+          deployer
+        );
+        // Act
+        const transactionResponse = await fundMe.withdraw();
+        const transactionReceipt = await transactionResponse.wait(1);
+        const { effectiveGasPrice, gasUsed } = transactionReceipt;
+        const gasCost = gasUsed.mul(effectiveGasPrice);
+        const endingFundMeBalance = await fundMe.provider.getBalance(
+          fundMe.address
+        );
+        const endingDeployerBalance = await fundMe.provider.getBalance(
+          deployer
+        );
+        // Assert
+        assert(
+          startingDeployerBalance.add(startingFundMeBalance).toString(),
+          endingDeployerBalance.add(gasCost).toString()
+        );
+        // 후원자목록(s_funders 배열) 초기화 확인
+        await expect(fundMe.getFunders(0)).to.be.reverted;
+        // 맵핑값이 0으로 초기화 되었는지 확인
+        for (let i = 1; i < 6; i++) {
+          const amountFunded = await fundMe.getAddressToAmountFunded(
+            accounts[i].address
+          );
+          assert.equal(amountFunded, 0);
+        }
+      }
+    });
+
+    it("계약소유자만이 잔액을 인출할 수 있어야 함", async function () {
+      const accounts = await ethers.getSigners();
+      const attacker = accounts[1];
+      console.log(`account0: ${accounts[0].address}`);
+      console.log(`account1: ${accounts[1].address}`);
+      console.log(`account2: ${accounts[2].address}`);
+      console.log(`fundMe.getOwner(): ${await fundMe.getOwner()}`)
+      const attackerConnectedContract = await fundMe.connect(attacker);
+      await expect(attackerConnectedContract.withdraw()).to.be.revertedWith("FundMe__NotOwner");
+    });
+
+    it("cheaperWithdraw 테스트...", async function () {
+      const accounts = await ethers.getSigners();
+      for (let i = 1; i < 6; i++) {
+        // Arrange
+        const fundMeConnectedContract = await fundMe.connect(accounts[i]);
+        await fundMeConnectedContract.fund({ value: sendValue });
+        const startingFundMeBalance = await fundMe.provider.getBalance(
+          fundMe.address
+        );
+        const startingDeployerBalance = await fundMe.provider.getBalance(
+          deployer
+        );
+        // Act
+        const transactionResponse = await fundMe.cheaperWithdraw();
+        const transactionReceipt = await transactionResponse.wait(1);
+        const { effectiveGasPrice, gasUsed } = transactionReceipt;
+        const gasCost = gasUsed.mul(effectiveGasPrice);
+        const endingFundMeBalance = await fundMe.provider.getBalance(
+          fundMe.address
+        );
+        const endingDeployerBalance = await fundMe.provider.getBalance(
+          deployer
+        );
+        // Assert
+        assert(
+          startingDeployerBalance.add(startingFundMeBalance).toString(),
+          endingDeployerBalance.add(gasCost).toString()
+        );
+        // 후원자목록(s_funders 배열) 초기화 확인
+        await expect(fundMe.getFunders(0)).to.be.reverted;
+        // 맵핑값이 0으로 초기화 되었는지 확인
+        for (let i = 1; i < 6; i++) {
+          const amountFunded = await fundMe.getAddressToAmountFunded(
+            accounts[i].address
+          );
+          assert.equal(amountFunded, 0);
+        }
+      }
+    });
+
+  });
+
+});
+
+```
+
+## Storage Review
+
+변경할 수 있고 지속되는 변수를 생성하면 `storage`라 불리는 0으로 시작하는 큰 배열에 `0`번 부터 순서대로 저장하게 됩니다.
+
+동적 배열이나 매핑은 해싱함수를 이용해 데이터 요소들이 어디에 적재되어야 하는지 정합니다.
+
+memory, constantm immutable 은 storage로 가지 않습니다.
+
+storage에 대해 알아둬야 하는 이유는 opcodes 의 SLOAD와 SSTORE 즉 스트링 데이터 읽기와 쓰기가 각각 가스가 800, 20000 씩 드는 비싼 작업이기 때문입니다.
+그래서 stroage를 읽거난 쓰는 부분에서 항상 최적화해주고, 또 이런 방법이 가스를 줄이는 가장 쉬운 방법입니다.
+
+## Staging Tests
+
+스테이징 테스트는 실제 테스트넷에서 사용할 수 있는 테스트입니다.
+
+이 테스트는 기본적으로 모든 것이 우리가 원하는 대로 작동하는지 확인하기 위해 몇 가지를 배치한 후에 실행할 것입니다.
+
+이 단계가 바로 메인넷에 배포하기 바로 전 단계이며, 개발의 마지막 여정입니다.
+
+staging폴더에 `FundMe.staging.test.js` 파일을 생성하과 다음과 같이 입력합니다.
+
+스테이징 테스트는 실제 테스트넷에서 이루어지기 때문에 developmentChains 에 네트워크가 포함되어있다면 로컬유닛테스트가 실행되게 하고
+아니라면 스테이징 테스트가 실행되도록 합니다.
+
+`FundMe.staging.test.js`
+```js
+developmentChains.includes(netwrok.name) ? describe.skip : describe("FundMe", async function() { ... })
+```
+
+`deploy.test.js` 에도 `!`를 붙여서 다음과 같이 코드를 수정해줍니다.
+```js
+!developmentChains.includes(netwrok.name) ? describe.skip : describe("FundMe", async function() { ... })
+```
+
+
+`FundMe.staging.test.js`
+```js
+const { assert } = require("chai");
+const { getNamedAccounts, ethers, network } = require("hardhat");
+const { developmentChains } = require("../../helper-hardhat-config");
+
+developmentChains.includes(network.name)
+  ? describe.skip
+  : describe("FundMe", async function () {
+      let fundMe;
+      let deployer;
+      const sendValue = ethers.utils.parseEther("1");
+      beforeEach(async function () {
+        deployer = (await getNamedAccounts()).deployer;
+        fundMe = await ethers.getContract("FundMe", deployer);
+      });
+
+      it("기부가 가능하고 인출이 가능함", async function () {
+        await fundMe.fund({ value: sendValue });
+        await fundMe.withdraw();
+        const endingBalance = await fundMe.provider.getBalance(fundMe.address);
+        assert.equal(endingBalance.toStirng(), "0");
+      });
+    });
+
+```
+
+다음과 같이 먼저 배포를 시행합니다.
+```bash
+yarn hardhat deploy --network rinkeby
+```
+배포가 되어야 비로소 실제 테스트넷에 배포된 계약들(FundMe, PriceConverter, AggregatorV3Interface 등)을 이용해서 테스트를 진행 할 수 있습니다.
+
+이제 다시
+```bash
+yarn hardhat test
+```
+를 입력하면 유닛 테스트를 진행하지만,
+
+```bash
+yarn hardhat test --network rinkeby
+```
+를 입력하면 스테이징 테스트를 진행하는 것을 확인 할 수 있습니다.
+
+
+```bash
+Compiled 1 Solidity file successfully
+프라이스피드주소 0x8A753747A1Fa494EC906cE90E9f37563A8AF630e
+deploying "FundMe" (tx: 0x5fd346c166a8937c58da077fd60497e35972ecc4b4196dca9693a13a6d5bd73a)...: deployed at 0xf962614c9139C263aFAe92C3683C76A38e830E81 with 1068211 gas
+배포된 계약 undefined
+계약 검증을 진행하고 있습니다...
+Nothing to compile
+Successfully submitted source code for contract
+contracts/FundMe.sol:FundMe at 0xf962614c9139C263aFAe92C3683C76A38e830E81
+for verification on the block explorer. Waiting for verification result...
+
+Successfully verified contract FundMe on Etherscan.
+https://rinkeby.etherscan.io/address/0xf962614c9139C263aFAe92C3683C76A38e830E81#code
+---------------------------------------
+---------------------------------------------------------------
+Done in 140.93s.
+```
+
+```bash
+Error: insufficient funds for intrinsic transaction cost [ See: https://links.ethers.org/v5-errors-INSUFFICIENT_FUNDS ] (error={"name":"ProviderError","code":-32000,"_isProviderError":true}, method="estimateGas", transaction={"from":"0xC2a354ac356d3c4BC00432A4989C5fD7a6c4e199","to":"0xf962614c9139C263aFAe92C3683C76A38e830E81","value":{"type":"BigNumber","hex":"0x0de0b6b3a7640000"},"data":"0xb60d4288","accessList":null}, code=INSUFFICIENT_FUNDS, version=providers/5.6.8)
+```
+
+이건 보내는 상대의 이더가 부족할때 나오는 에러입니다.
+
+sendValue를 0.1로 바꿔서 다시 테스트해보겠습니다.
+
+테스트중에 이더가 전송되는 바람에 계약의 balance를 수동으로 withdraw를 실행시켜 0으로 만들어야 했습니다.
+
+하드햇 콘솔`yarn hardhat console --network rinkeby`로 withdraw를 실행한 내역입니다.
+
+```bash
+Welcome to Node.js v16.15.1.
+Type ".help" for more information.
+> fundMe
+Uncaught ReferenceError: fundMe is not defined
+> FundMe
+Uncaught ReferenceError: FundMe is not defined
+> deployer
+Uncaught ReferenceError: deployer is not defined
+> deployments
+{
+  readDotFile: [AsyncFunction: readDotFile],
+  saveDotFile: [AsyncFunction: saveDotFile],
+  deleteDotFile: [AsyncFunction: deleteDotFile],
+  save: [AsyncFunction: save],
+  delete: [AsyncFunction: delete],
+  get: [AsyncFunction: get],
+  getOrNull: [AsyncFunction: getOrNull],
+  getDeploymentsFromAddress: [AsyncFunction: getDeploymentsFromAddress],
+  all: [AsyncFunction: all],
+  getArtifact: [AsyncFunction: getArtifact],
+  getExtendedArtifact: [AsyncFunction: getExtendedArtifact],
+  run: [Function: run],
+  fixture: [AsyncFunction: fixture],
+  createFixture: [Function: createFixture],
+  log: [Function: log],
+  getNetworkName: [Function: getNetworkName],
+  getGasUsed: [Function: getGasUsed],
+  fetchIfDifferent: [AsyncFunction: fetchIfDifferent],
+  deploy: [AsyncFunction: deploy],
+  diamond: { deploy: [AsyncFunction: diamond] },
+  catchUnknownSigner: [AsyncFunction: catchUnknownSigner],
+  execute: [AsyncFunction: execute],
+  rawTx: [AsyncFunction: rawTx],
+  read: [AsyncFunction: read],
+  deterministic: [AsyncFunction: deterministic],
+  call: [Function (anonymous)],
+  sendTxAndWait: [Function (anonymous)],
+  deployIfDifferent: [Function (anonymous)]
+}
+> await getNamedAccounts()
+{ deployer: '0xC2a354ac356d3c4BC00432A4989C5fD7a6c4e199' }
+> let deployer = (await getNamedAccounts()).deployer;
+undefined
+> deployer
+'0xC2a354ac356d3c4BC00432A4989C5fD7a6c4e199'
+> let fundMe = await ethers.getContract("FundMe",deployer);
+undefined
+> fundMe
+Contract {
+  interface: Interface {
+    fragments: [
+      [ConstructorFragment],
+      [ErrorFragment],
+      [FunctionFragment],
+      [FunctionFragment],
+      [FunctionFragment],
+      [FunctionFragment],
+      [FunctionFragment],
+      [FunctionFragment],
+      [FunctionFragment],
+      [FunctionFragment],
+      [FunctionFragment]
+    ],
+    _abiCoder: AbiCoder { coerceFunc: null },
+    functions: {
+      'MINIMUM_USD()': [FunctionFragment],
+      'cheaperWithdraw()': [FunctionFragment],
+      'fund()': [FunctionFragment],
+      'getAddressToAmountFunded(address)': [FunctionFragment],
+      'getFunders(uint256)': [FunctionFragment],
+      'getOwner()': [FunctionFragment],
+      'getPriceFeed()': [FunctionFragment],
+      's_priceFeed()': [FunctionFragment],
+      'withdraw()': [FunctionFragment]
+    },
+    errors: { 'FundMe__NotOwner()': [ErrorFragment] },
+    events: {},
+    structs: {},
+    deploy: ConstructorFragment {
+      name: null,
+      type: 'constructor',
+      inputs: [Array],
+      payable: false,
+      stateMutability: 'nonpayable',
+      gas: null,
+      _isFragment: true
+    },
+    _isInterface: true
+  },
+  provider: EthersProviderWrapper {
+    _isProvider: true,
+    _events: [],
+    _emitted: { block: -2 },
+    disableCcipRead: false,
+    formatter: Formatter { formats: [Object] },
+    anyNetwork: false,
+    _networkPromise: Promise {
+      [Object],
+      [Symbol(async_id_symbol)]: 188,
+      [Symbol(trigger_async_id_symbol)]: 13,
+      [Symbol(destroyed)]: [Object]
+    },
+    _maxInternalBlockNumber: -1024,
+    _lastBlockNumber: -2,
+    _maxFilterBlockRange: 10,
+    _pollingInterval: 4000,
+    _fastQueryDate: 0,
+    connection: { url: 'http://localhost:8545' },
+    _nextId: 42,
+    _hardhatProvider: BackwardsCompatibilityProviderAdapter {
+      _wrapped: [ChainIdValidatorProvider],
+      _provider: [ChainIdValidatorProvider],
+      sendAsync: [Function: bound sendAsync],
+      send: [Function: bound send],
+      _sendJsonRpcRequest: [Function: bound _sendJsonRpcRequest] AsyncFunction
+    },
+    _eventLoopCache: { detectNetwork: null },
+    _network: {
+      name: 'rinkeby',
+      chainId: 4,
+      ensAddress: '0x00000000000C2E074eC69A0dFb2997BA6C7d2e1e',
+      _defaultProvider: [Function]
+    }
+  },
+  signer: SignerWithAddress {
+    _isSigner: true,
+    address: '0xC2a354ac356d3c4BC00432A4989C5fD7a6c4e199',
+    _signer: JsonRpcSigner {
+      _isSigner: true,
+      provider: [EthersProviderWrapper],
+      _address: '0xC2a354ac356d3c4BC00432A4989C5fD7a6c4e199',
+      _index: null
+    },
+    provider: EthersProviderWrapper {
+      _isProvider: true,
+      _events: [],
+      _emitted: [Object],
+      disableCcipRead: false,
+      formatter: [Formatter],
+      anyNetwork: false,
+      _networkPromise: [Promise],
+      _maxInternalBlockNumber: -1024,
+      _lastBlockNumber: -2,
+      _maxFilterBlockRange: 10,
+      _pollingInterval: 4000,
+      _fastQueryDate: 0,
+      connection: [Object],
+      _nextId: 42,
+      _hardhatProvider: [BackwardsCompatibilityProviderAdapter],
+      _eventLoopCache: [Object],
+      _network: [Object]
+    }
+  },
+  callStatic: {
+    'MINIMUM_USD()': [Function (anonymous)],
+    'cheaperWithdraw()': [Function (anonymous)],
+    'fund()': [Function (anonymous)],
+    'getAddressToAmountFunded(address)': [Function (anonymous)],
+    'getFunders(uint256)': [Function (anonymous)],
+    'getOwner()': [Function (anonymous)],
+    'getPriceFeed()': [Function (anonymous)],
+    's_priceFeed()': [Function (anonymous)],
+    'withdraw()': [Function (anonymous)],
+    MINIMUM_USD: [Function (anonymous)],
+    cheaperWithdraw: [Function (anonymous)],
+    fund: [Function (anonymous)],
+    getAddressToAmountFunded: [Function (anonymous)],
+    getFunders: [Function (anonymous)],
+    getOwner: [Function (anonymous)],
+    getPriceFeed: [Function (anonymous)],
+    s_priceFeed: [Function (anonymous)],
+    withdraw: [Function (anonymous)]
+  },
+  estimateGas: {
+    'MINIMUM_USD()': [Function (anonymous)],
+    'cheaperWithdraw()': [Function (anonymous)],
+    'fund()': [Function (anonymous)],
+    'getAddressToAmountFunded(address)': [Function (anonymous)],
+    'getFunders(uint256)': [Function (anonymous)],
+    'getOwner()': [Function (anonymous)],
+    'getPriceFeed()': [Function (anonymous)],
+    's_priceFeed()': [Function (anonymous)],
+    'withdraw()': [Function (anonymous)],
+    MINIMUM_USD: [Function (anonymous)],
+    cheaperWithdraw: [Function (anonymous)],
+    fund: [Function (anonymous)],
+    getAddressToAmountFunded: [Function (anonymous)],
+    getFunders: [Function (anonymous)],
+    getOwner: [Function (anonymous)],
+    getPriceFeed: [Function (anonymous)],
+    s_priceFeed: [Function (anonymous)],
+    withdraw: [Function (anonymous)]
+  },
+  functions: {
+    'MINIMUM_USD()': [Function (anonymous)],
+    'cheaperWithdraw()': [Function (anonymous)],
+    'fund()': [Function (anonymous)],
+    'getAddressToAmountFunded(address)': [Function (anonymous)],
+    'getFunders(uint256)': [Function (anonymous)],
+    'getOwner()': [Function (anonymous)],
+    'getPriceFeed()': [Function (anonymous)],
+    's_priceFeed()': [Function (anonymous)],
+    'withdraw()': [Function (anonymous)],
+    MINIMUM_USD: [Function (anonymous)],
+    cheaperWithdraw: [Function (anonymous)],
+    fund: [Function (anonymous)],
+    getAddressToAmountFunded: [Function (anonymous)],
+    getFunders: [Function (anonymous)],
+    getOwner: [Function (anonymous)],
+    getPriceFeed: [Function (anonymous)],
+    s_priceFeed: [Function (anonymous)],
+    withdraw: [Function (anonymous)]
+  },
+  populateTransaction: {
+    'MINIMUM_USD()': [Function (anonymous)],
+    'cheaperWithdraw()': [Function (anonymous)],
+    'fund()': [Function (anonymous)],
+    'getAddressToAmountFunded(address)': [Function (anonymous)],
+    'getFunders(uint256)': [Function (anonymous)],
+    'getOwner()': [Function (anonymous)],
+    'getPriceFeed()': [Function (anonymous)],
+    's_priceFeed()': [Function (anonymous)],
+    'withdraw()': [Function (anonymous)],
+    MINIMUM_USD: [Function (anonymous)],
+    cheaperWithdraw: [Function (anonymous)],
+    fund: [Function (anonymous)],
+    getAddressToAmountFunded: [Function (anonymous)],
+    getFunders: [Function (anonymous)],
+    getOwner: [Function (anonymous)],
+    getPriceFeed: [Function (anonymous)],
+    s_priceFeed: [Function (anonymous)],
+    withdraw: [Function (anonymous)]
+  },
+  filters: {},
+  _runningEvents: {},
+  _wrappedEmits: {},
+  address: '0xf962614c9139C263aFAe92C3683C76A38e830E81',
+  resolvedAddress: Promise {
+    '0xf962614c9139C263aFAe92C3683C76A38e830E81',
+    [Symbol(async_id_symbol)]: 3213,
+    [Symbol(trigger_async_id_symbol)]: 3207,
+    [Symbol(destroyed)]: { destroyed: false }
+  },
+  'MINIMUM_USD()': [Function (anonymous)],
+  'cheaperWithdraw()': [Function (anonymous)],
+  'fund()': [Function (anonymous)],
+  'getAddressToAmountFunded(address)': [Function (anonymous)],
+  'getFunders(uint256)': [Function (anonymous)],
+  'getOwner()': [Function (anonymous)],
+  'getPriceFeed()': [Function (anonymous)],
+  's_priceFeed()': [Function (anonymous)],
+  'withdraw()': [Function (anonymous)],
+  MINIMUM_USD: [Function (anonymous)],
+  cheaperWithdraw: [Function (anonymous)],
+  fund: [Function (anonymous)],
+  getAddressToAmountFunded: [Function (anonymous)],
+  getFunders: [Function (anonymous)],
+  getOwner: [Function (anonymous)],
+  getPriceFeed: [Function (anonymous)],
+  s_priceFeed: [Function (anonymous)],
+  withdraw: [Function (anonymous)]
+}
+> fundMe.withdraw()
+Promise {
+  <pending>,
+  [Symbol(async_id_symbol)]: 3295,
+  [Symbol(trigger_async_id_symbol)]: 13,
+  [Symbol(destroyed)]: { destroyed: false }
+}
+> .exit
+Done in 564.59s.
+```
+
+다시 테스트 해보겠습니다.
+
+```bash
+
+  FundMe
+
+    1) 기부가 가능하고 인출이 가능함
+
+
+  0 passing (31s)
+  1 failing
+
+  1) FundMe
+       기부가 가능하고 인출이 가능함:
+
+      AssertionError: expected '100000000000000000' to equal '0'
+      + expected - actual
+
+      -100000000000000000
+      +0
+
+      at Context.<anonymous> (test\staging\FundMe.staging.test.js:20:16)
+      at processTicksAndRejections (node:internal/process/task_queues:96:5)
+
+
+```
+
+에러가 났습니다. console.log로 계약 잔액을 확인 후에 넘어가도록 해보겠습니다.
+
+```bash
+
+  FundMe
+withdraw를 실행시키고 난 후 계약에 남은 잔액: 0
+    √ 기부가 가능하고 인출이 가능함 (8903659 gas)
+
+
+  1 passing (4m)
+
+Done in 234.51s.
+
+```
+
+가스제한이 25000정도여서 gasLimit을 이용해 가스제한을 늘려보겠습니다.
+
+```js
+const { assert } = require("chai");
+const { getNamedAccounts, ethers, network } = require("hardhat");
+const { developmentChains } = require("../../helper-hardhat-config");
+
+developmentChains.includes(network.name)
+  ? describe.skip
+  : describe("FundMe", async function () {
+      let fundMe;
+      let deployer;
+      const sendValue = ethers.utils.parseEther("0.1");
+      beforeEach(async function () {
+        deployer = (await getNamedAccounts()).deployer;
+        fundMe = await ethers.getContract("FundMe", deployer);
+      });
+
+      it("기부가 가능하고 인출이 가능함", async function () {
+        await fundMe.fund({ value: sendValue });
+        await fundMe.withdraw({ gasLimit: 100000 });
+        const endingBalance = await fundMe.provider.getBalance(fundMe.address);
+        console.log(
+          `withdraw를 실행시키고 난 후 계약에 남은 잔액: ${endingBalance}`
+        );
+        assert.equal(endingBalance.toString(), "0");
+      });
+    });
+
+```
+
+```bash
+
+  FundMe
+withdraw를 실행시키고 난 후 계약에 남은 잔액: 0
+    √ 기부가 가능하고 인출이 가능함
+
+
+  1 passing (3m)
+
+Done in 166.05s.
+
+```
+
+## Running Scripts on a Local Node
+
+깃허브에 이 스마트 컨트렉트를 푸쉬하기 위해 스크립트를 작성하겠습니다.
+
+`scripts/fund.js` 를 생성합니다.
+
+우리가 로컬호스트에서, 즉 하드햇 노드에서 fund()를 사용할 수 있도록 스크립트를 작성해보겠습니다.
+```js
+const {getNamedAccounts, ethers} = require("hardhat");
+
+async function main() {
+    const {deployer} = await getNamedAccounts();
+    const fundMe = await ethers.getContract("FundMe",deployer);
+    console.log("계약에 펀딩중...");
+    const sendValue = ethers.utils.parseEther("0.1");
+    const transactionResponse = await fundMe.fund({value: sendValue});
+    await transactionResponse.wait(1);
+    console.log("펀딩 완료되었습니다!");
+}
+
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.log(error);
+    process.exit(1);
+  });
+
+```
+
+```bash
+yarn hardhat node
+```
+
+배쉬 터미널을 하나 더 만들고 다음과 같이 입력합니다.
+```bash
+yarn hardhat run scripts/fund.js --network localhost
+```
+
+```bash
+계약에 펀딩중...
+펀딩 완료되었습니다!
+Done in 3.35s.
+```
+
+바로 이어서 이제 withdraw()도 만들어봅시다
+`scripts/withdraw.js`를 생성합니다.
+
+```js
+const { getNamedAccounts, ethers } = require("hardhat");
+
+async function main() {
+  const { deployer } = await getNamedAccounts();
+  const fundMe = await ethers.getContract("FundMe", deployer);
+  console.log("펀딩금액 인출 중...");
+  const transactionResponse = await fundMe.withdraw();
+  await transactionResponse.wait(1);
+  console.log("모든 금액을 인출했습니다!");
+}
+
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.log(error);
+    process.exit(1);
+  });
+
+```
+
+```bash
+yarn hardhat run scripts/withdraw.js
+```
+```bash
+펀딩금액 인출 중...
+모든 금액을 인출했습니다!
+Done in 3.21s.
+```
+
+정상적으로 작동합니다.
+
+이제 계약과 쉽게 상호작용 할 수 있는 스크립트를 작성완료했습니다.
+
+## Adding scripts to your package.json
+
+깃 푸쉬 전에 패키지 설정을 합시다.
+
+`package.json`으로 이동합니다.
+
+다음과 같이 scripts 명령어와 패키지 정보들을 추가합니다.
+
+```json
+{
+  "name": "hardhat-fund-me",
+  "author": "iwipwq",
+  "version": "1.0.0",
+  "devDependencies": {
+    "@chainlink/contracts": "^0.4.1",
+    "@nomiclabs/hardhat-ethers": "npm:hardhat-deploy-ethers",
+    "@nomiclabs/hardhat-etherscan": "^3.0.0",
+    "@nomiclabs/hardhat-waffle": "^2.0.0",
+    "chai": "^4.2.0",
+    "dotenv": "^16.0.0",
+    "eslint": "^7.29.0",
+    "eslint-config-prettier": "^8.3.0",
+    "eslint-config-standard": "^16.0.3",
+    "eslint-plugin-import": "^2.23.4",
+    "eslint-plugin-node": "^11.1.0",
+    "eslint-plugin-prettier": "^3.4.0",
+    "eslint-plugin-promise": "^5.1.0",
+    "ethereum-waffle": "^3.0.0",
+    "ethers": "^5.6.8",
+    "hardhat": "^2.9.9",
+    "hardhat-deploy": "^0.11.10",
+    "hardhat-gas-reporter": "^1.0.4",
+    "prettier": "^2.3.2",
+    "prettier-plugin-solidity": "^1.0.0-beta.13",
+    "solhint": "^3.3.6",
+    "solidity-coverage": "^0.7.16"
+  },
+  "scripts": {
+    "test": "yarn hardhat test",
+    "test:staging": "yarn hardhat test --network rinkeby",
+    "lint": "yarn solhint 'contracts/*.sol'",
+    "lint:fix": "yarn solhint 'contracts/*sol' --fix",
+    "format": "yarn prettier --write .",
+    "coverage": "yarn hardhat coverage"
+  }
+}
+
+```
+
+## Pushing to GitHub
+
+깃허브는 여러분의 포트폴리오나 다름없습니다. 
+
+0. 깃허브에서 레포지토리 만들기
+
+1. 브렌치 만들기
+```bash
+git init -b main
+```
+
+2. 초록색과 회색으로 푸쉬되는것과 안되는 것 확인
+
+3. `git status`로 깃 상태 확인
+
+```bash
+$ git status
+On branch main
+
+No commits yet
+
+Untracked files:
+  (use "git add <file>..." to include in what will be committed)
+        .env.example
+        .gitignore
+        .npmignore
+        .prettierignore
+        .prettierrc
+        .solhint.json
+        .solhintignore
+        README.md
+        contracts/
+        deploy/
+        gas-report.txt
+        hardhat.config.js
+        helper-hardhat-config.js
+        package.json
+        scripts/
+        test/
+        utils/
+        yarn.lock
+
+nothing added to commit but untracked files present (use "git add" to track)
+```
+
+4. `.gitignore` 확인 deployments도 추가
+
+5. git add .
+
+6. git status
+```bash
+$ git status
+On branch main
+
+No commits yet
+
+Changes to be committed:
+  (use "git rm --cached <file>..." to unstage)
+        new file:   .env.example
+        new file:   .gitignore
+        new file:   .npmignore
+        new file:   .prettierignore
+        new file:   .prettierrc
+        new file:   .solhint.json
+        new file:   .solhintignore
+        new file:   README.md
+        new file:   contracts/FundMe.sol
+        new file:   contracts/PriceConverter.sol
+        new file:   contracts/mocks/MockV3Aggregator.sol
+        new file:   deploy/00-deploy-mocks.js
+        new file:   deploy/01-deploy-fund-me.js
+        new file:   gas-report.txt
+        new file:   hardhat.config.js
+        new file:   helper-hardhat-config.js
+        new file:   package.json
+        new file:   scripts/fund.js
+        new file:   scripts/withdraw.js
+        new file:   test/staging/FundMe.staging.test.js
+        new file:   test/unit/FundMe.test.js
+        new file:   utils/verify.js
+        new file:   yarn.lock
+
+```
+
+7. git remote add orgin url <내 깃주소>
+
+8. git push <remote> <bracnh>
+```
+git push origin main
+```
+
+# Lesson 8 HTML / JavaScript Fund Me (Intro to front end / fullstack)
+
+대부분의 사람들은 프로그래메틱 하게 계약과 상호작용하지 못합니다.
+그래서 유저인터페이스가 필요합니다..
+
+토큰마다 faucet 사이트가 있는데 그것과 비슷한 걸 만들어 볼 겁니다.
+
+메타마스크 확장프로그램으로 계정을 연결하고 withdraw 할 수 있는 기능을 만들겁니다.
+
+배포할때는 hardhat-fund-me를 여전히 이용할겁니다.
+
+Dapp을 만들거나 블록체인에 연결되는 웹사이트를 만들때는 두개의 레포지토리가 필요합니다.
+
+- 하나는 `smart contract`를 위한 레포
+- 하나는 `front-end / website`를 위한 레포
+
+이 두가지가 합쳐져서 fullstack이 되는 것입니다.
+
+Full stack = Smart Contracts (backend) + Html / JavaScript / Website stuff (front end)
+
+현재 우리는 백엔드를 가지고 있죠, 이제 프론트엔드를 작업하면 됩니다.
+
+## How websites work with web3 walltes
+
+|connect|Execute|
+|-|-|
+
+web3 웹사이트를 간단하게 표현하고자 하면 이렇습니다.
+
+connect로 wallet과 연결하고 Execute로 계약안의 함수를 실행합니다.
+
+이 웹을 실행할때 브라우저에서 어떤일이 벌어지는지 알아봅시다.
+
+개발자도구의 소스패널은 브라우저 익스텐션으로 추출한 것들입니다.
+
+소스패널에 Metamask나 기타 다른 확장프로그램이 들어가있는것은 브라우저에 Metamask나 그 프로그램을 설치했기 때문입니다. 맞죠?
+
+메타마스크는 EVM기반의 지갑이고 팬텀은 solana 기반의 지갑입니다.
+
+이 확장프로그램이 설치되면 JavaScript의 window 오브젝트에 주입됩니다.
+
+브라우저 콘솔에서 window를 입력해봅시다. 
+
+`window.ethereum`을 입력해면 많은 오브젝트가 포함되어있는걸 확인 할 수 있습니다. 이 객체는 메나마스크를 갖고있거나 아니면 메타마스크 같은 브라우저에서만 가지고 있습니다.
+
+아니면 또다른 web3 월렛에 접근하고 싶다면 `window.solana`로 접근할 수 있습니다.
+
+이번엔 메타마스크나 팬텀을 가지고 있지 않은 브라우저에서 window객체를 살펴봅시다.
+`window.ethereum`,`window.solana`를 입력해도 undefined로 정의되어있지 않습니다.
+
+월렛이 중요한 이유는 그 안에 연결된 블록체인 `노드`들을 갖고있기 때문입니다. 그리고 블록체인으로 상호작용 하기 위해선 우리는 하상 `노드`가 필요합니다.
+
+Alchemy, Infura, 의 URL을 본적이 있을겁니다. 블록체인과 상호작용 하기 위해서죠, 알케미나 인푸라는 빌려서(rent) 상호작용할 수 있는 서드파티 블록체인입니다. 
+
+하지만 상호작용을 하려면 provider나 트랜잭션을 보낼 노드가 필요합니다.
+`const web3 = createAlchemyWeb3(API_URL);`
+
+메타마스크의 Networks 탭에 있는 테스트넷 목록의 RPCURL은 실행 중인 블록체인 노드의 'HTTP RPC URL' 연결입니다.
+
+이러한 방식으로 항상 블록체인과 연결이 되있어야 하는데 그걸 쉽게 도와주는 것이 바로 메타마스크 같은 지갑(wallet)입니다.
+
+## HTML Setup
+
+1. HTML / JavaScript 
+Later on , we will use Nextjs / Reactjs
+
+라이브서버 설치,
+!html
+
+### http 서버 패키지 설치하기 (live server와 똑같이 동작)
+
+```bash
+yarn add --dev http-server
+```
+```bash
+yarn http server
+```
+
+## Connecting HTML to Metamask
+
+라이브서버를 실행시키고 콘솔에서 window 객체를 살펴보면 ethereum 객체가 설치되어있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-23%20175725.png)
+
+이것을 작동시키는 방법은 Metamask 문서에 적혀있습니다.
+
+https://docs.metamask.io/guide/#why-metamask
+
+그 중에 프로바이더에 대한 설명서가 있습니다.
+
+https://docs.metamask.io/guide/mobile-best-practices.html#the-provider-window-ethereum
+
+window.ethereum을 이용하는것은 블록체인과 연결하는 많은 방법중에 하나일 뿐입니다, 사실 다양한 방법과 지갑이 존재합니다.
+
+하지만 지금은 메타마스크와 window.ethereum 만이 확장으로 존재한다고 가정하고 얘기해봅시다.
+
+제일 처음으로 할 일은 widnow.ethereum이 존재하는지 확인하는 겁니다.
+
+만약 없다면 블록체인에 연결할 수 없다는 겁니다.
+
+```js
+if( typeof window.ethereum !== "undefined" ) {
+  return console.log("메타마스크가 설치되어있습니다.");
+} else console.log("메타마스크 설치가 필요합니다.")
+
+```
+
+다음에 할 수 있는 건 자동적으로 메타마스크에 연결하는겁니다.
+
+https://docs.metamask.io/guide/rpc-api.html#restricted-methods
+
+이 메소드를 사용해서 연결여부를 사용자에게 물어볼 수 있습니다.
+
+이 메소드는 EIP1102에 특화되어있고, 이전에 deprecated된 `ehtereum.enable()`과 동일(equivalent)합니다.
+
+```js
+if(typeof window.ethereum !== "undefined") {
+  window.ethereum.request
+}
+```
+
+
+메타마스크와 연결하는 팝업이 나타납니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-23%20200719.png)
+
+연결을 완료하면 이 사이트와 이 연결된 계정정보가 나오는데,
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-23%20200747.png)
+
+이제 이 사이트에서 메타마스크를 통해 API 호출을 할 수 있다는 뜻입니다.
+
+아직 증명(approve)하는 단계가 남아있지만, 지금은 일단 넘어가서 트랜잭션을 시도해보겠습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-23%20202000.png)
+
+연결해제하고 싶다면 `이 계정 현결 해제`를 누르면 됩니다.
+
+지금은 새로고침할때마다 이 창이 async 함수로 이를 묶어주겠습니다.
+
+```js
+async function connect() {
+  if(typeof winodw.ethereum !== "undefined") {
+    console.log("메타마스크가 설치되어있습니다.")
+    window.ethereum.request({method:"eth_requestAccounts"});
+  } else {
+    console.log("메타마스크 설치가 필요합니다!")
+  }
+}
+
+```
+
+이제 connect를 실행시켜주는 버튼을 생성합니다.
+또 지갑이 연결이 확실히 된 후에 사용자에게 연결됨을 알려주기 위해서 await을 사용해줍시다.
+
+```html
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <title>펀딩 앱</title>
+  </head>
+  <body>
+    안녕하세요
+    <script>
+        async function connect() {
+            if (typeof window.ethereum !== "undefined") {
+              console.log("메타마스크가 설치되어있습니다.");
+              await window.ethereum.request({method: "eth_requestAccounts"})
+              console.log("지갑과 연결되었습니다.")
+            } else {
+              console.log("메타마스크 설치가 필요합니다.");
+            }
+        }
+    </script>
+    <button id="connectButton" onclick="connect()"> 연결하기 </button>
+  </body>
+</html>
+```
+
+
+이번엔 연결 후 버튼에 변화를 주어 연결되었음을 알려주겠습니다.
+
+```html
+  <body>
+    안녕하세요
+    <script>
+        async function connect() {
+            if (typeof window.ethereum !== "undefined") {
+              console.log("메타마스크가 설치되어있습니다.");
+              await window.ethereum.request({method: "eth_requestAccounts"})
+              document.getElementById("connectButton").innerText = "연결되었습니다!"
+            } else {
+                document.getElementById("connectButton").innerText = "메타마스크를 설치해주세요."
+            }
+        }
+    </script>
+    <button id="connectButton" onclick="connect()"> 연결하기 </button>
+  </body>
+```
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-23%20204758.png)
+
+## JavaScript in its own files
+
+이제 스크립트 파일이 커지므로 따로 분리해두겠습니다.
+
+index.js 파일을 생성합니다.
+```js
+//index.js
+async function connect() {
+  if (typeof window.ethereum !== "undefined") {
+    console.log("메타마스크가 설치되어있습니다.");
+    await window.ethereum.request({ method: "eth_requestAccounts" });
+    document.getElementById("connectButton").innerText = "연결되었습니다!";
+  } else {
+    document.getElementById("connectButton").innerText =
+      "메타마스크를 설치해주세요.";
+  }
+}
+
+```
+
+```html
+//index.html
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>펀딩 앱</title>
+  </head>
+  <body>
+    안녕하세요
+    <script src="./index.js" type="text/javascript"></script>
+    <button id="connectButton" onclick="connect()">연결하기</button>
+  </body>
+</html>
+```
+
+try catch문을 사용해서 에러핸들링을 해줍니다.
+
+```js
+async function connect() {
+  if (typeof window.ethereum !== "undefined") {
+    console.log("메타마스크가 설치되어있습니다.");
+    try {
+      await window.ethereum.request({ method: "eth_requestAccounts" });
+      document.getElementById("connectButton").innerText = "연결되었습니다!";
+    } catch (error) {
+      console.log(error);
+    }
+  } else {
+    document.getElementById("connectButton").innerText =
+      "메타마스크를 설치해주세요.";
+  }
+}
+```
+
+## ES6 (Front End Js) vs NodeJS
+
+이제 fund 함수와 withdraw 함수를 만들어보겠습니다.
+
+생 자바스크립트 html 환경에서는 다른 문법을 사용합니다.
+
+fund함수와 withdraw 함수를 작성합니다.
+
+먼저 트랜잭션을 위해선 다음과 같은 조건이 필요합니다.
+
+```js
+// 기부하기
+async function fund(ethAmount) {
+    console.log(`${ethAmount} 만큼 기부함`)
+    if(typeof winodw.ethereum !== "undefined") {
+        // provider / 블록체인에 연결
+        // signer / wallet / someone with some gas
+        // 상호작용할 계약
+        // ^ ABI & Address
+    }
+}
+```
+
+노드 환경이 아닌 브라우저 환경에선 이렇게 import 합니다.
+
+https://docs.ethers.io/v5/getting-started/#getting-started--importing--web-browser
+
+여기서는 위 링크의 `ehters library`에 있는 `ethers-5.6.esm.min.js`를 `다름이름으로 링크 저장`을 눌러 다운받아 사용하겠습니다.
+
+```js
+import { ethers } from "./ethers-5.6.esm.min.js";
+```
+
+그리고 index.html의 script태그의 type을 module로 바꿔줍니다.
+```html
+<script src="./index.js" type="module"></script>
+```
+
+인라인 js도 모두 index.js로 옮겨주겠습니다.
+
+```js
+const connectButton = document.getElementById("connectButton");
+const fundButton = document.getElementById("fundButton");
+
+connectButton.onclick = connect
+fundButton.onclick = fund
+```
+
+이것이 가능한 이유는 script type을 module로 했기 떄문입니다.
+
+```js
+console.log(ethers);
+```
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-23%20215809.png)
+
+이더스 오브젝트가 모두 불러들여와진 것을 확인 할 수 있습니다.
+
+```js
+import { ethers } from "./ethers-5.6.esm.min.js";
+
+const connectButton = document.getElementById("connectButton");
+const fundButton = document.getElementById("fundButton");
+
+connectButton.onclick = connect;
+fundButton.onclick = fund;
+
+console.log(ethers);
+
+async function connect() {
+  if (typeof window.ethereum !== "undefined") {
+    console.log("메타마스크가 설치되어있습니다.");
+    try {
+      await window.ethereum.request({ method: "eth_requestAccounts" });
+      connectButton.innerText = "연결되었습니다!";
+    } catch (error) {
+      console.log(error);
+    }
+  } else {
+    fundButton.innerText = "메타마스크를 설치해주세요.";
+  }
+}
+
+// 기부하기
+async function fund(ethAmount) {
+  console.log(`${ethAmount} 만큼 기부함`);
+  if (typeof winodw.ethereum !== "undefined") {
+    // provider / 블록체인에 연결
+    // signer / wallet / someone with some gas
+    // 상호작용할 계약
+    // ^ ABI & Address
+  }
+}
+
+// 출금하기
+```
+
+## Sending a Transaction From a Website
+
+fund 함수로 돌아가서 계속 작성해보겠습니다.
+
+https://docs.ethers.io/v5/api/providers/other/#Web3Provider
+
+web3provider는 metamask와 같은 프로바이더를 감싸줄 수 있는 오브젝트입니다.
+
+전에 사용했던 JsonRpcProvider와 유사합니다.
+그때는 직접적으로 alchemy endpoint를 rpcurl로 넣었습니다.
+
+web3provider는 현재 rpcurl을 window.ethereum에서 엔드포인트를 찾아 자동으로 캐치하여 가져옵니다.
+
+여기서는 메타마스크 엔드포인트를 가져오겠죠?
+
+```js
+const provider = new ethers.providers.Web3Provider(window.ethereum);
+```
+
+그리고 이제 signer나 wallet이 필요할 겁니다.
+```js
+const signer = provider.getSigner()
+console.log(signer);
+```
+이 코드는 provider에 연결된 지갑을 가져옵니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-23%20221403.png)
+
+provider가 Account1에 연결되었다면 Account1 지갑정보를, 계정2에 연결되었다면 계정2의 지갑정보를 가져옵니다.
+
+![Account1에 연결된 provider에서 받아온 signer오브젝트](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-23%20221748.png)
+
+이제 contract는 어떻게 가지고 와야 할까요?
+
+먼저 ABI와 address를 가져올 방법에 대해 알아야 할것입니다. 계약이 배포되면 변하지 않는(constant) 파일로 그 정보가 저장될겁니다.
+
+`constant.js` 파일을 생성해줍니다.
+여기서 백엔드(계약) 코드를 살펴볼 필요가 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-23%20223354.png)
+
+이 파일에 abi 정보가 담겨있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-23%20223609.png)
+
+여기서 abi 프로퍼티만 복사해서
+
+constant.js에 복사해서 사용할 겁니다.
+
+abi 오브젝트를 만들어주고 export 합니다.
+
+```js
+export const abi = [
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "priceFeedAddress",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "nonpayable",
+      "type": "constructor"
+    },
+    {
+      "inputs": [],
+      "name": "FundMe__NotOwner",
+      "type": "error"
+    },
+    {
+      "inputs": [],
+      "name": "MINIMUM_USD",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "cheaperWithdraw",
+      "outputs": [],
+      "stateMutability": "payable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "fund",
+      "outputs": [],
+      "stateMutability": "payable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "funder",
+          "type": "address"
+        }
+      ],
+      "name": "getAddressToAmountFunded",
+      "outputs": [
+        {
+          "internalType": "uint256",
+          "name": "",
+          "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "uint256",
+          "name": "index",
+          "type": "uint256"
+        }
+      ],
+      "name": "getFunders",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "getOwner",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "getPriceFeed",
+      "outputs": [
+        {
+          "internalType": "contract AggregatorV3Interface",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "s_priceFeed",
+      "outputs": [
+        {
+          "internalType": "contract AggregatorV3Interface",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "withdraw",
+      "outputs": [],
+      "stateMutability": "payable",
+      "type": "function"
+    }
+  ]
+```
+
+`index.js`로 돌아와서 이것을 import해줍니다.
+
+```js
+import { abi } from "./constant.js";
+```
+
+이제 `address`는 어떻게 얻어야 할까요
+
+두가지 방법이 있습니다.
+
+첫번째는 백엔드에서 `yarn hardhat node`를 이용해 로컬호스트 노드 주소를 가져오는것입니다.
+
+두번째는 현재 프론트엔드 작업창에서 bash터미널을 하나 더 생성 한 뒤 백엔드 프로젝트 디렉토리로 이동해서 `yarn hardhat node`로 노드목록을 가져오는것입니다.
+
+```bash
+로컬 네트워크 감지됨! 모의계약 배포중...
+deploying "MockV3Aggregator" (tx: 0x2f60bd4cba5dffe33cd22380f4891cfadb7f13aad763bb084e8a1c3336b892f9)...: deployed at 0x5FbDB2315678afecb367f032d93F642f64180aa3 with 569635 gas
+모의계약 배포가 완료되었습니다!
+-----------------------------
+프라이스피드주소 0x5FbDB2315678afecb367f032d93F642f64180aa3
+deploying "FundMe" (tx: 0x2b2fbe582a7c1c42b2f02e3fdf327a27fc8cbd0e20cdf3ac0f3b91bc6703c53f)...: deployed at 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512 with 1068211 gas
+배포된 계약 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
+---------------------------------------
+---------------------------------------------------------------
+Started HTTP and WebSocket JSON-RPC server at http://127.0.0.1:8545/
+
+Accounts
+========
+
+WARNING: These accounts, and their private keys, are publicly known.
+Any funds sent to them on Mainnet or any other live network WILL BE LOST.
+
+Account #0: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 (10000 ETH)
+Private Key: 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+```
+
+여기서 로그를 찍은 부분에서 계약이 배포된 주소를 가져옵니다.
+```
+deploying "FundMe" (tx: 0x2b2fbe582a7c1c42b2f02e3fdf327a27fc8cbd0e20cdf3ac0f3b91bc6703c53f)...: deployed at 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512 with 1068211 gas
+배포된 계약 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
+```
+
+`constant.js`파일로 가서 해당 주소를 모듈로 만들어 export 해줍니다.
+
+```js
+//constant.js
+export const contractAddress = "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512"
+```
+index.js에서 이를 불러와줍니다.
+```js
+import { abi, contractAddress } from "./constant.js";
+```
+
+그리고 불러온 abi, contractAddress 그리고 signer로 new Contract를 이용해서 계약을 불러옵니다.
+
+```js
+const contract = new ethers.Contract(contractAddress, abi, signer);
+```
+
+이제 하드햇환경에서 했던것처럼 트랜잭션 할 수 있습니다.
+
+```js
+async function fund(ethAmount) {
+  console.log(`${ethAmount} 만큼 기부함`);
+  if (typeof window.ethereum !== "undefined") {
+    // provider / 블록체인에 연결
+    // signer / wallet / someone with some gas
+    // 상호작용할 계약
+    // ^ ABI & Address
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const signer = provider.getSigner();
+    console.log(signer);
+    const contract = new ethers.Contract(contractAddress, abi, signer);
+    const transactionResponse = await contract.fund({
+      value: ethers.utils.parseEther(ethAmount),
+    });
+  }
+}
+```
+
+이 상태에서 ethAmount를 아무값이나 하드코딩하여 fund를 실행시키면 이상한 에러가 출력됩니다.
+
+이는 우리가 하드햇 로컬네트워크에 연결하지 않아서 그렇습니다.
+
+현재 메타마스크는 rinkeby 블록체인에 연결되어있느데 말이죠.
+
+메타마스크에서 커스텀으로 하드햇 로컬 네트워크를 추가해보겠습니다.
+
+네트워크 추가를 클릭합니다.
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-23%20225726.png)
+
+JSON RPC URL은 하드햇 노드의 배포log에서 찾을 수 있습니다.
+
+```bash
+```
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-23%20230003.png)
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-23%20230048.png)
+
+블록 익스플로러는 옵셔널이므로 스킵하고 `저장`을 누릅니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-23%20230152.png)
+
+
+```js
+async function fund() {
+    const ethAmount = "77"
+  console.log(`${ethAmount} 만큼 기부함`);
+  if (typeof window.ethereum !== "undefined") {
+    // provider / 블록체인에 연결
+    // signer / wallet / someone with some gas
+    // 상호작용할 계약
+    // ^ ABI & Address
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const signer = provider.getSigner();
+    console.log(signer);
+    const contract = new ethers.Contract(contractAddress, abi, signer);
+    const transactionResponse = await contract.fund({
+      value: ethers.utils.parseEther(ethAmount),
+    });
+  }
+}
+```
+ethAmount 를 77로 하드코딩 후 다시 fund 버튼을 눌러보겠습니다. 성공적으로 메타마스크 트랜잭션 창이 뜨지만 자금이 부족하다고 뜹니다. 즉, 로컬 하드햇 노드에서 하드햇 ETH를 빼와야 합니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-23%20230923.png)
+
+
+지갑 가져오기를 선택합니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-23%20231029.png)
+
+비공개 키를 선택하고 하드햇 노드 목록중 원하는 노드의 private 키를 입력합니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-23%20231054.png)
+
+여기서 잠깐 환기시키자면, JSON 파일을 선택했을땐 ethers를 배울때 실습해봤던 JSON파일로 private password를 생성하는 방법 기억나시나요? 그 파일을 넣고 private password를 입력하면 됩니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-23%20231206.png)
+
+새로 게정이 생성되었습니다. 이전 계정의 연결을 끊고 이 계정을 연결한 다음 다시 `기부하기` 버튼을 눌러보겠습니다.
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-23%20231206.png)
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-23%20231626.png)
+
+프론트엔드에선 아무일도 일어나지 않지만 백엔드 터미널을 보게 되면 트랜잭션 기록을 볼 수 있습니다.
+
+```bash
+eth_feeHistory
+eth_getTransactionCount
+eth_feeHistory (2)
+eth_blockNumber
+eth_sendRawTransaction
+  Contract call:       FundMe#fund
+  Transaction:         0xcd0d7b53b28d5dc4d7ddaba59bf4143310388cb43811702038b7f33f7838e74c
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0xe7f1725e7734ce288f8367e1bb143e90bb3f0512
+  Value:               77 ETH
+  Gas used:            104488 of 104488
+  Block #3:            0x48766233818fcda6a65d02eaa4b1b23481f0286af7e90ace0e127b35a2af38f8
+```
+
+> fallback 함수를 주석처리 해놨더니 에러가 발생합니다. fallback 함수를 다시 만들어주고 다시 테스트해보겠습니다.
+
+또한 reject(거부) 했을 경우 해야할 행동도 try catch 문을 이용해 정해주겠습니다.
+
+```js
+import { ethers } from "./ethers-5.6.esm.min.js";
+import { abi, contractAddress } from "./constant.js";
+
+const connectButton = document.getElementById("connectButton");
+const fundButton = document.getElementById("fundButton");
+
+connectButton.onclick = connect;
+fundButton.onclick = fund;
+
+console.log(ethers);
+
+async function connect() {
+  if (typeof window.ethereum !== "undefined") {
+    console.log("메타마스크가 설치되어있습니다.");
+    try {
+      await window.ethereum.request({ method: "eth_requestAccounts" });
+      connectButton.innerText = "연결되었습니다!";
+    } catch (error) {
+      console.log(error);
+    }
+  } else {
+    fundButton.innerText = "메타마스크를 설치해주세요.";
+  }
+}
+
+// 기부하기
+async function fund() {
+    const ethAmount = "77"
+  console.log(`${ethAmount} 만큼 기부함`);
+  if (typeof window.ethereum !== "undefined") {
+    // provider / 블록체인에 연결
+    // signer / wallet / someone with some gas
+    // 상호작용할 계약
+    // ^ ABI & Address
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const signer = provider.getSigner();
+    console.log(signer);
+    const contract = new ethers.Contract(contractAddress, abi, signer);
+    try {
+        const transactionResponse = await contract.fund({
+          value: ethers.utils.parseEther(ethAmount),
+        });
+    } catch(error) {
+        console.log(error);
+    }
+  }
+}
+
+// 출금하기
+
+```
+
+## Restting an Account in Metamask
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-23%20233420.png)
+
+이런 에러가 발생했을때의 해결법입니다.
+
+하드햇 노드를 닫고 다시 실행했을때 발생하는 에러입니다.
+
+계정 -> 설정 -> 고급 -> 계정 재설정을 클릭하시면 됩니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-23%20233548.png)
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-23%20233559.png)
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-23%20233618.png)
+
+이렇게 해서 메타마스크의 블록체인과 싱크되어있는 넌스를 리셋하는겁니다.
+
+## Listening for Events and Completed Transactions
+
+```js
+function listenForTransactionMine(transactionResponse, provider) {
+    
+}
+```
+aysnc 함수가 아닌걸 알아채셨을겁니다.
+
+우리는 이 함수를 fund() 안에서 await 시킬겁니다.
+
+그러기 위해선 promise를 반환해야겠죠.
+
+```js
+function listenForTransactionMine(transactionResponse, provider) {
+    console.log(`Mining ${transactionResponse.hash}...`);
+    return new Promise()
+    // 블록체인을 위한 리스너를 만들기 위해 프로미스 반환
+    // 이제 여기에서 블록이 채굴되면 어떤 일을 할건지 결정
+}
+```
+
+fund() 안에 다음과 같이 await을 이용하여 listenForTransactionMine을 호출합니다.
+
+```js
+// 기부하기
+async function fund() {
+    const ethAmount = "77"
+  console.log(`${ethAmount} 만큼 기부할거에요`);
+  if (typeof window.ethereum !== "undefined") {
+    // provider / 블록체인에 연결
+    // signer / wallet / someone with some gas
+    // 상호작용할 계약
+    // ^ ABI & Address
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const signer = provider.getSigner();
+    console.log(signer);
+    const contract = new ethers.Contract(contractAddress, abi, signer);
+    console.log(contract);
+    try {
+        const transactionResponse = await contract.fund({
+          value: ethers.utils.parseEther(ethAmount),
+        });
+        // 트랜잭션이 채굴될때 listen
+        // 이벤트 리스트 - 아직 안배움
+
+        //ex) 이 tx가 끝날때까지 기다리렴
+        // await을 쓰게 되면 여기서 이 함수가 끝날때까지 코드실행을 멈추라는 뜻
+        await listenForTransactionMine(transactionResponse,provider)
+    } catch(error) {
+        console.log(error);
+    }
+  }
+}
+```
+
+다시 프로미스 안에서는 블록이 마인된 후에 정확히 어떤일을 해야할지 정해줘야 합니다.
+
+```js
+function listenForTransactionMine(transactionResponse, provider) {
+    console.log(`Mining ${transactionResponse.hash}...`);
+    return new Promise()
+    // 블록체인을 위한 리스너를 만들기 위해 프로미스 반환
+    // 이제 여기에서 블록이 채굴되면 어떤 일을 할건지 결정
+    // 이 트랜잭션이 끝날때를 listen함
+}
+```
+
+https://docs.ethers.io/v5/api/contract/contract/#Contract-once
+
+https://docs.ethers.io/v5/api/providers/provider/#Provider-once
+
+provider.once Contract.once 둘다 작동합니다.
+
+transactionReceipt를 받았다는건 트랜잭션이 끝났다는걸 의미합니다.
+
+그러므로 provider.once(eventName,listen) 에서 eventName이 되는 이벤트로서 transactionReceipt를 사용할겁니다.
+
+provider.on을 사용하면 매번 이벤트를 fire 할때마다 이벤트를 호출할 수 있습니다.
+
+once는 딱 한번 호출합니다.
+
+```js
+    function listener () {}
+    provider.once(transactionResponse.hash, listener)
+```
+이렇게 기명함수로 이벤트를 정해서 호출할 수 도 있지만 여기선 화살표 함수로 익명함수로서 호출하겠습니다.
+
+transactionResponse.hash가 일어나면, ()=>{} 가 단 한번 호출됩니다.
+
+https://docs.ethers.io/v5/api/providers/provider/#Provider--events
+
+>provider.once는 이벤트리스너의 타입을 switch문으로 구별하여 이벤트 객체가 트랜잭션타입인 `tx`일 경우 getTransactionReceipt 메소드를 실행하여 콜백함수의 인수로 트랜잭션내역을 받을 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-24%20134316.png)
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-24%20134404.png)
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-24%20145650.png)
+
+
+```js
+function listenForTransactionMine(transactionResponse, provider) {
+    console.log(`Mining ${transactionResponse.hash}...`);
+    // 블록체인을 위한 리스너를 만들기 위해 프로미스 반환
+    // 이제 여기에서 블록이 채굴되면 어떤 일을 할건지 결정
+    // 이 트랜잭션이 끝날때를 listen함
+    provider.once(transactionResponse.hash, (transactionReceipt) => {
+        console.log(`Completed with ${transactionReceipt.confirmations} confirmations`)
+    })
+}
+```
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-24%20094844.png)
+
+트랜잭션이 끝난 후에 콘솔로그 "완료"가 출력되도록 콘솔로그를 추가합니다.
+
+```js
+// 기부하기
+async function fund() {
+    const ethAmount = "1"
+  console.log(`${ethAmount} 만큼 기부할거에요`);
+  if (typeof window.ethereum !== "undefined") {
+    // provider / 블록체인에 연결
+    // signer / wallet / someone with some gas
+    // 상호작용할 계약
+    // ^ ABI & Address
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const signer = provider.getSigner();
+    console.log(signer);
+    const contract = new ethers.Contract(contractAddress, abi, signer);
+    console.log(contract);
+    try {
+        const transactionResponse = await contract.fund({
+          value: ethers.utils.parseEther(ethAmount),
+        });
+        // 트랜잭션이 채굴될때 listen
+        // 이벤트 리스트 - 아직 안배움
+
+        //ex) 이 tx가 끝날때까지 기다리렴
+        // await을 쓰게 되면 여기서 이 함수가 끝날때까지 코드실행을 멈추라는 뜻
+        await listenForTransactionMine(transactionResponse,provider)
+        console.log("완료!");
+    } catch(error) {
+        console.log(error);
+    }
+  }
+}
+
+```
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-24%20095333.png)
+
+그런데 `완료!`가 블럭이 승인되었다는 메시지보다 먼저 나오게 됩니다.
+
+무슨 일이 일어난 걸까요?
+
+`await listenForTransactionMine`으로 `listenForTransaction`은 완료될때까지 기다리도록 만드는데 성공했지만, `listenForTransaction` 안의 이벤트리스너인 `provider.once()` 메소드는 지연시키지 못했기 때문입니다. `await`이 `listenForTransaction`안의 `provider.once()`(이벤트리스너)까지는 기다려주지만 `provider.once()`(이벤트함수)이 발생시키는 익명함수 실행에 대해서는 기다려주지 않습니다. 즉 `(transactionResponse.hash,`가 트랜잭션응답을 찾는걸 기다려주지 않습니다.
+
+따라서 `function listenForTransaction(){...}`는 내부의 `provider.once`보다 먼저 끝나게됩니다.
+
+그리고 나서는 바로 다음 줄인 `consosle.log("완료!")`를 출력하게 되는것입니다.
+
+그리고 나서는 kickoff 된 리스너가 있는것을 뒤늦게 알아차리고 이벤트리스너에서 실행시킨 코드의 결과값을 반환합니다.
+
+`provider.once`를 이벤트루프라 불리는 큐(Queue)에 넣어서 프론트엔드에게 이 이벤트가 끝났는지 여부를 확인시켜야합니다.
+
+이제 `provider.once`의 모든것을 Promise 객체 안에다가 넣어줍니다.
+
+```js
+return new Promise(()=>{})
+```
+
+프로미스는 함수그자체를 입력파리미터로 받습니다.
+그리고 그 함수안에는 또 두가지 입력 파라미터를 받는데 이것이 `resolve`와 `reject`입니다.
+
+```js
+return new Promise((resolve, reject) => {})
+```
+
+`resolve`함수는 이 프로미스가 정상적으로 작동한다면 호출되는 함수입니다.
+
+지금 우리는 리스너가 리스닝을 끝냈을때 프로미스를 진행시키고 싶습니다. 그리고 타임아웃 타입이 있을때는 이를 `reject`할 겁니다.
+
+지금은 아직 작성하지 않을거지만, 훗날에 reject를 작성하려면 reject안에 timeout을 작성해놔야합니다.
+
+기본적으로 이렇게 말해야 합니다. "리스너가 리스닝을 끝내면 resolve가 실행될것이며, 만약 그게 너무 오래걸리면, 너무 오래걸린다고 말해줘야해" 
+
+그리고 {} 안에 `provider.once`를 넣어줍니다.
+
+```js
+function waitForTransactionMine(transactionResponse,provider) {
+  console.log(`${transactionResponse.hash} 채굴중...`);
+  provider.once(transactionResponse.hash, (transactionReceipt) => {
+    console.log(`${transactionReceipt.confirmation}`)
+  })
+}
+```
+
+그리고 프로미스가 정상적으로 작동되었다면 단 한번 실행될 resolve 함수를 작성해야합니다.
+
+```js
+function listenForTransactionMine(transactionResponse, provider) {
+    console.log(`Mining ${transactionResponse.hash}...`);
+    // 블록체인을 위한 리스너를 만들기 위해 프로미스 반환
+    // 이제 여기에서 블록이 채굴되면 어떤 일을 할건지 결정
+    return new Promise((resolve, reject) => {
+        provider.once(transactionResponse.hash, (transactionReceipt) => {
+            console.log(`Completed with ${transactionReceipt.confirmations} confirmations`)
+            resolve()
+        })
+    })
+}
+```
+
+다시 코드를 읽어보면, provider.once(transactionResponse.hash) 트랜잭션의 해쉬값(transaction.hash)이 생성되면, 
+
+https://docs.ethers.io/v5/api/utils/transactions/#Transaction
+
+코드블럭 안에 있는 console.log와 resolve()를 실행시킬겁니다.
+
+그리고 이 Promise는 오직 resolve와 reject중 하나가 호출되었을때만 반환됩니다. transaction.hash가 발견되었을때만 단 한번(provider.once) resolve()가 호출됩니다.
+
+다시 기부하기 버튼을 눌러 fund()를 실행시키면 이번에는 우리가 원하던 순서대로 명령이 출력됩니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-24%20152609.png)
+
+그리고 fund()안에서 await를 사용한 이유는 이 프로미스가 해결될때까지 기다리기 위해서입니다.
+
+## Input Forms
+
+```html
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>펀딩 앱</title>
+  </head>
+  <body>
+    안녕하세요
+    <script src="./index.js" type="module"></script>
+    <button id="connectButton">연결하기</button>
+    <button id="fundButton">기부하기</button>
+    <!-- form -->
+    <label for="fund">기부할 이더리움량</label>
+    <input id="ethAmount" placeholder="0.1" type="text" />
+  </body>
+</html>
+
+```
+
+
+```js
+async function fund() {
+    const ethAmount = document.getElementById("ethAmount").value
+  console.log(`${ethAmount} 만큼 기부할거에요`);
+  if (typeof window.ethereum !== "undefined") {
+    // provider / 블록체인에 연결
+    // signer / wallet / someone with some gas
+    // 상호작용할 계약
+    // ^ ABI & Address
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const signer = provider.getSigner();
+    console.log(signer);
+    const contract = new ethers.Contract(contractAddress, abi, signer);
+    console.log(contract);
+    try {
+        const transactionResponse = await contract.fund({
+          value: ethers.utils.parseEther(ethAmount),
+        });
+        // 트랜잭션이 채굴될때 listen
+
+        //ex) 이 tx가 끝날때까지 기다리렴
+        // await을 쓰게 되면 여기서 이 함수가 끝날때까지 코드실행을 멈추라는 뜻
+        await listenForTransactionMine(transactionResponse,provider)
+        console.log("완료!");
+    } catch(error) {
+        console.log(error);
+    }
+  }
+}
+```
+
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-25%20122249.png)
+
+
+## Reading from the Blockchain
+
+```html
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>펀딩 앱</title>
+  </head>
+  <body>
+    안녕하세요
+    <script src="./index.js" type="module"></script>
+    <button id="connectButton">연결하기</button>
+    <button id="fundButton">기부하기</button>
+    <button id="balanceButton">총 기부된 금액확인하기</button>
+    <!-- form -->
+    <label for="fund">기부할 이더리움량</label>
+    <input id="ethAmount" placeholder="0.1" type="text" />
+  </body>
+</html>
+
+```
+```js
+async function getBalance() {
+  if (typeof window.ethereum !== "undefined") {
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const balance = await provider.getBalance(contractAddress);
+    console.log("기부된 금액", ethers.utils.formatEther(balance), "ETH");
+  }
+}
+```
+
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-25%20123342.png)
+
+
+## Withdraw Function
+
+```html
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>펀딩 앱</title>
+  </head>
+  <body>
+    안녕하세요
+    <script src="./index.js" type="module"></script>
+    <button id="connectButton">연결하기</button>
+    <button id="fundButton">기부하기</button>
+    <button id="balanceButton">총 기부된 금액확인하기</button>
+    <button id="withdrawButton">금액 인출하기</button>
+    <!-- form -->
+    <label for="fund">기부할 이더리움량</label>
+    <input id="ethAmount" placeholder="0.1" type="text" />
+  </body>
+</html>
+
+```
+
+```js
+// 출금하기
+
+async function withdraw() {
+  if (typeof window.ethereum !== undefined) {
+    console.log("출금 중...");
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const signer = provider.getSigner();
+    console.log("사용자 인증 정보 로딩중...");
+    const contract = new ethers.Contract(contractAddress, abi, signer);
+    try {
+      const transactionResponse = await contract.withdraw();
+      await listenForTransactionMine(transactionResponse, provider);
+      console.log("출금완료");
+    } catch (error) {
+      console.log(error);
+    }
+  }
+}
+```
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-25%20132112.png)
+
+Lesson 8 Recap
+
+월렛은 브라우저의 window 객체에 할당됩니다.
+
+`window.ehthereum` `window.solana`
+
+RPCURL을 메타마스크와 연결하기 위해 window.ethereum객체를 사용합니다.
+
+Promise 기반 함수를 작성했습니다. listener kickoff를 작성하고 Promise()로 감싸줘서 이 이벤트가 끝나기를 기다리겠다고 말했습니다. listenForTrnasactionToMine 를 이용해 코드 실행순서를 정렬했습니다.
+
+# Lesson 9 Hardhat Smart Contract Lottery / Raffle
+
+Lesson 9 에서는 백엔드작업을 합니다.
+
+초반에 말씀드린 맥도날드 사건 기억나시나요?
+그 문제를 해결할 수 있는 공평한 기회를 주는 Lottery 앱을 만들겁니다.
+
+이번에는ㄴ metamask 외 다른 지갑에도 연결할 수 있도록 할겁니다.
+
+누구나 이 raffle앱에 접근해서 lottery를 돌릴 수 있고,
+스마트컨트렉트가 이 기록들을 추적할겁니다.
+lottery는 자동적으로 누군가 당첨되게 해줍니다.
+
+이것을 위해서 pure verified number가 필요한데 chainlinkVRF를 사용할 것입니다.
+그리고 chainlink Keeper를 사용해서 당첨자를 추첨할 것입니다.
+
+이 프로젝트는 플래그쉽 프로젝트가 될것입니다.
+
+## Hardhat Setup
+
+```bash
+yarn add --dev hardhat
+```
+```bash
+yarn hardhat
+```
+`Create an empty hardhat.config.js`를 선택합니다.
+
+빈 hardhat.config.js가 생성됩니다.
+
+이번엔 처음부터 세팅을 시작해 보겠습니다.
+
+먼저 아래의 디펜던시들을 설치해줍니다.
+```bash
+yarn add --dev @nomiclabs/hardhat-ethers@npm:hardhat-deploy-ethers ethers @nomiclabs/hardhat-etherscan @nomiclabs/hardhat-waffle chai ethereum-waffle hardhat hardhat-contract-sizer hardhat-deploy hardhat-gas-reporter prettier prettier-plugin-solidity solhint solidity-coverage dotenv
+```
+
+`hardhat.config.js`에 설치한 패키지들을 require로 불러와줍니다. 솔리디티 버전도 사용하려는 버전으로 수정합니다.
+
+```js
+require("@nomiclabs/hardhat-waffle");
+require("@nomiclabs/hardhat-etherscan")
+require("hardhat-deploy")
+require("solidity-coverage")
+require("hardhat-gas-reporter")
+require("hardhat-contract-sizer")
+require("dotenv").config();
+
+/**
+ * @type import('hardhat/config').HardhatUserConfig
+ */
+module.exports = {
+  solidity: "0.8.8",
+};
+```
+
+## Raffle.sol setup
+
+계약을 담을 `contracts` 폴더를 생성해줍니다.
+`Raffle.sol`파일을 생성합니다.
+
+Raffle 앱은 이런 기능들이 필요합니다.
+
+Enter the lottery (paying some amount)
+Pick a random winner (verifiably random)
+Winner to be selected every X minutes -> competly automated
+
+Chainlink Oracle -> Randomness, Automated Execution (Chainlink Keepers)
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.7;
+
+contract Raffle {
+    constructor() {
+        
+    }
+}
+```
+컴파일합니다.
+```bash
+yarn hardhat compile
+```
+
+enterRaffle 함수와 pickRandomWinner 함수를 생성합니다.
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.7;
+
+contract Raffle {
+    function enterRaffle() public {
+        
+    }
+
+    // function pickRandomWinner() {}
+}
+```
+
+enterRaffle부터 작업하겠습니다.
+
+래플을 작동시킬때 usd가 아닌 eth같은 네이티브 토큰으로 계산하겠습니다.
+
+입장료를 설정하겠습니다.
+입장료인 entranceFee는 스토리지에 저장되니, `s_`를 붙여줍니다.
+
+그리고 entranceFee를 설정해줄 constructor를 작성합니다.
+
+
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.7;
+
+contract Raffle {
+    uint256 private s_entranceFee;
+    
+    constructor(uint256 entranceFee) {
+        s_entranceFee = entranceFee;
+    }
+    
+    function enterRaffle() public {
+        
+    }
+
+    // function pickRandomWinner() {}
+}
+```
+
+그리고 constructor에서 설정한 입장료가 변할 수 없도록 s_entranceFee에 `immutable`속성을 붙여주겠습니다.
+
+그렇게 되면 `i_entrancFee`가 될것이고 컨스트럭터에서 한번 정한 값이 바뀌지 않을 것이기 때문에 가스도 절약 할 수 있습니다.
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.7;
+
+contract Raffle {
+    uint256 private immutable i_entranceFee;
+    
+    constructor(uint256 entranceFee) {
+        i_entranceFee = entranceFee;
+    }
+    
+    function enterRaffle() public {
+        
+    }
+
+    // function pickRandomWinner() {}
+}
+```
+
+그리고 다른 사람들도 입장료를 볼 수 있도록 할겁니다.
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.7;
+
+contract Raffle {
+    uint256 private immutable i_entranceFee;
+    
+    constructor(uint256 entranceFee) {
+        i_entranceFee = entranceFee;
+    }
+    
+    function enterRaffle() public {
+        
+    }
+
+    // function pickRandomWinner() {}
+
+    function getEntranceFee() public view returns(uint256) {
+        return i_entranceFee;
+    }
+}
+```
+
+이제 i_entranceFee 보다 사용자가 입력한 금액이 낮으면 revert 되는 require문을 작성합니다.
+
+하지만 여기서 우린 custom error를 require 문 대신 사용할 겁니다.
+
+`error Raffle_NotEnoughETHEntered();` 에러코드를 설정해줍니다.
+
+msg.value를 사용하기 위해 enterRaffle()에 payable 속성을 붙여줍니다.
+
+사용자가 입력한 금액(msg.value)이 입장료(entranceFee)보다 작다면 revert 후에 `Raffel_NotEnoughETHEntered()`에러코드를 반환하도록 합니다.
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.7;
+
+error Raffle__NotEnoughETHEntered();
+
+contract Raffle {
+    uint256 private immutable i_entranceFee;
+    
+    constructor(uint256 entranceFee) {
+        i_entranceFee = entranceFee;
+    }
+    
+    function enterRaffle() public payable {
+        // require (msg.value > i_entranceFee, "eth가 충분하지 않습니다!")
+        if( msg.value > i_entranceFee) {revert Raffle__NotEnoughETHEntered();}
+    }
+
+    // function pickRandomWinner() {}
+
+    function getEntranceFee() public view returns(uint256) {
+        return i_entranceFee;
+    }
+}
+```
+
+이제 state variable을 지정할겁니다.
+
+`address[] private s_players;` 로 참여한 플레이어들을 저장할 겁니다.
+
+그리고 당첨자에게 상금을 전달해줘야 하기 때문에, `payable`속성을 붙여주겠습니다.
+
+`address payable[] private s_player;`
+
+그리고 플레이어목록에 접근할 수 있는 함수를 만들어줍니다.
+
+```solidity
+    function getPlayer(uint256 index) public view returns (address) {
+        return s_players[index];
+    }
+```
+
+이제 enterRaffle함수에서 참가자를 참가자목록에 push로 넣어줍니다.
+
+```solidity
+s_players.push(msg.sender);
+```
+
+그런데 여기서 `msg.sender`는 payable address가 아니기 때문에 `payable` 타입으로 타입변환을 해줘야합니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-25%20212411.png)
+
+```solidity
+s_player.push(payable(msg.sender));
+```
+
+이제 추첨(Raffle)에 참가한 참가자들을 배열에 넣어서 추적할 수 있게 됬습니다.
+
+## Introduction to Events
+
+동적인 오브젝트, 배열이나 매핑같은 동적인 오브젝트를 업데이트 할때, 항상 event를 발신(emit)합니다.
+
+Lesson 10, 15에서 이 event들은 프론트엔드개발자들에게 매우 의미가 있습니다.
+
+솔리디티로 작업할 때 Event라 불리는 것을 본적이 있을겁니다. 아닐수도 있고요, 하지만 채안링크나 graph 같은 오프체인 프로토콜들이 어떻게 작동하는지 항상 궁금하셨을겁니다. 
+
+이번시간에는 솔리디티의 Logging 과 Events에 대해 배울겁니다.
+
+이벤트를 이더스캔에서 보고, 하드햇에서 그것들을 이용해 작업할겁니다.
+
+EVM = Ethereum Virtual Machine
+
+EVM은 수많은 블록체인 틱(tick)을 생성합니다. ETH(이더리움) 같은거 말이죠. 
+
+그리고 EVM은 logging 기능이라는 기능을 가지고 있습니다.
+
+블록체인에서 어떤 일이 일어났을 때, EVM은 이것들을 `log`라 불리는 특정 데이터스트럭쳐에 작성합니다.
+
+우리는 이 로그들을 우리의 실행되고 있는 블록체인에서 읽을 수 있습니다. 사실 노드를 실행하고 있다면, 아니면 노드에 연결되어 있다면, `eth_getLogs`를 통해서 log를 얻을 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-25%20214500.png)
+
+Logs and Events are often used synonymously.
+로그와 이벤트는 종종 동의어로 쓰입니다.
+
+이 로그안에서는 이벤트`events`라 불리는 중요한 부분이 있습니다.
+그리고 이것이 우리가 얘기할 주제입니다.
+
+Events allow you to "print" stuff to this log.
+이벤트를 이용해 로그의 내용을 "출력" 할 수 있습니다.
+
+이벤트는 당신이 이 로깅 스트럭처에 대한 정보를 storage 변수에 저장하는것 같은 방법보다 훨씬 가스 효율적으로 출력할 수 있도록 해줍니다.
+
+이벤트와 로그는 스마트컨트렉트에 접근할 수 없도록 특별한 데이터스트럭처에 들어있습니다.
+
+Smart Contracts can't access logs
+
+그래서 비용이 저렴합니다. 왜냐하면 스마트컨트렉트는 그들에게 접근할 수 없기떄문에요.
+
+대신에, 우리는 아직 가스가 많이 필요한 storage 변수에 저장 할 필요없이 중요한 정보를 출력할 수 있습니다. 
+
+Evnet are tied to log
+
+각각의 이벤트는 이러한 트랜잭션에서 이벤트가 발신되는 스마트컨트렉트나 계정주소(account address)에 묶여있습니다.
+
+이 이벤트를 듣는것(listening)은 매우 도움이 됩니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-25%20220346.png)
+
+예를 들어 설명하겠습니다. 당신은 누군가 transfer 함수를 호출할때마다 뭔가를 하고 싶습니다.
+항상 이 모든 변수를 읽거나, 어떤것이 뒤집히거나(flip) 바뀌는(switch)걸 찾아내는 대신에, 당신은 단지 이벤트를 듣기(listen)만 하면 됩니다.
+
+그래서 트랜잭션이 일어나면, 이벤트가 발생하고, 우리는 이 이벤트를 들을수있습니다.
+
+이게 바로 대부분의 오프체인 인프라스트럭처가 동작하는 방식입니다. 웹사이트 상에서 트랜잭션이 끝나서 새로고침이 되는것은,
+그것은 사실 트랜잭션이 끝나기를 기다리는(듣는것)이고, 이벤트가 발생하기를 기다리는(듣는것)입니다. 그로 하여금 새로고침을 할 수 있게하거나 아니면 다른 일을 할 수 있도록 하려구요.
+
+이건 체인링크나 아니면 체인링크 안에 있는 graph에게도 매우 중요합니다. 체인링크 노드는 실제로 랜덤 숫자를 얻거나, API호출을 하거나, 그 밖의 작업을 위해 요청 데이터 이벤트를 기다립니다(듣습니다.)
+
+가끔 그 이벤트들이 너무 많을 때가 있습니다. 그리고 나중에 이 모든 이벤트를 쿼리할 수 있도록 적절한 방법으로 색인(index)를 작성할 필요가 있습니다.
+
+>https://thegraph.com/
+
+`그래프(graph)`는 이런 이벤트들을 듣고, 그것들을 그래프에 저장합니다. 그래서 나중에 쉽게 쿼리할 수 있도록 하기 위해서요. 그래서 이벤트는 굉장히 강력합니다. 그리고 광범위하게 사용됩니다. 그리고 테스트나 다른것들에도 도움이 됩니다. but you get the picture. 암튼 이해할 겁니다. 정말 쩝니다.   
+
+이제 우리는 이벤트가 뭔지 알았고, 이제 그것들이 어떻게 생겨먹었고, 어떻게 써먹어야 하는지, 스마트 컨트렉트를 만들때 어떻게 활용할 수 있는지에 대해알아보겠습니다.
+
+자 그리고 여기에 바로 이벤트가 어떻게 생겼는지 나와있습니다.
+
+```solidity
+event storedNumber(
+  uint256 indexed oldNumber,
+  uint256 indexed newNumber,
+  uint256 addedNumber,
+  address sender
+);
+
+```
+
+여기에 storedNumber라는 이벤트를 가지고 있습니다. 즉, 우리는 기본적으로 sotredNumber라 불리는 새로운 타입(type)의 이벤트를 가지게 되었습니다. 그래서 우리는 이렇게 말합니다 "솔리디티야, 스마트계약아, 우리가 이런 새로운 어떤 이벤트를 가지게 됐어, storedNumber 라는 타입을 내보낼(emit)거고, 그리고 이 이벤트를 내보낼때, 네가지 파라미터를 가지게 될거야, 그리고 파라미터는 oldNumber, newNumber, addedNumber라 불리는 uint256을 가지게 될거고 하나는 sender라 불리는 address야"
+
+영민한 사람들이라면 알아차리셨겠찌만, 여기엔 또다른 키워드가 들어가 있는걸 눈치채셨을 겁니다. 바로 `indexed` 말이죠. 매우 중요합니다.
+
+우리가 이 이벤트들을 내보낼때 두가지 종류의 파라미터가 있습니다. 하나는 `색인된(indexed)` 파라미터가 있고, 다른 하나는 `색인되지 않은(non-indexed)` 파라미터입니다. 
+
+indexed parameters = topics
+
+you can have up to three index parameters. 인덱스 매개변수(파라미터)는 최대 3개까지만 사용가능합니다.
+그리고 그것들을 `토픽(Topic)`이라 부릅니다. 그래서 만약 `Topic`을 보게되면 그것이 `indexed`파라미터가 될 것이라는걸 알 수 있습니다. 
+
+`indexed`파라미터는 더 쉽게 검색(search)할 수 있는 파라미터이고, `non-indexed` 파라미터보다 더 쉽게 쿼리(query)할 수 있는 파라미터입니다. 
+
+실은, eth_getlogs 함수를 더 권장드리고 있습니다. 이것도 특정 `토픽topic`을 검색할 수 있는 파라미터를 가지고 있습니다.
+그래서 `non-indexed` 된 것보다 훨씬 searchable 합니다.
+
+`non-indexed`는 검색하기 어렵습니다. 왜냐하면 ABI 인코딩되어있고, 그리고 이걸 디코딩 하기 위해 또 ABI가 필요하기 때문입니다,
+
+자 그리고, 이 상황에서 이것은 스마트 계약에게 storedNumber라는 새 타입이 있다는 걸 알려주고 있습니다. 여기 있는 새로운 이벤트 말이에요. 우리는 그 데이터를 EVM 자료구조 안에 저장하기 위해서 이 이벤트를 내보내야 합니다. 
+
+그러기 위해선, 다음과 같은 것을 해야합니다.
+
+```solidity
+emit storedNumber(
+  favoriteNumber,
+  _favoriteNumber,
+  _favoriteNumber + favoriteNumber,
+  msg.sender
+);
+```
+이게 바로 이벤트를 내보내는 모양새입니다. 마치 함수 호출과 비슷해 보입니다.
+
+emit을 호출한 뒤, 그다음은 이벤트 이름을, 그리고 안쪽에 원하는 모든 파라미터를 추가하면 됩니다.
+
+여기에 하드햇을 이용해 작업한 이벤트를 가진 스마트계약 코드가 있습니다.
+
+```solidity
+//SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.7;
+
+contract SimpleStorage {
+    uint256 favoriteNumber;
+    event storedNumber(
+        uint256 indexed oldNumber,
+        uint256 indexed newNumber,
+        uint256 addedNumber,
+        address sender
+    );
+
+    function store(uint256 _favoriteNumber) public {
+        emit storedNumber(
+            favoriteNumber,
+            _favoriteNumber,
+            _favoriteNumber + favoriteNumber,
+            msg.sender
+        );
+        favoriteNumber = _favoriteNumber;
+    }
+
+    function retrieve() public view returns (uint256) {
+        return favoriteNumber;
+    }
+}
+```
+
+이 스마트 계약에서는 누군가가 store 함수를 호출하면 우리는 이 이벤트를 내보낼 겁니다.
+여기에 store함수에 1값을 넣어보낸 트랜잭션 샘플이 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-27%20001254.png)
+
+Address에 이벤트를 내보낸 컨트렉트나 계정의 주소가 나와있습니다. Topics에는 이벤트 데이터의 색인된(`indexed`) 파라미터들이 보입니다.
+그리고 Data에 ABI 인코딩된 `non-indexed` 이벤트 파라미터가 보입니다. 
+
+이게 무슨 뜻이냐면 우리가 `non-indexed`된 파라미털르 던져줬다는 겁니다. 우리는 그것들을 그들의 ABI, 즉 애플리케이션 바이너리 인터페이스로 으깬다음 다시 인코딩 알고리즘을 통해 그것들을 끌어올렸습니다. 그리고 짠, 이것이 우리가 얻은 것입니다.
+
+abi를 가지고 있다면 디코딩이 매우 쉽습니다. abi가 없다면 이 `non-indexed` 파라미터를 디코드하는건 매우 어렵습니다.
+이 `non-indexed` 파라미터들은 로그로 가져오는데 매우 적은 가스가 듭니다.
+
+그리고 이 특정 계약에서는, 우리가 계약코드를 검증했기 때문에, 이더스캔이 ABI를 알고있고, 그래서 우린 이걸 우하단에 있는 `Dec`(decoded mode)에서 볼 수 있습니다. `Hex mode`는 당연히 디코딩 되지 않은 모드입니다. 아니면 생으로 보이거나 hex 혹은 hexadecimal 로 인코드 된 모드일겁니다. 
+
+이 이벤트 계층에 관한 걸 솔리디티 문서에서 더 확인하실 수 있습니다. 
+
+## Events in Raffle.sol
