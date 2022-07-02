@@ -16837,3 +16837,1423 @@ abi를 가지고 있다면 디코딩이 매우 쉽습니다. abi가 없다면 �
 이 이벤트 계층에 관한 걸 솔리디티 문서에서 더 확인하실 수 있습니다. 
 
 ## Events in Raffle.sol
+
+다시 Raffle.sol파일로 돌아와서 이벤트를 작성해보겠습니다.
+
+먼저 내보낼 event를 만들어줍니다. event명은 함수명을 거꾸로 해서 만듭니다.
+```solidity
+contract Raffle {
+    uint256 private immutable i_entranceFee;
+    address payable[] private s_players;
+
+    /*Events*/
+    event RaffleEnter(address indexed player);
+```
+
+enterRaffle함수에서 배열의 정보가 업데이트되면 이벤트를 발생시켴서 msg.sender를 내보냅니다.
+```solidity
+    function enterRaffle() public payable {
+        // require (msg.value > i_entranceFee, "eth가 충분하지 않습니다!")
+        if (msg.value > i_entranceFee) {
+            revert Raffle__NotEnoughETHEntered();
+        }
+        s_players.push(payable(msg.sender));
+        // Emit an event when we update a dynamic array or mapping
+        // Named events with the function name reversed
+        emit RaffleEnter(msg.sender);
+    }
+```
+
+보통 event를 구현하고 나면 해당 event에 대한 test 스크립트를 작성하지만 지금시간에는 넘어가도록 하겠습니다.
+
+## Introdution to Chainlink VRF (Randomness in Web3)
+
+사람들이 래플에 참여할 수 있는 최소한의 로직을 만들었습니다.
+
+이제 RandomWinner를 뽑을 차례입니다.
+여기서 체인링크VRF와 체인링크 keeper를 사용합니다.
+
+### Chainlink VRF 14:03:00
+
+chainlink VRF version 2
+
+체인링크 버전2는 우리 조심해야 할 서로다른 많은 metal model을 가지고 있습니다.
+그것을 어떻게 사용하는지 알려드리겠습니다.
+
+link를 이용해 계약에 funding하는 체인링크 버전1 과 달리 체인링크 버전2에선 기본적으로 당신이 다수의 소비자 계약의 자금을 fund하고 유지보수 할 수 있는 계정을 구독(subscription)하여 funding할 것입니다.
+
+>https://docs.chain.link/docs/get-a-random-number/
+
+docs를 살펴봅시다. 
+
+먼저 해야할건 rinkeby 테스트넷에서 작동할 수 있도록 확실시 하는겁니다. 메타마스크를 rinkeby 테스트넷에 연결합니다.
+
+>https://vrf.chain.link/
+
+이제 위 링크로 구독관리자(subscription manager)로 이동합니다.
+
+구독관리자는 구독계정을 관리해줍니다. 이곳은 여러 체인에 걸쳐 사용할 수 있는 자금을 넣을 수 있는 곳 입니다.
+
+이제 connect wallet을 눌러 지갑과 연결할겁니다.
+
+Create subscription 버튼을 누릅니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-27%20153907.png)
+
+Create subscription 을 눌러 subscription 을 만듭니다
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-27%20154203.png)
+
+Add funds를 눌러 add funds 페이지로 이동합니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-27%20154245.png)
+
+이제 구독을 가졌고, 이 계정을 randomness 요청을 하는데 사용할 수 있습니다.
+
+10link를 넣어보겠습니다.
+
+however much you want the price and link of every random number you request is going to based on the current gas rates on a given chain as well as the gas lane that you've chosen.
+
+당신이 원하는 가격과 모든 임의의 숫자의 링크는 당신이 선택한 가스 레인과 주어진 체인의 현재 가스 요금에 기초할 것이다.
+
+ 여러분이 원하는 가격과 모든 임의의 숫자의 링크는 여러분이 선택한 가스 레인과 주어진 체인의 현재 가스 요금에 기초할 것입니다.
+
+이제 Add consumer 페이지로 이동합니다.
+근데 지금은 가지고 있는 consumer ID가 없기때문에 일단 문서로 넘어가서 숫자를 요청하는 계약을 생성하겠습니다.
+
+>https://remix.ethereum.org/#url=https://docs.chain.link/samples/VRF/VRFv2Consumer.sol
+
+스크롤을 내려보면 `VRFv2Consumer.sol` 파일을 찾을 수 있습니다. Open in Remix를 눌러 리믹스로 넘어갑니다.
+
+```solidity
+import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
+import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
+```
+import한 계약 파일이 보이고,
+
+bytes32 keyHash 라는 변수는 가스레인을 결정하는 변수입니다.
+핵심 해시(key hash) 옵션은 설명서(docs)에 설명된 가스레인 지정 방법입니다. 따라서 주어진 체인에 대해 선택한 키 해시에 따라 가스 제한은 임의 번호 요청에 따라 다르게 설정됩니다.
+
+예를 들어, 이더리움 메인넷에는 200gwei 키 해시 500gwei와 1000gwei 해시가 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-27%20193636.png)
+
+```solidity
+  // The gas lane to use, which specifies the maximum gas price to bump to.
+  // For a list of available gas lanes on each network,
+  // see https://docs.chain.link/docs/vrf-contracts/#configurations
+  bytes32 keyHash = 0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc;
+```
+
+또한 여기 callback Gas Limit이라는 지정할 수 있는 변수가 있습니다.
+따라서, 가스 사용량에 따라 난수를 채우는 데 드는 비용이 달라집니다.
+fulfillRandomWords()를 호출하는데 얼마나 많은 가스를 사용할지 결정합니다. 그러니 적절히 결정해야합니다.
+
+```solidity
+  // Depends on the number of requested values that you want sent to the
+  // fulfillRandomWords() function. Storing each word costs about 20,000 gas,
+  // so 100,000 is a safe default for this example contract. Test and adjust
+  // this limit based on the network that you select, the size of the request,
+  // and the processing of the callback request in the fulfillRandomWords()
+  // function.
+  uint32 callbackGasLimit = 100000;
+```
+
+리퀘스트 컨퍼메이션을 결정합니다.
+기본설정은 3으로 되어있지만 체인환경에 따라 바꿀 수도 있습니다.
+```solidity
+  // The default is 3, but you can set this higher.
+  uint16 requestConfirmations = 3;
+```
+
+또한 유연하게 원하는 랜덤 넘버 갯수를 설정할 수 도 있습니다. numwords로 지정하며, 네트워크로부터 얼마나 많은 uint256을 반환받을 것인지 결정합니다.
+여기서 랜덤 값을 얻을 수 있습니다 예시는 2가지 값을 얻을 수 있습니다.
+```solidity
+  // For this example, retrieve 2 random values in one request.
+  // Cannot exceed VRFCoordinatorV2.MAX_NUM_WORDS.
+  uint32 numWords =  2;
+```
+
+컨스트럭터에서는 코디네이터를 위한 주소와 링크토큰을 위한 주소를 확인 할 수 있습니다.(링크토큰은 현재버전의 리믹스 샘플코드에 없음) 
+And then you'll see that the subscription ID is going to be created as we deploy the contract.
+그러면 계약을 배포할 때 구독 ID가 생성된다는 것을 알 수 있습니다.
+
+그러면 그걸가지고 아까 add Consumer에서 넣을 subscriptionId로 사용할 수 있습니다.
+
+```solidity
+  constructor(uint64 subscriptionId) VRFConsumerBaseV2(vrfCoordinator) {
+    COORDINATOR = VRFCoordinatorV2Interface(vrfCoordinator);
+    s_owner = msg.sender;
+    s_subscriptionId = subscriptionId;
+  }
+```
+
+그리고 subscriptionId를 이용해 계약을 배포할건데, 두가지 메소드가 필요합니다.
+
+매우 친숙해 보이는 두 가지 메소드가 있습니다. 임의의 단어를 VRF 오라클에서 실행하는 '임의 단어 채우기`fulfillRandomWords`' 메소드와 임의의 단어를 요청(`requestRandomWords`)하는 메소드가 있습니다. 이것이 오라클에 대한 요청을 실제로 시작하는 방법입니다.
+
+```solidity
+  function fulfillRandomWords(
+    uint256, /* requestId */
+    uint256[] memory randomWords
+  ) internal override {
+    s_randomWords = randomWords;
+  }
+```
+
+```solidity
+  // Assumes the subscription is funded sufficiently.
+  function requestRandomWords() external onlyOwner {
+    // Will revert if subscription is not set and funded.
+    s_requestId = COORDINATOR.requestRandomWords(
+      keyHash,
+      s_subscriptionId,
+      requestConfirmations,
+      callbackGasLimit,
+      numWords
+    );
+  }
+```
+
+지금 현재 배포할 준비가 완료되었으므로 DEPLOY 탭으로 가서 VRFv2Consumer를 배포합니다.
+
+
+컨스트럭터에게 넘겨줄 subscriptionID를 확인한 후
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-27%20200353.png)
+
+subscriptionID를 인자로 넘겨주며 deploy합니다.
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-27%20200503.png)
+
+그리고 배포된 계약주소를 복사하여 Add Consumer란의 Consumer address에 붙여넣고 Add Consumer 버튼을 누릅니다.
+
+이것이 구독계정으로 사용하기 위해 authorize 하는과정입니다.
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-27%20200646.png)
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-27%20200709.png)
+
+완료되면 Subscription contract 대시보드가 나타납니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-27%20200939.png)
+
+이걸로 랜덤 숫자 요청을 위한 인증과정이 끝났습니다.
+
+이제 랜덤 숫자 요청을 넣어봅시다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-27%20201112.png)
+
+`requestRandomWords` 버튼을 눌러 호출해보겠습니다.
+
+트랜잭션이 완료되면. `s_requestId`를 호출합니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-27%20201713.png)
+
+0:
+uint256: 72001771768713125204540943430426891828850846250570389863564924253105478488589
+
+값을 얻었습니다.
+
+이제 s_randomWords에 두개의 값이 들어있을 겁니다. 2개의 randomwords를 요청했기때문에,
+
+0을 넣어서 첫번재 index를 확인해보겠습니다.
+
+## Implementing Chainlink VRF
+
+https://docs.chain.link/docs/get-a-random-number/#analyzing-the-contract
+
+https://github.com/smartcontractkit/chainlink/blob/develop/contracts/src/v0.8/VRFConsumerBaseV2.sol
+
+
+이제 pickRandomWinner()함수를 만들어보겠습니다.
+
+이 함수는 ChainlinkKeepers 네트워크에 의해서 호출될 겁니다. 그렇기 때문에 상호작용없이 자동적으로 사용할 수 있습니다.
+
+그리고 시작하기 전에 `/* view / Pure function */`으로 뷰나 퓨어함수를 구분해주고 갑시다.
+
+이 함수는 external 함수로 만들겁니다. external은 public보다 비용이 조금 더 저렴합니다. 솔리디티가 이 함수를 가지고 있는 계약에서 호출할 수 있다는걸 알 수 있기 때문이죠.
+
+두 가지 일을 함수 안에서 할겁니다.
+
+1. 랜덤 숫자 요청하기
+2. 받은 숫자를 가지고 작업하기
+
+체인링크 VRF는 의도적(intentional)으로 2개의 트랜잭션 과정을 가집니다.
+
+2개의 트랜잭션과정을 거치는 것이 1개의 과정을 거치는 것보다 낫습니다.
+1개의 트랜잭션만 가지게 되면 사람들이 무차별 대입(brute-force)으로 이 함수를 `시뮬레이트 호출(simulate call)`(시뮬레이트 콜에 대해서 나중에 배울겁니다.) 할 수 있고, 
+
+simulate calling these transactions to see what they can manipulate to make sure that they are the winner.
+
+이러한 트랜잭션 호출을 시뮬레이션하여 승자가 되기 위해선 무엇을 조작할 수 있는지 확인할 수 있습니다.
+
+우리는 이것을 공평하게 만들고 싶습니다. 아무도 승자가 되기 위해서 스마트 계약을 조작할 수 없도록 말이죠.
+
+이 함수는 단지 요청일 뿐입니다. 
+
+And in the transaction that we actually get the random number from the chain link network, that's when we're going to actually send the money to the winner.
+
+그리고 두번째 함수에서 랜덤숫자가 반환될 것이고, 그리고 우리가 실제로 체인 링크 네트워크로부터 난수를 얻는 트랜잭션에서, 우리는 실제로 승자에게 돈을 보낼 것입니다.
+
+그리고 문서로 가보시면 fulfillRandomWords 라는 함수가 있는데 이것이 바로 그것입니다.
+
+pickRandomWinner의 이름을 requestRandomWinner로 바꿔주겠습니다.
+
+```solidity
+    //function pickRandomWinner() external
+    function requestRandomWinner() external {}
+```
+
+이제 아래에 두번째 함수를 만듭니다.
+
+```solidity
+function fulfillRandomWords() internal {}
+```
+
+fullfillRandomWords 는 말그대로 랜덤words를 채워주는 역할입니다.
+
+Words라 불리는 이유는 컴퓨터공학에서 쓰이는 용어가 그대로 들어왔기 때문이고 실제로 받는것은 랜덤한 숫자입니다.
+
+https://docs.chain.link/docs/get-a-random-number/#analyzing-the-contract
+
+여기서 코드를 가져올겁니다.
+
+```bash
+yarn add --dev @chainlink/contracts
+```
+```solidity
+import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol"
+```
+
+VRF 버전2 계약을 가지고 옵니다.
+
+이제 Raffle을 만들기 위해서 VRFConsumerBaseV2를 상속(inherit)해야합니다.
+
+노드모듈에서 VRFConsumerBaseV2를 찾아서 코드를 보면 다음과 같은 코드가 있습니다.
+
+```solidity
+function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal virtual;
+```
+
+여기에 있는 `virtual`은 덮어쓰기를 예상한다는 것을 의미하며, 이것이 `VRFConsumerBaseV2`에 있는 이유는 나중에 사용할 `VRFCoordinator`가 이 기능을 `fulfillRandomWords` 함수라고 부를 수 있다는 것을 알기 위해서입니다. 그리고 이 `fulfillRandomWords`가 그 덮어쓸 함수 입니다.
+
+이제 VRFConsumerBaseV2를 Raffle에 상속해줍니다.
+
+docs를 보면 constructor에 다음과 같이 VRFConsumerBaseV2에 vrfCoordinator를 넣어 보내고 있습니다.
+
+다시 한번 말하지만 vrfCoordinator는 랜덤 숫자 검증(random number verification)의  계약 주소입니다.
+```solidity
+  constructor(uint64 subscriptionId) VRFConsumerBaseV2(vrfCoordinator) {
+    COORDINATOR = VRFCoordinatorV2Interface(vrfCoordinator);
+    s_owner = msg.sender;
+    s_subscriptionId = subscriptionId;
+  }
+```
+
+따라서 Raffle의 constructor에 다음과 같이 VRFCoordinatorV2 주소를 전달해줍니다.
+
+```solidity
+    constructor(address vrfCoordinatorV2, uint256 entranceFee) VRFConsumerBaseV2(vrfCoordinatorV2) {
+        i_entranceFee = entranceFee;
+    }
+```
+constructor 인자에 vrfCoordinatorV2를 전달해 준 후 VRFConsumerBaseV2에 파라미터로 전해줍니다.
+
+>https://docs.soliditylang.org/en/v0.8.15/contracts.html?highlight=constructor#multiple-inheritance-and-linearization
+
+컨스트럭터에는 상속 base가 된 VRFConsumerBaseV2 도 인자를 전달해줘야하기때문입니다. 
+```solidity
+// SPDX-License-Identifier: GPL-3.0
+pragma solidity >=0.7.0 <0.9.0;
+
+contract Base1 {
+    constructor() {}
+}
+
+contract Base2 {
+    constructor() {}
+}
+
+// Constructors are executed in the following order:
+//  1 - Base1
+//  2 - Base2
+//  3 - Derived1
+contract Derived1 is Base1, Base2 {
+    constructor() Base1() Base2() {}
+}
+
+// Constructors are executed in the following order:
+//  1 - Base2
+//  2 - Base1
+//  3 - Derived2
+contract Derived2 is Base2, Base1 {
+    constructor() Base2() Base1() {}
+}
+
+// Constructors are still executed in the following order:
+//  1 - Base2
+//  2 - Base1
+//  3 - Derived3
+contract Derived3 is Base2, Base1 {
+    constructor() Base1() Base2() {}
+}
+```
+
+
+
+전체코드
+```solidity
+//Enter the lottery (paying some amount)
+//Pick a random winner (verifiably random)
+//Winner to be selected every X minutes -> competly automated
+
+//Chainlink Oracle -> Randomness, Automated Execution (Chainlink Keepers)
+
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.7;
+
+import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
+
+error Raffle__NotEnoughETHEntered();
+
+contract Raffle is VRFConsumerBaseV2 {
+    uint256 private immutable i_entranceFee;
+    address payable[] private s_players;
+
+    /*Events*/
+    event RaffleEnter(address indexed player);
+
+    constructor(address vrfCoordinatorV2 ,uint256 entranceFee) VRFConsumerBaseV2(vrfCoordinatorV2) {
+        i_entranceFee = entranceFee;
+    }
+
+    function enterRaffle() public payable {
+        // require (msg.value > i_entranceFee, "eth가 충분하지 않습니다!")
+        if (msg.value > i_entranceFee) {
+            revert Raffle__NotEnoughETHEntered();
+        }
+        s_players.push(payable(msg.sender));
+        // Emit an event when we update a dynamic array or mapping
+        // Named events with the function name reversed
+        emit RaffleEnter(msg.sender);
+    }
+
+    function requestRandomWinner() external {
+        // request random number
+        // Once we get it, do someting with it
+        // 2 transaction process
+    }
+
+    function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override {}
+
+    /* View / Pure function */
+    function getEntranceFee() public view returns (uint256) {
+        return i_entranceFee;
+    }
+
+    function getPlayer(uint256 index) public view returns (address) {
+        return s_players[index];
+    }
+
+}
+
+
+```
+
+이제 컴파일 해줍니다.
+
+```bash
+yarn hardhat complie
+```
+
+## Hardhat shorthand
+
+매번 yarn hardhat ~~~ 명령어를 치는건 매우 비효율적입니다.
+
+효율적인 작업을 위해 `Hardhat shorthand`라는 기능이 있습니다.
+
+https://hardhat.org/guides/shorthand#shorthand-(hh)-and-autocomplete
+
+```bash
+yarn global add hardhat-shorthand
+```
+
+이제 hh커맨드가 yarn hardhat 커맨드를 대체할 수 있습니다.
+
+```bash
+hh compile
+```
+
+## Implementing Chainlink VRF -The Request-
+
+이제 실제로 requestRandomWinner 함수를 통해 랜덤 승자를 뽑기 위한 요청을 보내야 합니다.
+
+https://docs.chain.link/docs/get-a-random-number/#analyzing-the-contract
+
+다시 문서로 돌아가서 보면 
+
+```solidity
+  constructor(uint64 subscriptionId) VRFConsumerBaseV2(vrfCoordinator) {
+    COORDINATOR = VRFCoordinatorV2Interface(vrfCoordinator);
+    s_owner = msg.sender;
+    s_subscriptionId = subscriptionId;
+  }
+
+  // Assumes the subscription is funded sufficiently.
+  function requestRandomWords() external onlyOwner {
+    // Will revert if subscription is not set and funded.
+    s_requestId = COORDINATOR.requestRandomWords(
+      keyHash,
+      s_subscriptionId,
+      requestConfirmations,
+      callbackGasLimit,
+      numWords
+    );
+  }
+```
+VRFCoordinator 주소로 requestRandomWords를 호출하고 있습니다.
+COORDINATOR는 VRFCoordinatorV2Interface에 vrfCoordinator 주소를 전달하여 사용하고 있습니다.
+
+먼저 인터페이스를 불러오겠습니다.
+
+```solidity
+import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
+
+error Raffle__NotEnoughETHEntered();
+
+contract Raffle is VRFConsumerBaseV2 {
+    /* state variables */
+    uint256 private immutable i_entranceFee;
+    address payable[] private s_players;
+    VRFCoordinatorV2Interface private immutable i_vrfCoordinator;
+
+    /*Events*/
+    event RaffleEnter(address indexed player);
+
+    constructor(address vrfCoordinatorV2 ,uint256 entranceFee) VRFConsumerBaseV2(vrfCoordinatorV2) {
+        i_entranceFee = entranceFee;
+        i_vrfCoordinator = VRFCoordinatorV2Interface(vrfCoordinatorV2);
+    }
+```
+
+그런 다음 VRFCoordinatorV2Interface타입의 vrfCoordinator를 상태변수로 선언한 다음,
+constructor 안에서 VRFcoordinatorV2Interface 안에 vrfCoordinatorV2 주소를 넣어 호출해줍니다.
+
+그리고 vrfCoordinator는 컨스트럭터에서만 단 한번만 사용되고 공개할 필요도 없기 떄문에 private immutable로 지정해줍니다.
+변수 네이밍도 `i_`를 붙여줍시다.
+
+이제 아래 코드에 적혀있다시피 `COORDINATRO.requestRandomWords`에 들어갈 인자들을 전달해주어야 합니다.
+```solidity
+  // Assumes the subscription is funded sufficiently.
+  function requestRandomWords() external onlyOwner {
+    // Will revert if subscription is not set and funded.
+    s_requestId = COORDINATOR.requestRandomWords(
+      keyHash,
+      s_subscriptionId,
+      requestConfirmations,
+      callbackGasLimit,
+      numWords
+    );
+  }
+```
+
+여기서 `COORDINATOR`는 `i_vrfCoordinator`로 대체해주면됩니다.
+
+```solidity
+import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
+
+error Raffle__NotEnoughETHEntered();
+
+contract Raffle is VRFConsumerBaseV2 {
+    /* state variables */
+    uint256 private immutable i_entranceFee;
+    address payable[] private s_players;
+    VRFCoordinatorV2Interface private immutable i_vrfCoordinator;
+
+    /*Events*/
+    event RaffleEnter(address indexed player);
+
+    constructor(address vrfCoordinatorV2 ,uint256 entranceFee) VRFConsumerBaseV2(vrfCoordinatorV2) {
+        i_entranceFee = entranceFee;
+        i_vrfCoordinator = VRFCoordinatorV2Interface(vrfCoordinatorV2);
+    }
+
+    function requestRandomWinner() external {
+        vrfCoordinator.requestRandomWords(
+          keyHash,
+          s_subscriptionId,
+          requestConfirmations,
+          callbackGasLimit,
+          numWords
+        )
+    }
+```
+
+우리는 keyHash를 넘겨야 하는데 이는 GasLane이라고 부를 수도 있습니다. 저는 GasLane으로 부르는걸 선호합니다.
+
+docs를 살펴봅시다.
+>https://docs.chain.link/docs/vrf-contracts/#ethereum-mainnet
+
+각각의 네트워크마다 가스레인, 설정파리미터들이 따로 존재하는것을 알 수 있습니다.
+
+>bytes32 keyHash: 가스 레인 키 해시 값으로, 요청에 대해 지불할 수 있는 wei단위의 최대 가스 가격입니다. 요청에 대한 응답으로 실행되는 오프 체인 VRF 작업의 ID로 작동합니다.
+
+가스레인은 가스값이 급속도로 치솟을 경우를 대비한 천장을 마련해둡니다.
+
+이 키해시(가스레인)을 설정해주기 위해 역시 컨스트럭터에 키해시값을 인자로 넣어줍니다.
+
+```solidity
+    bytes32 private immutble i_gasLane
+
+    constructor(address vrfCoordinatorV2 ,uint256 entranceFee, bytes32 i_gasLane) VRFConsumerBaseV2(vrfCoordinatorV2) {
+        i_entranceFee = entranceFee;
+        i_vrfCoordinator = VRFCoordinatorV2Interface(vrfCoordinatorV2);
+        i_gasLane = gasLane
+    }
+```
+
+이제 subscriptionId를 정해주어야 하는데요
+
+subscription ID는 이 계약이 펀딩 요청을 위해 사용하는 subscription ID입니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-29%20094333.png)
+
+온체인에 외부데이터나 외부 계산을 가지고 오기 위한 subscription에 돈을 넣을 수 있는(fund) 계약이 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-06-29%20094342.png)
+
+그리고 이 계약에  요청(request)를 보내는 사람들을 위한 subscription목록이 있습니다.
+그래서 랜덤숫자를 요청하고 링크 오라클 가스를 지불하기 위해선 이 ID값이 필요합니다.
+Subscription ID는 복권의 파라미터로 사용될 수 있습니다.
+
+subscriptionId는 작기 때문에 꼭 uin256값이 될 필요가 없습니다. uint64 타입으로 정해주겠습니다.
+
+`uint64 private immutable i_subscriptionId`
+
+다음은 requestConfirmation입니다. requestConfirmation는 응답하기(responding) 전에 체인 링크 노드가 대기해야 하는 확인(confirmation) 수입니다.
+
+So if you make a request, and there's only one block confirmation, maybe you don't actually send it. because you don't you're afraid of some type of blockchain reorganization or someting.
+
+그래서 요청을 하고 블록확인을(blockConfirmation) 한번(`1`)밖에 하지 않는다면, 실제로 보내지지 않았을 수도 있습니다. 왜냐하면 혹시 모를 블록체인 재구성 같은 것을 고려하지 않았기 때문입니다.
+
+requestConfirmations에 대해서 너무 염려하지 않겠습니다. 여기서는 파라미터처럼 보내지 않고 상수(constant) 3으로 설정할 겁니다.
+
+`uint16 private constant REQUEST_CONFIRMATIONS = 3;`
+
+callbackGasLimit은 fulfillRandomWords를 계산하는데 얼마나 많은 가스를 사용할건지 한도를 정하는 변수입니다.
+이것 역시 너무 많은 가스를 사용하지 않도록 방지해주는 역할을 합니다. 예를 들어 우리가 실수로 계약의 코드를 가스가 엄청나게 많이 사용하도록 짰다면, 이것이 랜덤숫자요청을 막을것입니다.
+
+이 변수는 파라미터화 할 수 있는(parameterize-able) 값으로 설정할겁니다. 왜냐하면 fulfillRandomWords를 어떻게 코딩하느냐에 따라서 값이 바뀌길 원하기 때문입니다.
+
+따라서 컨스트럭터에 하나 더 추가해줍니다. docs에 따르면 uint32 값입니다.
+
+`uint32 private immutable i_callbackGasLimit`
+
+마지막  numWords는 가지고 싶은 랜덤 숫자 갯수를 정하는 변수입니다. 우리는 단 하나만 원합니다.
+
+`uint32 private constant NUM_WORDS = 1;`
+
+```solidity
+contract Raffle is VRFConsumerBaseV2 {
+    /* state variables */
+    uint256 private immutable i_entranceFee;
+    address payable[] private s_players;
+    VRFCoordinatorV2Interface private immutable i_vrfCoordinator;
+    bytes32 private immutable i_keyHash;
+    uint64 private immutable i_subscriptionId;
+    uint16 private constant REQUEST_CONFIRMATIONS = 3;
+    uint32 private immutable i_callbackGasLimit;
+    uint32 private constant NUM_WORDS = 1;
+
+    /*Events*/
+    event RaffleEnter(address indexed player);
+
+    constructor(
+        address vrfCoordinatorV2,
+        uint256 entranceFee,
+        bytes32 keyHash,
+        uint64 subscriptionId,
+        uint32 callbackGasLimit
+    ) VRFConsumerBaseV2(vrfCoordinatorV2) {
+        i_entranceFee = entranceFee;
+        i_vrfCoordinator = VRFCoordinatorV2Interface(vrfCoordinatorV2);
+        i_keyHash = keyHash;
+        i_subscriptionId = subscriptionId;
+        i_callbackGasLimit = callbackGasLimit;
+    }
+
+    function enterRaffle() public payable {
+        // require (msg.value > i_entranceFee, "eth가 충분하지 않습니다!")
+        if (msg.value > i_entranceFee) {
+            revert Raffle__NotEnoughETHEntered();
+        }
+        s_players.push(payable(msg.sender));
+        // Emit an event when we update a dynamic array or mapping
+        // Named events with the function name reversed
+        emit RaffleEnter(msg.sender);
+    }
+
+    function requestRandomWinner() external {
+        // request random number
+        // Once we get it, do someting with it
+        // 2 transaction process
+        i_vrfCoordinator.requestRandomWords(
+            i_keyHash, //gasLane
+            i_subscriptionId,
+            REQUEST_CONFIRMATIONS,
+            i_callbackGasLimit,
+            NUM_WORDS
+        );
+    }
+```
+
+이제 이 i_vrfCoordinator.requestRandomWords는 uint256타입의 requestID를 반환받을겁니다.
+이 유니크 아이디는 누가 이 요청을 했는지와 같은 정보들이 담겨있습니다.
+
+변수로 저장하고 싶다면 `uint256 requestId = i_vrfCoordinator.requestRandomWords(...)`로 작성하면 됩니다.
+
+이제 이 `requestId` 를 가지고 이벤트를 만날겁니다. 그리고 좀 있다가 알아봅시다.
+
+지금은 일단 코드 맨 위에 이벤트를 하나 더 생성할겁니다.
+
+```solidity
+events RequestedRaffleWinner(uint256 indexed requestId);
+
+//...
+//...
+
+function requestRandomWinner() external {
+  uint256 requestId = i_vrfCoordinator.requestRandomWords(
+    i_keyHash,
+    i_subscriptionId,
+    REQUEST_CONFIRMATIONS,
+    i_callbackGasLimit,
+    NUM_WORDS
+  );
+  emit RequestedRaffleWinner(requestId);
+}
+```
+
+이제 chainlinkVRF를 이용해 랜덤숫자 요청에 사용할 수 있는 함수를 얻었습니다.
+다시한번 말씀드리자면, 이것을 Chainlink Keepers에서 interval로 호출할 수 있도록 세팅할겁니다. 하지만 조금 있다가 해보도록 하겠습니다.
+
+자 이제 fulfillRandomWords에서 랜덤숫자를 받으면 무엇을 해야하는지 생각해봅시다.
+
+```solidity
+function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal override {}
+```
+## Implementing Chainlink VRF -The Fulfill-
+
+### Modulo
+
+`modulo`라 불리는 함수를 이용해 랜덤숫자뽑기(pickRandomWords)를 진행할겁니다.
+
+여기보시면 우리는 randomWords 배열(랜덤숫자배열)을 전달하고 있습니다.
+
+우리가 단 하나의 randomWords를 요청했기 때문에, 이 ranodomWords 의 크기는 `1`이 될것입니다.
+그래서 randomWords[0]으로 랜덤숫자배열의 첫번째를 선택하여 랜덤숫자를 가져옵니다.
+
+이 randomWords는 uint256입니다. 따라서 857389279827492374982378723947239... 알아보기 힘들게 나옵니다.
+
+즉 배열에 들어가게된다면 plyaers 배열의 크기가 너무 커져버립니다.
+
+그럼 이 커다란 숫자안에서 어떻게 randomWinner를 뽑을 수 있을까요, 바로 `modulo` 함수를 이용하면 됩니다.
+
+>https://docs.soliditylang.org/en/v0.8.15/types.html?highlight=modulo#modulo
+
+이말은 모듈로 함수를 이용해 palyers 배열 밖에서 randomWords를 가질 수 있다는 뜻입니다.
+
+예를 들어봅시다.
+
+```
+// s_players size 10
+// randomNumber 202
+// 202 % 10 
+// 202 / 10 = 20.2
+// 20 * 10 = 200
+// 2 
+// 202 % 10 = 2
+```
+
+즉 모듈로 함수는 나머지를 구하는 연산자입니다.
+
+이걸 활용해서 무작위 수를 시드넘버로 사용해서 무작위 수를 총 참여자 수(s_players.length)로 나눠서 나오는 나머지값을 참여자배열(players)에 index로 넣어 해당하는 참여자를 우승자로 뽑을 수 있습니다.
+
+```solidity
+    function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords)
+        internal
+        override
+    {
+        uint256 indexOfWinner = randomWords[0] % s_players.length;
+        address payable recentWinner = s_players[indexOfWinner];
+    }
+```
+
+
+## Implementing Chainlink VRF -The Fulfill (continued)-
+
+최근 우승자를 보여주는 기능을 만들어보겠습니다.
+
+코드 상단에 상태변수 항목을 따로 만들어봅시다.
+
+시작할때 승자가 없으므로 빈값으로 시작합니다.
+
+```solidity
+    // Lottery Variables
+    address private s_recentWinner;
+```
+우승자가 나오게 되면 바로 s_recentWinner에 해당 우승자를 업데이트합니다.
+
+```solidity
+function fulfillRandomWinner(uint256 requestId, uint256[] memory randomWords) internal override {
+  uint256 indexOfWinner =  randomWords[0] % s_players.length;
+  address payable recentWinner = s_player.length[indexOfWinner]; 
+  s_recentWinner = recentWinner;
+}
+```
+그리고 다른 사람들도 최근 우승자를 알 수 있도록 getter 함수를 만들어줍니다.
+
+```solidity
+function getRecentWinner() public view returns(address){
+  return s_recentWinner;
+}
+```
+
+이제 fulfillRandomWinner에서 해야할 일은 우승자에게 상금을 전달하는 일입니다.
+지난번에 사용했던 call 메소드가 기억나시나요? call을 이용해서 돈을 송금해보겠습니다.
+이 계약에 포함된 (`address(this)`) 모든 돈 (`address(this).balance`)을 보낼겁니다.
+
+```solidity
+function fulfillRandomWords(uint256 reqeustId, uint256 memory randomWords) internal override {
+  uint256 indexOfWinner = randomWords % s_players.length;
+  address recentWinner = s_players[indexOfWinner];
+  s_recentWinner = recentWinner;
+  (bool success, ) = recentWinner.call{value: address(this).balance}("");
+}
+```
+
+현재 이전 우승자 목록을 추적하기 위한 방법이 없습니다.
+
+우승자 기록을 쉽게 쿼리할 수 있는 이벤트를 만들어보겠습니다.
+
+event 섹션에 새로운 이벤트를 작성합니다.
+
+```solidity
+event WinnerPicked(address indexed winner);
+
+// ...
+// ...
+
+function fulfillRandomNumber(uint256 requestId, uint256[] memory randomWords) {
+  uint256 indexOfWinner = randomWords % s_players.length;
+  address recentWinner = s_player[indexOfWinner];
+  s_recentWinner = recentWinner;
+  (bool success, ) = recentWinner.call{value: address(this)}("");
+  if(!success) revert Raffle__TransferFailed();
+  emit WinnerPicked(recentWinner);
+}
+```
+
+그리고 현재 requestId가 사용되지 않아서 lint에서 경고메시지를 주는데 fulfillRandomNumber는 그래도 uint256 값이 필요하기 때문에 `(uint256 /*requestId*/, uint256[] memory randomWords)` 로 처리해주면 됩니다.
+
+그리고 컴파일을 한번 해줍시다.
+
+```bash
+hh complie
+```
+
+## Introduction to Chainlink Keepers
+
+이제 무작위 승자를 뽑는 기능 뿐만 아니라 자동적이고 프로그래매틱하게 랜덤 승자 뽑기를 trigger 시키고 따로 상호작용 없이  일정한 시간간격에 의해 (interval time) 실행되도록 만들어봅시다.
+
+그리고 분산된 문맥에서(decentralized context) .
+
+스마트 계약을 시간파라미터가 될 어떤 파라미터 , 어떤 자산(asset)가격의 숫자일수도 있고. 프라이스 리퀴디티 풀에 있는 돈, 아니면 다른것이 될 수 있는 파라미터에 기반하여 자동적으로 trigger 시키려면 , Chainlink Keepers가 필요합니다.
+
+>https://docs.chain.link/docs/chainlink-keepers/introduction/
+
+스마트 계약을 유지하는 체인 링크 키퍼를 구축하는 데는 실제로 두 가지 부분이 있습니다.
+
+첫 번째는 이 두 가지 메소드를 구현하여 호환되는 스마트 계약서를 작성해야 합니다.
+
+>https://docs.chain.link/docs/chainlink-keepers/compatible-contracts/#functions
+
+|Function Name|Description|
+|:-:|:-:|
+|[checkUpkeep](https://docs.chain.link/docs/chainlink-keepers/compatible-contracts/#checkupkeep-function)|Runs off-chain at every block to determine if the performUpkeep function should be called on-chain.|
+|[performUpkeep](https://docs.chain.link/docs/chainlink-keepers/compatible-contracts/#performupkeep-function)|Contains the logic that should be executed on-chain when checkUpkeep returns true.|
+
+`checkUpkeep`: 매 블록마다 오프체인에서 실행되며, performUpkeep 함수가 온체인에서 호출되어야하는지 여부를 결정합니다.
+
+`perfomrUpkeep`: checkUpkeep이 true를 반환하였을때 온체인에서 실행되어야 할 로직이 들어있습니다.
+
+And then second, you want to register that smart contract for upkeep with the channeling keeper network. 
+
+둘째, 채널 관리 네트워크에 Upkeep을 위한 스마트 계약을 등록합니다.
+
+먼저 여기에 있는 샘플 코드를 리믹스에서 살펴봅시다.
+
+>https://docs.chain.link/docs/chainlink-keepers/compatible-contracts/#example-contract
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.7;
+
+// KeeperCompatible.sol imports the functions from both ./KeeperBase.sol and
+// ./interfaces/KeeperCompatibleInterface.sol
+import "@chainlink/contracts/src/v0.8/KeeperCompatible.sol";
+
+contract Counter is KeeperCompatibleInterface {
+    /**
+    * Public counter variable
+    */
+    uint public counter;
+
+    /**
+    * Use an interval in seconds and a timestamp to slow execution of Upkeep
+    */
+    uint public immutable interval;
+    uint public lastTimeStamp;
+
+    constructor(uint updateInterval) {
+      interval = updateInterval;
+      lastTimeStamp = block.timestamp;
+
+      counter = 0;
+    }
+
+    function checkUpkeep(bytes calldata /* checkData */) external view override returns (bool upkeepNeeded, bytes memory /* performData */) {
+        upkeepNeeded = (block.timestamp - lastTimeStamp) > interval;
+        // We don't use the checkData in this example. The checkData is defined when the Upkeep was registered.
+    }
+
+    function performUpkeep(bytes calldata /* performData */) external override {
+        //We highly recommend revalidating the upkeep in the performUpkeep function
+        if ((block.timestamp - lastTimeStamp) > interval ) {
+            lastTimeStamp = block.timestamp;
+            counter = counter + 1;
+        }
+        // We don't use the performData in this example. The performData is generated by the Keeper's call to your checkUpkeep function
+    }
+}
+
+```
+
+카운터가 있는 것을 볼 수 있습니다. 그래서 간단한 숫자만 가지고 있습니다. 그런 다음 계약 및 업데이트 간격을 언제 생성할지 지정할 수 있습니다. 그러면 계약이 확인됩니다.
+
+그리고 "이봐, 충분한 시간이 지났어. 시간이 흘렀다면 카운터를 업데이트하자."라고 적혀 있을 겁니다.
+
+그리고 여러분은 체인 링크 호환 계약(chainlink compatible) 또는 타임키퍼 네트워크 호환 계약(timekeeper network compatible contracts)이 이 키퍼 호환 인터페이스의 일부인 두 가지 매우 중요한 메소드를 사용한다는 것을 알게 될 것입니다.
+
+첫번째는 `checkUpkeep`입니다. `checkUpkeep`은 특별합니다. 왜냐하면 오프체인 계산이 일어나는 곳이기 때문입니다. 그래서 이 메소드는 사실 온체인에서 작동하지 않습니다. 이것은 채널관리네트워크(channeling keeper network)에서 온 노드에 의한 오프체인에서 실행됩니다.
+
+여기서 정말 좋은 점은 여기서 사용되는 가스는 실제로 사용되는 온체인 가스가 아니라는 점입니다. 이것은 체인 링크 노드에서 실행 중입니다. 그리고 만약 당신의 checkUpkeep 메소드가 반환되고 '`upkeep`이 필요하다'라고 한다면 온체인에서 'upkeep'을 수행할 것입니다.
+
+정리하자면 데이터를 오프체인에서 생성하고, 안으로 전달합니다. 그리고 전달된 데이터를 `checkData`라고 부릅니다.
+그런 다음 'upkeep'을 수행하기 위해 전달되는 수행 데이터가 됩니다.
+
+그래서 `upkeep` 메소드는 모든 것이 올바른지 확인하는 것입니다. 그리고 올바른 것이란 수정 또는 실행이 온체인에서 이루어져 결국에는 상태를 변화시킴을 말합니다.
+
+이제 실제로 이 샘플코드 계약을 컴파일하고 배포해보겠습니다.
+
+`30` 초를 uint256 updateInterval 값으로 넣고 링크비 네트워크에 배포해보겠습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-01%20211459.png)
+
+이제 이 keeper 계약을 사용할 수 있게 만들것이고, 주소를 복사할겁니다. 그리고 그리고 그 계약을 upkeep(유지보수)을 위한 계약으로 등록할겁니다.
+
+그러니 챔피언 키퍼 네트워크를 작동시키는 애플리케이션으로 넘어가겠습니다. 이것을 사용할 수 있는 몇가지 다른 방법이 있는데요,
+등록(registry) 계약에 직접적으로 상호작용해도 되지만, 체인링크 페이지에 이걸 해주는 아주아주 좋은 인터페이스가 있습니다.
+
+>https://keepers.chain.link/
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-01%20213140.png)
+
+자 그럼 계속해서 새로운 upkeep을 등록하면 에러를 보여줍니다. 지갑을 연결해달라는군요. 우상단의 Connect wallet 버튼으로 지갑을 연결해봅시다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-01%20214221.png)
+
+Trigger를 Custom logic으로 설정해주고 계약주소를 넣어줍니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-01%20214928.png)
+
+가스리밋은 200000으로 늘려줍니다.
+
+Check data (Hexademical) 란에 입력하는 값으로 같은 계약에 여러 upkeep을 등록하고 checkUpkeep을 사용할 때를 특정할 수 있습니다. 여기서는 무시하겠습니다.
+
+Starting balance는 10Link로 하겠습니다.
+
+10개 링크의 시작 잔액을 주고 메타마스크를 사용하여 해당 거래를 네트워크에 등록합니다. 그리고 확인(confirmed)되면, 이 upkeep은 네트워크에 등록되어야 하고, 10개의 링크로 자금을 지원받아야 합니다. 
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-01%20215154.png)
+
+좋습니다, upkeep을 보시면 등록이 되어 있는 것을 알 수 있습니다. 
+
+그리고 다음 라운드의 키퍼 노드가 실행되면, 대략 모든 블록을 대상으로 일어나는 일로, 우리는 checkUpkeep 메소드가 "이봐, 지금 사실 upkeep이 필요해, 왜냐하면 타임스템프가 30초 이전의 것이기 떄문이야!" 라는 것을 반환할 것을 알아야 합니다.  그리고 나서 계속 upkeep을 진행 해야 합니다.
+
+그래서 remix에서 Deployed Contracts를 열어 살펴보면 계약의 메소드들을 사용할 수 있습니다. 
+
+counter 버튼을 눌러보면 0에서 시작해서 30초가 지나자마자 우리는 다시 카운터 버튼을 누를 수 있게 됩니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-01%20221802.png)
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-01%20221813.png)
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-01%20222051.png)
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-01%20222058.png)
+
+이것으로 채널링 키퍼 네트워크(channeling keeper network)가 이 계약에서 upkeep을 수행하고 있음을 알 수 있습니다.
+여기에선 1초에 한번씩 실행되었네요.
+
+보시다시피, 키퍼 네트워크와 호환되는 계약을 만드는 것은 매우 쉽습니다. 또한 유지보수를 등록하고 계약 자동화 및 옵션 계산이 완벽하게 작동하는지 확인하는 것이 매우 쉽습니다. 
+
+## Implementing Chainlink Keepers -checkUpkeep-
+
+이제 이 랜덤숫자 요청이 체인 링크 키퍼를 사용하여 자동으로 발생하도록 코드를 업데이트하겠습니다.
+
+sample코드를 살펴보면 두가지 중요한 메소드가 있다는걸 아시겠죠, checkUpkeep과 performUpkeep입니다.
+
+그래서, 이 requestRandomWinner 함수를 performUpkeep으로 바꿔주겠습니다.
+
+checkupkeep 함수는 기본적으로 우리가 최근 당첨자를 업데이트하고 그들에게 모든 자금을 보낼 임의의 번호를 얻을 때(time)인지 확인할 것입니다.
+
+일단 여기 notes를 만들어 무엇이 일어나는지 명시해두겠습니다.
+
+`import "@chainlink/contracts/src/v0.8/KeeperCompatible.sol";`
+맨위에 키퍼호환 계약을 import해서 checkUpkeep 과 performUpkeep이 둘다 이 계약에서 구현 할 수 있습니다.
+
+다음과 같이 interface디렉토리에서 interface로써 import 합니다.
+
+```solidity
+import "@chainlink/contracts/src/v0.8/interfaces/KeeperCompatibleInterface.sol"
+```
+
+이제 이렇게 하여 상속을 표현할 수 있습니다.
+```solidity
+contract Raffle is VRFConsumerBaseV2, KeeperCompatibleInterface {
+```
+
+```solidity
+/**
+ * @dev This is the function that the Chainlink keeper nodes call
+ * they look for the `upKeepNeeded` to return true
+ */
+function checkUpkeep(bytes calldata /*checkData*/) external override {}
+```
+
+이제 이 `checkUpkeep`의 `bytes calldata` 를 통해 이 `checkUpkeep` 함수를 호출할 때 원하는 모든 것을 지정할 수 있습니다.
+
+이 `checkData`가 bytes 타입이라는 것은 다른 함수를 호출하기 위해 이 데이터를 지정할 수도 있다는 것을 의미합니다. 입력 매개 변수를 bytes 타입으로 사용하여 수행할 수 있는 여러 가지 고급 작업이 있습니다. 하지만 이 작업을 약간 단순하게 유지하려고 합니다. 그리고 우리는 사실 이 '데이터 확인' 부분을 사용하지 않을 것입니다. `fulfillRandomWords`함수에서 `Request ID`를 사용하지 않지만 `uint256`값은 받는다는걸 명시해주는 방법과 유사하게 주석처리 할 수 있습니다.
+
+다시 샘플코드로 돌아가보면
+
+```solidity
+function checkUpkeep(bytes calldata /* checkData */) external view override returns (bool upkeepNeeded, bytes memory /* performData */) {
+        upkeepNeeded = (block.timestamp - lastTimeStamp) > interval;
+        // We don't use the checkData in this example. The checkData is defined when the Upkeep was registered.
+    }
+```
+`checkUpkeep`은 bool upkeepNeeded와 우리가 무시할 bytes memory performData를 함께 반환하는걸 알 수 있습니다.
+
+`upkeepNeeded`는 `true` 혹은 `false`가 될 것입니다. `true`는 새 랜덤넘버를 얻을 시간이란 뜻입니다.
+
+`true`값을 반환하려면 일단 `time interval`을 전달해주어야 할겁니다. 아직 정의하지는 않았습니다.
+
+둘째로 이 추첨은 1명 이상의 플레이어가 필요하고 ETH를 가지고 있어야합니다.
+
+셋째로 우리의 subscription이 Link로 자금을 지원받습니다.
+
+Chainlink VRF와 비슷하게 subscription은 Link로 자금을 지원받아야 합니다. 같은것이 checkUpkeep과 performUpkeep를 실행하려면 subscription은 Link가 필요합니다.
+
+한가지 더 추가해서 , 계약이 `open`되어있음을 알려줘야합니다.
+
+우리가 임의의 숫자가 돌아오기를 기다릴 때 . 그리고 저희가 랜덤 당첨자를 요청했을 때. 이상한 림보 상태에서 난수가 돌아오길 기다리는 중이됩니다. 그리고 우리는 어떤 새로운 참가자들도 참여하는 것을 허락해서는 안 됩니다. 그래서 우리가 실제로 하고 싶은 것은 복권이 열려있는지 아닌지를 알려주는 어떤 상태 변수를 만드는 것입니다.
+
+```solidity
+/**
+ * @dev This is the function that the Chainlink keeper nodes call
+ * they look for the `upKeepNeeded` to return true.
+ * The following should be ture in order to return true:
+ * 1. Our time interval should have passed
+ * 2. The lottery should have at least 1 player, and have some ETH
+ * 3. Then Our subscription is funded with Link
+ * 4. The lottery should be in an "open"
+ */
+function checkUpkeep(bytes calldata /*checkData*/) external override {}
+```
+
+## Enums
+
+이제 우리가 할 수 있는 것은 코드의 상단부분(//Lottery Variables)에
+```solidity
+bool private s_isOpen; // to pending, open, closed, calculating
+bool private s_state; // to pending, open, closed, calculating
+``` 
+
+그리고 이런 목록들을 더 효과적으로 추적할 수 있도로 enums 타입을 사용해볼겁니다.
+
+>https://docs.soliditylang.org/en/v0.8.15/types.html?highlight=enums#enums
+
+```solidity
+enum RaffleState {
+  OPEN,
+  CALCULATING
+} // uint256 0 = OPEN, 1 = CALCULATING
+```
+
+이렇게 선언하면 `uint256 0 = OPEN, 1 = CALCULATING` 이 암묵적으로 생성됩니다.
+
+이것은 우리가 이 숫자들 각각이 실제로 무엇을 의미하는지 알고 있다는 것을 훨씬 더 분명하게 보여줍니다.
+
+이제 RaffleState라는 이름의 새 타입을 만듦으로써 새 lottery 상태변수를 RaffleState 타입으로 추가해 줄 수 있습니다.
+
+
+```soliditiy
+RaffleState private s_raffleState;
+```
+
+constructor가 이 계약이 실행되면 이 raffle을 열어야 합니다.
+
+`s_raffleState = RaffleState.OPEN; //RaffleState(0);`로 컨스트럭터안에 추가해줍니다. 열린상태라고 말해주는겁니다.
+
+```solidity
+    constructor(
+        address vrfCoordinatorV2,
+        uint256 entranceFee,
+        bytes32 keyHash,
+        uint64 subscriptionId,
+        uint32 callbackGasLimit
+    ) VRFConsumerBaseV2(vrfCoordinatorV2) {
+        i_entranceFee = entranceFee;
+        i_vrfCoordinator = VRFCoordinatorV2Interface(vrfCoordinatorV2);
+        i_keyHash = keyHash;
+        i_subscriptionId = subscriptionId;
+        i_callbackGasLimit = callbackGasLimit;
+        s_raffleState = RaffleState.OPEN; //RaffleState(0);
+    }
+```
+
+이 작업은 4.번 조건인 lottery가 "open" 상태에서만 checkUpKeep을 작동시킨다는 조건을 충족시켜주기 위해서하는 작업입니다.
+
+그리고 계약이 "OPEN" 상태일때만 enterRaffle()이 가능하도록 만들어봅시다. 새 if 문을 사용할 겁니다.
+
+```solidity
+
+Error Raffle_NotOpen();
+
+//...
+//...
+
+function enterRaffle() public payable {
+  if (msg.value < i_entranceFee) {
+    revert Raffle__NotEnoughETHEntered();
+  }
+  if (s_raffleState != RaffleState.OPEN) {
+    revert Raffle__NotOpen();
+  }
+  s_player.push(payable(msg.sender));
+  emit RaffleEnter(msg.sender);
+}
+
+```
+
+추가적으로 랜덤 words를 요청할때 다른 사람들이 여기에 참여하지 못하도록 `CALCULATING` 상태로 업데이트합시다.
+
+`s_raffleState = RaffleState.CALCULATING;`를 추가해줍니다.
+
+```solidity
+    function requestRandomWinner() external {
+        // request random number
+        // Once we get it, do someting with it
+        // 2 transaction process
+        s_raffleState = RaffleState.CALCULATING;
+        uint256 requestId = i_vrfCoordinator.requestRandomWords(
+            i_keyHash, //gasLane
+            i_subscriptionId,
+            REQUEST_CONFIRMATIONS,
+            i_callbackGasLimit,
+            NUM_WORDS
+        );
+        emit RequestedRaffleWinner(requestId);
+    }
+```
+이렇게 되면 아무도 lottery에 참가할 수 없고, 새로운 업데이트를 트리거할수도 없습니다.
+
+그리고 fulfillRanodomWrods에서 랜덤words를 받았으면 다시 상태를 `OPEN`으로 돌려놓아 참가할 수 있도록 만듭니다.
+
+`s_raffleState = RaffleState.OPEN;`
+
+```solidity
+    function fulfillRandomWords(uint256 /*requestId*/, uint256[] memory randomWords)
+        internal
+        override
+    {
+        uint256 indexOfWinner = randomWords[0] % s_players.length;
+        address payable recentWinner = s_players[indexOfWinner];
+        s_recentWinner = recentWinner;
+        s_raffleState = RaffleState.OPEN;
+        (bool success, ) = recentWinner.call{value: address(this).balance}("");
+        // require(success)
+        if(!success) revert Raffle__TransferFailed();
+        emit WinnerPicked(recentWinner);
+    }
+```
+
+## Implementing Chainlink Keepers -checkUpkeep -continued
+
+우리가 하나 놓친게 있습니다. 우승자가 당첨된 후에 `players` 배열을 리셋 시켜줘야합니다.
+
+```solidity
+s_players = new address payable[](0);
+```
+```solidity
+    function fulfillRandomWords(uint256 /*requestId*/, uint256[] memory randomWords)
+        internal
+        override
+    {
+        uint256 indexOfWinner = randomWords[0] % s_players.length;
+        address payable recentWinner = s_players[indexOfWinner];
+        s_recentWinner = recentWinner;
+        s_raffleState = RaffleState.OPEN;
+        s_players = new address payable[](0);
+        (bool success, ) = recentWinner.call{value: address(this).balance}("");
+        // require(success)
+        if(!success) revert Raffle__TransferFailed();
+        emit WinnerPicked(recentWinner);
+    }
+```
+
+이제 RaffleState를 리셋했고, players 배열도 리셋했습니다.
+
+이제 Enum에 대해서 배웠으니, checkUpkeep에 추가해보도록 하겠습니다.
+
+우리는 이 네가지 조건을 체크할 겁니다.
+
+```solidity
+    /**
+     * @dev This is the function that the Chainlink keeper nodes call
+     * they look for the `upKeepNeeded` to return true.
+     * The following should be ture in order to return true:
+     * 1. Our time interval should have passed
+     * 2. The lottery should have at least 1 player, and have some ETH
+     * 3. Then Our subscription is funded with Link
+     * 4. The lottery should be in an "open" state.
+     */
+```
+
+그리고 이 모든 조건이 통과된다면 checkupKeep이 true가 될것이고, 새 랜덤 승자를 뽑기 위한 요청을 보내기위한 Chainlink Keepers를 트리거 할겁니다. 
+
+그러니 먼저, 
+```solidity
+function checkUpkeep(bytes calldata /* checkData */) external override {
+  bool isOpen = (RaffleState.OPEN == s_raffleState);
+}
+```
+로 작성해서 라플상태가 OPEN 상태인지 확인할 수 있는 bool 변수를 만듭니다.
+
+다음은 timeInterval을 체크해야합니다.
+지금은 timeInterval을 가지고 있지 않으니 생성해야됩니다.
+솔리디티에서는 시간을 `block.timestamp` 메소드로 가져올 수 있습니다.
+이것은 현재 블록체인 타임스템프를 가져옵니다.
+
+즉, `현재블록타임스템프(block.timestamp) - 마지막블록타임스템프가` 되어야 합니다.
+
+마지막 블록타임스템프를 지정하지 않았으니 만들어보겠습니다.
+이전 블록타임스템프를 추적하는 변수를 만들겠습니다.
+
+Lottery Variables 구역에 새 변수를 만듭니다.
+
+```solidty
+uint256 private s_lastTimeStamp
+```
+
+마지막 블록 타임스템프는 배포할때 찍히는 타임스템프와 같기 때문에 컨스트럭터에 다음과 같이 작성해줍니다.
+`s_lastTimeStamp = block.timestamp`
+
+```solidity
+    constructor(
+        address vrfCoordinatorV2,
+        uint256 entranceFee,
+        bytes32 keyHash,
+        uint64 subscriptionId,
+        uint32 callbackGasLimit
+    ) VRFConsumerBaseV2(vrfCoordinatorV2) {
+        i_entranceFee = entranceFee;
+        i_vrfCoordinator = VRFCoordinatorV2Interface(vrfCoordinatorV2);
+        i_keyHash = keyHash;
+        i_subscriptionId = subscriptionId;
+        i_callbackGasLimit = callbackGasLimit;
+        s_raffleState = RaffleState.OPEN; //RaffleState(0);
+        s_lastTimeStamp = block.timestamp;
+    }
+```
+
+이제 현재타임스템프에서 마지막타임스템프를 빼서 시간차이를 확인할 수 있게되었습니다.
+그리고 그 값이 interval보다 더 큰지를(즉, 업데이트 주기가 지났는지) 확인하면 됩니다.
+
+```solidity
+function checkUpkeep(bytes calldata /* checkData */) external override {
+  bool isOpen = (RaffleState.OPEN == s_raffleState);
+  // (block.timestamp - s_lastTimeStamp) > interval
+}
+```
+
+그러니 이제 interval도 만들어야 합니다. 그리고 `s_raffleState`가 `interval`이 될 수 있습니다.
+lottery가 실행되고 얼마나 기다려야 될지 정하는겁니다. 그러니 다시 컨스트럭터로 가서 이것을 추가해봅시다.
+
+```solidity
+    constructor(
+        address vrfCoordinatorV2,
+        uint256 entranceFee,
+        bytes32 keyHash,
+        uint64 subscriptionId,
+        uint32 callbackGasLimit,
+        uint256 interval;
+    ) VRFConsumerBaseV2(vrfCoordinatorV2) {
+        i_entranceFee = entranceFee;
+        i_vrfCoordinator = VRFCoordinatorV2Interface(vrfCoordinatorV2);
+        i_keyHash = keyHash;
+        i_subscriptionId = subscriptionId;
+        i_callbackGasLimit = callbackGasLimit;
+        s_raffleState = RaffleState.OPEN; //RaffleState(0);
+        s_lastTimeStamp = block.timestamp;
+    }
+```
+
+그리고 lottery 변수 구역에 새 global 변수를 선언합니다.
+
+```solidity
+    // Lottery Variables
+    address private s_recentWinner;
+    bool private s_isOpen; // to pending, open, closed, calculating
+    // bool private s_state; // to pending, open, closed, calculating
+    RaffleState private s_raffleState;
+    uint256 private s_lastTimeStamp;
+    uint256 private s_interval;
+```
+
+다시 컨스트럭터 안에 s_interval에 interval로 받은 인자를 넣어줍시다.
+
+```solidity
+    constructor(
+        address vrfCoordinatorV2,
+        uint256 entranceFee,
+        bytes32 keyHash,
+        uint64 subscriptionId,
+        uint32 callbackGasLimit,
+        uint256 interval;
+    ) VRFConsumerBaseV2(vrfCoordinatorV2) {
+        i_entranceFee = entranceFee;
+        i_vrfCoordinator = VRFCoordinatorV2Interface(vrfCoordinatorV2);
+        i_keyHash = keyHash;
+        i_subscriptionId = subscriptionId;
+        i_callbackGasLimit = callbackGasLimit;
+        s_raffleState = RaffleState.OPEN; //RaffleState(0);
+        s_lastTimeStamp = block.timestamp;
+        s_interval = interval;
+    }
+```
+
+그런데 `interval` 값은 변하지 컨스트럭터에서만 값을 받고 그 후로는 변화하지 않을 것이기 때문에 `immutable`을 사용할 수 있습니다.
+
+그러니 네이밍을 `i_`로 바꿔주고 `immutable`속성을 추가해줍시다.
+
+```solidity
+
+    // Lottery Variables
+    address private s_recentWinner;
+    bool private s_isOpen; // to pending, open, closed, calculating
+    // bool private s_state; // to pending, open, closed, calculating
+    RaffleState private s_raffleState;
+    uint256 private s_lastTimeStamp;
+    uint256 private immutable i_interval;
+
+//...
+//...
+
+    constructor(
+        address vrfCoordinatorV2,
+        uint256 entranceFee,
+        bytes32 keyHash,
+        uint64 subscriptionId,
+        uint32 callbackGasLimit,
+        uint256 interval;
+    ) VRFConsumerBaseV2(vrfCoordinatorV2) {
+        i_entranceFee = entranceFee;
+        i_vrfCoordinator = VRFCoordinatorV2Interface(vrfCoordinatorV2);
+        i_keyHash = keyHash;
+        i_subscriptionId = subscriptionId;
+        i_callbackGasLimit = callbackGasLimit;
+        s_raffleState = RaffleState.OPEN; //RaffleState(0);
+        s_lastTimeStamp = block.timestamp;
+        i_interval = interval;
+    }
+```
+
+이제 checkUpkeep 함수안에서 충분한 시간이 지났는지 체크 할 수 있습니다.
+
+```solidity
+    function checkUpkeep(bytes calldata /*checkData*/) external override {
+        bool isOpen = (s_raffleState == RaffleState.OPEN);
+        bool timePassed = ((block.timestamp - s_lastTimeStamp) > i_interval);
+    }
+```
+
+또 무엇을 체크해야할까요, 바로 충분한 플레이어 수가 확보되었는지 여부, 그리고 이 계약이 자금을 가지고 있는지 여부입니다.
+
+```solidity
+    function checkUpkeep(bytes calldata /*checkData*/) external override {
+        bool isOpen = (s_raffleState == RaffleState.OPEN);
+        bool timePassed = ((block.timestamp - s_lastTimeStamp) > i_interval);
+        bool hasPlayer = (s_players.length > 0);
+        bool hasBalance = address(this).balance > 0;
+    }
+```
+그리고 마지막으로 이 bool 값들을 우리가 원하는 return 값으로 바꿔줘야합니다.
+
+```solidity
+    function checkUpkeep(bytes calldata /*checkData*/) external override {
+        bool isOpen = (s_raffleState == RaffleState.OPEN);
+        bool timePassed = ((block.timestamp - s_lastTimeStamp) > i_interval);
+        bool hasPlayer = (s_players.length > 0);
+        bool hasBalance = address(this).balance > 0;
+        bool upkeepNeeded = (isOpen && timePassed && hasPalyers && hasBalance);
+    }
+```
+
+즉 이렇게 묶어서 마지막 bool인 upkeepNeeded가 true를 반환한다면 upkeep을 실행할 때가 됬다는 것입니다.
+
+그리고 체인링크 샘플 코드를 보면 checkUpkeep 함수는 bool upkeepNeeded와 bytes memory performData를 return합니다.
+```solidity
+    function checkUpkeep(bytes calldata /* checkData */) external view override returns (bool upkeepNeeded, bytes memory /* performData */) {
+        upkeepNeeded = (block.timestamp - lastTimeStamp) > interval;
+        // We don't use the checkData in this example. The checkData is defined when the Upkeep was registered.
+    }
+```
+
+우리가 작성하는 checkUpkeep에도 returs값을 지정해줍시다.
+
+```solidity
+    function checkUpkeep(bytes calldata /*checkData*/) external override returns(bool upkeepNeeded, bytes memory /* performData */){
+        bool isOpen = (s_raffleState == RaffleState.OPEN);
+        bool timePassed = ((block.timestamp - s_lastTimeStamp) > i_interval);
+        bool hasPlayer = (s_players.length > 0);
+        bool hasBalance = address(this).balance > 0;
+        bool upkeepNeeded = (isOpen && timePassed && hasPalyers && hasBalance);
+    }
+```
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-03%20003126.png)
+
+그리고 upkeepNeeded는 파리미터에서 이미 선언되었기 때문에 bool을 붙여서 다시 선언할 필요없이 재할당해주면 됩니다.
+
+```solidity
+    function checkUpkeep(bytes calldata /*checkData*/) external override returns(bool upkeepNeeded, bytes memory /* performData */){
+        bool isOpen = (s_raffleState == RaffleState.OPEN);
+        bool timePassed = ((block.timestamp - s_lastTimeStamp) > i_interval);
+        bool hasPlayer = (s_players.length > 0);
+        bool hasBalance = address(this).balance > 0;
+        upkeepNeeded = (isOpen && timePassed && hasPalyers && hasBalance);
+    }
+```
+
+그리고 자동으로 `perfomrData`가 반환되기 때문에 `checkUpkeep`이 어떻게 진행되었는지에 따라 `checkUpkeep`에게 다른 무언가를 수행시키고자 할 경우 사용할 수 있습니다. 지금은 필요하지 않기 때문에 일단 사용하지 않겠습니다.
+
+이제 checkUpkeep을 갖게 되었고 Raffle(lottery)앱이 새로운 랜덤 당첨자를 뽑을 시간이 됬는지 체크(확인)하여 트리거 할 수 있게 되었습니다.
+
+## Implementing Chainlink Keepers -performUpkeep-
+
