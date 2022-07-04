@@ -18257,3 +18257,1501 @@ lottery가 실행되고 얼마나 기다려야 될지 정하는겁니다. 그러
 
 ## Implementing Chainlink Keepers -performUpkeep-
 
+이제 checkUpkeep을 trigger 하는방법을 알았고 true를 반환받은 후 실행시킬 함수를 작성합시다.
+
+그것이 바로 perfromUpkeep 함수가 될 것입니다.
+
+새 당첨자를 뽑을 시간이 되었다면 실제로 우리가 실행해야 될 함수는 `requestRandomWinner`입니다. 하지만 이 함수를 직접적으로 실행하는 대신, `performUpkeep`으로 전송(transfer)해 봅시다.
+
+`checkUpkeep`이 `true`를 반환하면 체인 링크 노드가 자동으로 이 기능을 `performUpkeep` 함수로 호출합니다. 
+
+그러므로 `requestRnadomWinner`의 이름을 `performUpkeep`으로 바꿔줍시다.
+
+그리고 인풋파라미터들을 넣어줍니다. checkUpkeep에서 performData를 넣어주었다면 자동으로 performUpkeep의 파라미터로 넘겨줍니다. 여기서는 아무 데이터도 받지 않았기때문에 주석처리하겠습니다.
+
+```solidity
+function performUpkeep(bytes calldata /* perfromData */) external {
+        // request random number
+        // Once we get it, do someting with it
+        // 2 transaction process
+        s_raffleState = RaffleState.CALCULATING;
+        uint256 requestId = i_vrfCoordinator.requestRandomWords(
+            i_keyHash, //gasLane
+            i_subscriptionId,
+            REQUEST_CONFIRMATIONS,
+            i_callbackGasLimit,
+            NUM_WORDS
+        );
+        emit RequestedRaffleWinner(requestId);
+    }
+```
+
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-03%20010055.png)
+
+`performUpkeep`은 실제로 `KeeperCompatibleInterface`에서 확인되므로, override 속성을 추가하여 덮어씌워 줘야합니다.
+
+```solidity
+function performUpkeep(bytes calldata /* perfromData */) external override {
+        // request random number
+        // Once we get it, do someting with it
+        // 2 transaction process
+        s_raffleState = RaffleState.CALCULATING;
+        uint256 requestId = i_vrfCoordinator.requestRandomWords(
+            i_keyHash, //gasLane
+            i_subscriptionId,
+            REQUEST_CONFIRMATIONS,
+            i_callbackGasLimit,
+            NUM_WORDS
+        );
+        emit RequestedRaffleWinner(requestId);
+    }
+```
+
+이제 여기서 더 진행하기 전에 유효성 검사를 조금 하고 진행하려합니다.
+
+왜냐하면 지금 상태에서는 아무나 이 `performUpkeep` 함수를 호출할 수 있기 때문입니다.
+
+그래서 우리는 `checkUpkeep`이 `true`를 반환했을때만 실행되도록 확실하게 만들겁니다.
+
+이걸 할 수 있는 제일 쉬운 방법은 우리가 구현한 이 계약안의 `checkUpkeep` 함수를 호출하는겁니다.
+
+지금 `checkUpkeep`함수가 `external` 이기 때문에 `checkUpkeep` 함수를 이 계약 내에서 호출할 수 없습니다.
+
+그러므로 `external`을 `public`으로 바꿔 내부에서도 부를 수 있도록 바꿉니다.
+
+```solidity
+    function checkUpkeep(
+        bytes calldata /*checkData*/
+    )
+        public
+        override
+        returns (
+            bool upkeepNeeded,
+            bytes memory /* performData */
+        )
+    {
+        bool isOpen = (s_raffleState == RaffleState.OPEN);
+        bool timePassed = ((block.timestamp - s_lastTimeStamp) > i_interval);
+        bool hasPlayer = (s_players.length > 0);
+        bool hasBalance = address(this).balance > 0;
+        upkeepNeeded = (isOpen && timePassed && hasPlayer && hasBalance);
+    }
+```
+
+그런다음 `performUpkeep` 함수에서 upkeepNeeded가 반환하는 true값을 활용해 `call`구문을 이용해서 `checkUpkeep("")`을 호출해줍니다.
+
+그리고 if문을 사용해서 upkeepNeeded가 없을경우 반환하는 에러`error Raffle__UpkeepNotNeeded`를 생성합니다.
+이 에러는 다음과 같이 파라미터를 갖습니다.
+
+```solidity
+error Raffle__UpkeepNotNeeded(uint256 currentBalance, uint256 numPlayers, uint256 raffleState);
+
+//...
+//...
+
+    // function requestRandomWinner() external {
+    function performUpkeep(bytes calldata /* perfromData */) external override {
+        // request random number
+        // Once we get it, do someting with it
+        // 2 transaction process
+        (bool upkeepNeeded, ) = checkUpkeep("");
+        if(!upkeepNeeded) {
+            revert Raffle__UpkeepNotNeeded(address(this).balance, s_players.length, uint256(s_raffleState));
+        }
+
+        s_raffleState = RaffleState.CALCULATING;
+        uint256 requestId = i_vrfCoordinator.requestRandomWords(
+            i_keyHash, //gasLane
+            i_subscriptionId,
+            REQUEST_CONFIRMATIONS,
+            i_callbackGasLimit,
+            NUM_WORDS
+        );
+        emit RequestedRaffleWinner(requestId);
+    }
+
+```
+
+그리고 한가지 또 놓친게 있습니다. 바로 타임스템프를 초기화해주는 것입니다.
+
+우승 당첨자가 나오면 타임스템프를 초기화해서 interval과 비교해 다음 참가자들이 참가할 수 있도록 할 겁니다.
+
+`fulfillRandomWords`에서 `s_players`배열을 초기화 시킨 후 바로 다음에 작성하겠습니다.
+
+```solidity
+    function fulfillRandomWords(
+        uint256, /*requestId*/
+        uint256[] memory randomWords
+    ) internal override {
+        uint256 indexOfWinner = randomWords[0] % s_players.length;
+        address payable recentWinner = s_players[indexOfWinner];
+        s_recentWinner = recentWinner;
+        s_raffleState = RaffleState.OPEN;
+        s_players = new address payable[](0);
+        s_lastTimeStamp = block.timestamp;
+        (bool success, ) = recentWinner.call{value: address(this).balance}("");
+        // require(success)
+        if (!success) revert Raffle__TransferFailed();
+        emit WinnerPicked(recentWinner);
+    }
+```
+
+
+## Code Cleanup
+
+계약 전문성과 사용자를 배려해서 natSpec을 조금 추가해보겠습니다.
+
+```solidity
+/** @title 견본 계약
+ *  @author iwipwq
+ *  @notice 이 계약은 임의의조작이 불가능한 분산화된 계약을 만들기 위해 생성되었습니다.
+ *  @dev 이 계약은 Chainlink VRF V2와 Cahinlink Keepers를 구현(실행)합니다.
+ */
+contract Raffle is VRFConsumerBaseV2, KeeperCompatibleInterface { ... }
+```
+
+getter 함수도 만들어줍시다.
+
+```solidity
+    /* View / Pure function */
+    function getEntranceFee() public view returns (uint256) {
+        return i_entranceFee;
+    }
+
+    function getPlayer(uint256 index) public view returns (address) {
+        return s_players[index];
+    }
+
+    function getRecentWinner() public view returns (address) {
+        return s_recentWinner;
+    }
+
+    function getRaffleState() public view returns (RaffleState) {
+        return s_raffleState;
+    }
+
+    function getNumWords() public view returns (uint256) {
+        return NUM_WORDS;
+    }
+}
+```
+
+RaffleState를 알 수 있는 getRaffleState와 받아올 랜덤 숫자 갯수를 알 수 있는 getNumWords 함수를 만들어줍니다.
+
+여기서 getNumWords 에서 재미있는 일이 일어납니다.
+
+그 전에 먼저 컴파일을 해봅시다.
+
+그러면 다음과 같은 에러가 발생합니다.
+
+```bash
+TypeError: Invalid type for argument in function call. Invalid implicit conversion from literal_string "" to bytes calldata requested.
+   --> contracts/Raffle.sol:124:45:
+    |
+124 |         (bool upkeepNeeded, ) = checkUpkeep("");
+    |                                             ^^
+
+
+Error HH600: Compilation failed
+```
+
+여기서 우리가 checkUpkeep에 빈 문자열stirng ("")을 전달했는데, checkUpkeep은 아래에서 보다시피 bytes 타입의 값이 필요합니다.
+
+```solidity
+    function checkUpkeep(
+        bytes calldata /*checkData*/
+    )
+        public
+        override
+        returns (
+            bool upkeepNeeded,
+            bytes memory /* performData */
+        )
+    { /*...*/ }
+```
+
+calldata는 stirng으로 작동하지 않습니다.
+그러니 calldata의 타입을 string을 담을 수 있는 memory로 바꿔줍시다.
+
+또한 checkUpkeep은 블록체인 변경을 하지 않기때문에 view로 바꿔줄 수 있지만 조금 있다 왜 public으로 놔두는지에 대해 설명하겠습니다.
+
+그리고 마지막으로 만든 getNumWords 함수에도 노란색 경고밑줄이 쳐져있습니다.
+
+다시 한번 컴파일해서 정확히 살펴보겠습니다.
+
+```bash
+Warning: Unnamed return variable can remain unassigned. Add an explicit return with value to all non-reverting code paths or name the variable.
+  --> contracts/KeeepersExample.sol:27:109:
+   |
+27 |     function checkUpkeep(bytes calldata /* checkData */) external view override returns (bool upkeepNeeded, 
+bytes memory /* performData */) {
+   |
+^^^^^^^^^^^^
+
+
+Warning: Unnamed return variable can remain unassigned. Add an explicit return with value to all non-reverting code paths or name the variable.
+   --> contracts/Raffle.sol:107:13:
+    |
+107 |             bytes memory /* performData */
+    |             ^^^^^^^^^^^^
+
+
+Warning: Function state mutability can be restricted to view
+   --> contracts/Raffle.sol:100:5:
+    |
+100 |     function checkUpkeep(
+    |     ^ (Relevant source part starts here and spans across multiple lines).
+
+
+Warning: Function state mutability can be restricted to pure
+   --> contracts/Raffle.sol:177:5:
+    |
+177 |     function getNumWords() public view returns (uint256) {
+    |     ^ (Relevant source part starts here and spans across multiple lines).
+
+
+Compiled 5 Solidity files successfully
+Done in 2.42s.
+```
+
+`Unnamed return variable can remain unassigned.` 는 밑줄그어진 bytes 메모리가 필요하다는 뜻입니다. 왜냐하면 keepres에서 그것을 찾고 있기 때문입니다. 
+
+`Warning: Function state mutability can be restricted to view` 함수를 view로 만들어도 된다는 뜻입니다. view로 만들어도 되지만 여기서는 public으로 만든 이유를 설명할 겁니다.
+
+`Warning: Function state mutability can be restricted to pure` 그리고 마지막으로 pure로 제한할 수 있다고 나옵니다. 아까 getNumWords에서 일어나는 재미있는 일이 이것입니다. NUM_WORDS가 실제로 bytes 코드 안에 있기때문에, 그리고 constant 변수이기 때문에 기술적으로 `storage`에서 읽어들이지 않습니다. 그래서, 이 함수가 `pure` 가 될 수 있는겁니다. NUM_WORDS를 반환하는 일은 storage에 저장된 값을 읽어오는것이 아니라 말그대로 그저 바이트코드에 적혀있는 `1`을 읽어오는 것 뿐입니다. 즉 아래의 코드와 동일하다는 뜻입니다.
+
+```solidity
+function getNumWords() public pure returns(uint256) {
+  return 1; // return NUM_WORDS
+}
+```
+
+이어서 나머지 getter 함수도 작성해주겠습니다.
+
+플레이어 수를 알 수 있는 함수와 최신 타임스템프를 알 수 있는 함수 그리고 마지막으로 요청확인을 얼마나 대기하는지 알려주는 함수를 작성해줍니다.
+
+REQUEST_CONFIRMATION은 상수이므로 마찬가지로 pure로 설정해줍니다.
+
+```solidity
+    function getNumberOfPlayers() public view returns (uint256) {
+        return s_players.length;
+    }
+    
+    function getLatestTimeStamp() public view returns (uint256) {
+        return s_lastTimeStamp;
+    }
+
+    function getRequestConfirmations() public pure returns (uint256) {
+        return REQUEST_CONFIRMATIONS;
+    }
+```
+
+자 이제 분산된 문맥에서 자동으로 실행되어 랜덤 우승자를 추첨할 수 있고, 사람들이 추첨(Raffle)에 등록할 수 있고, 드디어 진정으로 공정한 분산화 복권을 만드는 문제를 해결했습니다.
+
+마지막으로 한번 더 컴파일을 해봅시다.
+
+### 완성된 Raffle.sol 코드
+```solidity
+//Enter the lottery (paying some amount)
+//Pick a random winner (verifiably random)
+//Winner to be selected every X minutes -> competly automated
+
+//Chainlink Oracle -> Randomness, Automated Execution (Chainlink Keepers)
+
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.7;
+
+import "@chainlink/contracts/src/v0.8/VRFConsumerBaseV2.sol";
+import "@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol";
+import "@chainlink/contracts/src/v0.8/interfaces/KeeperCompatibleInterface.sol";
+
+error Raffle__NotEnoughETHEntered();
+error Raffle__TransferFailed();
+error Raffle__NotOpen();
+error Raffle__UpkeepNotNeeded(
+    uint256 currentBalance,
+    uint256 numPlayers,
+    uint256 raffleState
+);
+
+/** @title 견본 계약
+ *  @author iwipwq
+ *  @notice 이 계약은 주작질이 불가능한 분산화된 계약을 만들기 위해 생성되었습니다.
+ *  @dev 이 계약은 Chainlink VRF V2와 Cahinlink Keepers를 구현(실행)합니다.
+ */
+contract Raffle is VRFConsumerBaseV2, KeeperCompatibleInterface {
+    /* Type declarations */
+    enum RaffleState {
+        OPEN,
+        CALCULATING
+    } // uint256 0 = OPEN, 1 = CALCULATING
+
+    /* state variables */
+    uint256 private immutable i_entranceFee;
+    address payable[] private s_players;
+    VRFCoordinatorV2Interface private immutable i_vrfCoordinator;
+    bytes32 private immutable i_keyHash;
+    uint64 private immutable i_subscriptionId;
+    uint16 private constant REQUEST_CONFIRMATIONS = 3;
+    uint32 private immutable i_callbackGasLimit;
+    uint32 private constant NUM_WORDS = 1;
+
+    // Lottery Variables
+    address private s_recentWinner;
+    bool private s_isOpen; // to pending, open, closed, calculating
+    // bool private s_state; // to pending, open, closed, calculating
+    RaffleState private s_raffleState;
+    uint256 private s_lastTimeStamp;
+    uint256 private immutable i_interval;
+
+    /*Events*/
+    event RaffleEnter(address indexed player);
+    event RequestedRaffleWinner(uint256 indexed requestId);
+    event WinnerPicked(address indexed winner);
+
+    /*Functions */
+    constructor(
+        address vrfCoordinatorV2,
+        uint256 entranceFee,
+        bytes32 keyHash,
+        uint64 subscriptionId,
+        uint32 callbackGasLimit,
+        uint256 interval
+    ) VRFConsumerBaseV2(vrfCoordinatorV2) {
+        i_entranceFee = entranceFee;
+        i_vrfCoordinator = VRFCoordinatorV2Interface(vrfCoordinatorV2);
+        i_keyHash = keyHash;
+        i_subscriptionId = subscriptionId;
+        i_callbackGasLimit = callbackGasLimit;
+        s_raffleState = RaffleState.OPEN; //RaffleState(0);
+        s_lastTimeStamp = block.timestamp;
+        i_interval = interval;
+    }
+
+    function enterRaffle() public payable {
+        // require (msg.value > i_entranceFee, "eth가 충분하지 않습니다!")
+        if (msg.value < i_entranceFee) {
+            revert Raffle__NotEnoughETHEntered();
+        }
+        if (s_raffleState != RaffleState.OPEN) {
+            revert Raffle__NotOpen();
+        }
+        s_players.push(payable(msg.sender));
+        // Emit an event when we update a dynamic array or mapping
+        // Named events with the function name reversed
+        emit RaffleEnter(msg.sender);
+    }
+
+    /**
+     * @dev This is the function that the Chainlink keeper nodes call
+     * they look for the `upKeepNeeded` to return true.
+     * The following should be ture in order to return true:
+     * 1. Our time interval should have passed
+     * 2. The lottery should have at least 1 player, and have some ETH
+     * 3. Then Our subscription is funded with Link
+     * 4. The lottery should be in an "open" state.
+     */
+    function checkUpkeep(
+        bytes memory /*checkData*/
+    )
+        public
+        override
+        returns (
+            bool upkeepNeeded,
+            bytes memory /* performData */
+        )
+    {
+        bool isOpen = (s_raffleState == RaffleState.OPEN);
+        bool timePassed = ((block.timestamp - s_lastTimeStamp) > i_interval);
+        bool hasPlayer = (s_players.length > 0);
+        bool hasBalance = address(this).balance > 0;
+        upkeepNeeded = (isOpen && timePassed && hasPlayer && hasBalance);
+    }
+
+    // function requestRandomWinner() external {
+    function performUpkeep(
+        bytes calldata /* perfromData */
+    ) external override {
+        // request random number
+        // Once we get it, do someting with it
+        // 2 transaction process
+        (bool upkeepNeeded, ) = checkUpkeep("");
+        if (!upkeepNeeded) {
+            revert Raffle__UpkeepNotNeeded(
+                address(this).balance,
+                s_players.length,
+                uint256(s_raffleState)
+            );
+        }
+
+        s_raffleState = RaffleState.CALCULATING;
+        uint256 requestId = i_vrfCoordinator.requestRandomWords(
+            i_keyHash, //gasLane
+            i_subscriptionId,
+            REQUEST_CONFIRMATIONS,
+            i_callbackGasLimit,
+            NUM_WORDS
+        );
+        emit RequestedRaffleWinner(requestId);
+    }
+
+    function fulfillRandomWords(
+        uint256, /*requestId*/
+        uint256[] memory randomWords
+    ) internal override {
+        uint256 indexOfWinner = randomWords[0] % s_players.length;
+        address payable recentWinner = s_players[indexOfWinner];
+        s_recentWinner = recentWinner;
+        s_raffleState = RaffleState.OPEN;
+        s_players = new address payable[](0);
+        s_lastTimeStamp = block.timestamp;
+        (bool success, ) = recentWinner.call{value: address(this).balance}("");
+        // require(success)
+        if (!success) revert Raffle__TransferFailed();
+        emit WinnerPicked(recentWinner);
+    }
+
+    /* View / Pure function */
+    function getEntranceFee() public view returns (uint256) {
+        return i_entranceFee;
+    }
+
+    function getPlayer(uint256 index) public view returns (address) {
+        return s_players[index];
+    }
+
+    function getRecentWinner() public view returns (address) {
+        return s_recentWinner;
+    }
+
+    function getRaffleState() public view returns (RaffleState) {
+        return s_raffleState;
+    }
+
+    function getNumWords() public pure returns (uint256) {
+        return NUM_WORDS;
+    }
+
+    function getNumberOfPlayers() public view returns (uint256) {
+        return s_players.length;
+    }
+    
+    function getLatestTimeStamp() public view returns (uint256) {
+        return s_lastTimeStamp;
+    }
+
+    function getRequestConfirmations() public pure returns (uint256) {
+        return REQUEST_CONFIRMATIONS;
+    }
+}
+```
+
+## Delploying Raffle.sol
+
+지난번에 말했듯이, 여러분이 스마트계약을 작성할때 보통 이런 방식을 사용하시지는 않을 겁니다.
+
+스마트계약 전체를 처음부터 끝까지 문제없이 작성하는 일은 거의 불가능합니다. 그리고 docs를 뒤적거리는 일 없이도 말이죠.
+
+숙련된 개발자도 이러한 계약을 많이 작성해왔겠지만, 여전히 많은 실수를 범하기 마련입니다. 
+
+So it is totally reasonable and totally rational for anybody and everybody to make mistakes going through this.
+그래서 누구나, 모든 사람이 이런 일을 겪으면서 실수를 하는 것은 전적으로 합리적이고 완전히 합리적입니다.
+그리고 그 과정에서 리소스를 활용하고 테스트를 작성하는 것입니다.
+
+자 이제 Raffle.sol이 완성되었고, 이 모든걸 추가 할 일이 남았습니다.
+
+새 폴더 `deploy`를 만들어줍니다. 그리고 이전에 했던 것과 동일합니다. 배포스크립트를 작성하고 Raffle 계약을 배포할 것입니다.
+
+그전에 알아두고 가야할것이 몇가지 있습니다.
+
+첫번째로 현재 Raffle 안의 constructor가 굉장히 비대합니다. 여기에서 많은 파라미터들을 받고 있습니다.
+constructor를 다시 한번 살펴보고 이미 그것들과 상호작용하고 있는 계약이 있는지 알아봅시다.
+
+```solditiy
+    /*Functions */
+    constructor(
+        address vrfCoordinatorV2, // contract address
+        uint256 entranceFee,
+        bytes32 keyHash,
+        uint64 subscriptionId,
+        uint32 callbackGasLimit,
+        uint256 interval
+    ) VRFConsumerBaseV2(vrfCoordinatorV2) {
+        i_entranceFee = entranceFee;
+        i_vrfCoordinator = VRFCoordinatorV2Interface(vrfCoordinatorV2);
+        i_keyHash = keyHash;
+        i_subscriptionId = subscriptionId;
+        i_callbackGasLimit = callbackGasLimit;
+        s_raffleState = RaffleState.OPEN; //RaffleState(0);
+        s_lastTimeStamp = block.timestamp;
+        i_interval = interval;
+    }
+```
+
+`address vrfCoordinatorV2`는 계약 address라는 점에서 힌트를 얻을 수 있습니다. 아마 우리는 모의(Mocks)계약 배포가 필요할 수도 있다는 점을요. 왜냐하면 프로젝트 바깥의 VRF coordinator 계약과 상호작용 해야하기 때문입니다.
+
+일단 이것은 뒤로 미루고 Raffle 배포 스크립트를 계속 작성해보겠습니다.
+
+mocks 계약을 배포해야한다는 사실을 기억해 둔 뒤, 계속 진행하겠습니다. `deploy`폴더에 새로운 파일을 만들어줍니다. 
+
+`01-deploy-raffle.js`
+
+```js
+module.exports = async function ({ getNamedAccounts, deployments }) {
+  const { deploy, log } = deployments;
+  const { deployer } = await getNamedAccounts();
+};
+```
+
+이제 `hardhat.config.js`로 넘어가서 업데이트 해줍시다.
+
+`namedAccounts`를 `deployer`는 `0`으로 `player`는 `1`로 설정해줍니다.
+
+이렇게 하면 배포자와 참가자를 구분지을 수 있습니다.
+
+```js
+require("@nomiclabs/hardhat-waffle");
+require("@nomiclabs/hardhat-etherscan")
+require("hardhat-deploy")
+require("solidity-coverage")
+require("hardhat-gas-reporter")
+require("hardhat-contract-sizer")
+require("dotenv").config();
+
+/**
+ * @type import('hardhat/config').HardhatUserConfig
+ */
+module.exports = {
+  solidity: "0.8.7",
+  namedAccounts: {
+    deployer: {
+      default: 0,
+    },
+    player: {
+      default: 1,
+    }
+  }
+};
+```
+hardhat.config.js는 많은 보일러플레이트들이 있기 때문에 다른 리포지토리나 이전에 사용했던 컨픽파일에서 참고하여 사용해도 좋습니다.
+
+지금은 deployer를 가지고와서 작업할 겁니다.
+
+이전에 했던것처럼 deploy 메소드를 이용해 다음과 같이 작성한 후 `{}`안에 내용을 채워넣을 겁니다.
+
+`args`에는 constructor에 들어갈 많은 파라미터들이 들어갈 테니 뒤에서 다시 작성하겠습니다. 
+```js
+module.exports = async function ({ getNamedAccounts, deployments }) {
+  const { deploy, log } = deployments;
+  const { deployer } = await getNamedAccounts();
+
+  const raffle = await deploy("Raffle", {
+    from: deployer,
+    args: [],
+    log: true,
+    waitConfirmations: 6,
+  })
+};
+```
+
+이제 `hardhat.config.js`로 넘어가서 `waitConfirmations`의 구체적인 값을 정해주기 위한 `networks` 항목을 작성해줍니다.
+
+`defaultNetwork`와 `networks` 그리고 스테이징 테스트를 위한 rinkeby 네트워크 정보도 입력해 줍니다.
+이더스캔과 가스리포터도 입력해줍시다.
+
+```js
+require("@nomiclabs/hardhat-waffle");
+require("@nomiclabs/hardhat-etherscan")
+require("hardhat-deploy")
+require("solidity-coverage")
+require("hardhat-gas-reporter")
+require("hardhat-contract-sizer")
+require("dotenv").config();
+
+const RINKEBY_RPC_URL = process.env.RINKEBY_RPC_URL;
+const PRIVATE_KEY = process.env.PRIVATE_KEY;
+const COINMARKETCAP_API_KEY = process.env.COINMARKETCAP_API_KEY;
+const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY;
+/**
+ * @type import('hardhat/config').HardhatUserConfig
+ */
+module.exports = {
+  defaultNetwork: "hardhat",
+  networks: {
+    hardhat: {
+      chainId: 31337,
+      blockConfirmations: 1,
+    },
+    rinkeby: {
+      chainId: 4,
+      blockConfirmations: 6,
+      url: RINKEBY_RPC_URL,
+      accounts: [PRIVATE_KEY],
+    }
+  },
+  solidity: "0.8.7",
+  namedAccounts: {
+    deployer: {
+      default: 0,
+    },
+    player: {
+      default: 1,
+    }
+  },
+  etherscan: {
+    apiKey: ETHERSCAN_API_KEY,
+  },
+  gasReporter: {
+    enabled: true,
+    outputFile: "gas-report.txt",
+    noColors: true,
+    currency: "USD",
+    coinmarketcap: COINMARKETCAP_API_KEY,
+    token: "ETH"
+  }
+};
+```
+
+그리고 환경변수용 .env 파일을 생성하고 값을 넣습니다.
+
+다음은 다시 `01-deploy-raffle.js`로 돌아와서 blockConfirmation값을 networks에서 설정한 값으로 바꿔줍니다.
+
+```js
+const { network } = require("hardhat");
+
+module.exports = async function ({ getNamedAccounts, deployments }) {
+  const { deploy, log } = deployments;
+  const { deployer } = await getNamedAccounts();
+
+  const raffle = await deploy("Raffle", {
+    from: deployer,
+    args: [],
+    log: true,
+    waitConfirmations: network.config.blockConfirmations || 1,
+  })
+};
+
+```
+
+이제 컨스트럭터에 넘겨줄 args 값을 살펴봅시다. raffle.sol로 넘어갑니다.
+
+첫번째는 `vrfCoordinatorV2` 입니다. 우리는 FundMe 프로젝트를 할때 썼었던 모의계약을 이용한 전략을 활용할겁니다.
+우리가 개발용 체인(development chain)상에서는 실제 계약주소를 사용하고, 테스트넷 환경이라면 라이브 네트워크를 사용할 것입니다. 
+
+먼저 프로젝트 폴더에 `helper-hardhat-config.js`파일을 생성합니다.
+
+그리고 체인링크 공식문서에 가서 rinkeby VRF 주소를 가지고 옵니다.
+
+>https://docs.chain.link/docs/vrf-contracts/#rinkeby-testnet
+>|VRF Coordinator|0x6168499c0cFfCaCD319c818142124B7A15E857ab|
+>|-|-|
+
+
+```js
+const networkConfig = {
+    4: {
+        name: "rinkeby",
+        vrfCoordinatorV2: "0x6168499c0cFfCaCD319c818142124B7A15E857ab",
+    }
+}
+```
+
+이제 다시 배포스크립트로 돌아와서  `networkConfig` 혹은 우리가 배포한 모의계약 안에있는 `vrfCoordinatorV2` 를 사용할지 안할지를 정해주면 됩니다.
+
+먼저 모의계약을 배포해야하니 `00-deploy-mocks.js` 파일을 `deploy`폴더에 생성합니다.
+
+```js
+module.exports = async function({deployments,getNamedAccounts}) {
+  const {deploy, log} = deployments;
+  const {deployer} = await getNamedAccounts();
+  const chainId = network.config.chainId;
+}
+```
+
+이제 development chain을 정해주기 위해 다시 `helper-hardhat-config.js`로 돌아갑니다.
+
+그리고 이들을 exports 해줍니다.
+
+```js
+const networkConfig = {
+  4: {
+    name: "rinkeby",
+    vrfCoordinatorV2: "0x6168499c0cFfCaCD319c818142124B7A15E857ab",
+  }
+}
+
+const developmentChains = ["hardhat","localhost"];
+
+module.exports = {
+  networkConfig,
+  developmentChains,
+}
+```
+
+다시 `00-deploy-mocks.js`로 돌아가서 이 `developmentChains` 값을 이용해 해봅시다.
+
+```js
+const {developmentChains} = require("../helper-hardhat-config");
+
+module.exports = async function ({deployments, getNamedAccounts}) {
+  const {deploy, log} = deployments;
+  const {deployer} = await getNamedAccounts();
+  const chainId = network.config.chainId;
+}
+
+if(developmentChains.includes(network.name)) {
+  log("로컬 네트워크 감지됨! 모의계약 배포중...")
+  // 모의 vrfCoordinator 배포하기
+}
+```
+
+이제 모의 vrfCoordinator를 배포하는 코드를 작성하면 됩니다.
+
+## Deploying Raffle.sol - Mock Chainlink VRF Coordinator -
+
+`Contract` 폴더에 `VRFCoordinatorV2Mock.sol` 파일을 생성하고 다음과 같이 입력하여 모의계약을 생성합니다.
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@chainlink/contracts/src/v0.8/mocks/VRFCoordinatorV2Mock.sol";
+
+```
+
+컴파일합니다.
+```bash
+hh complie
+```
+
+이제 mock 계약파일을 얻게되었고 `00-deploy-mocks.js`에서 그걸 배포하기만 하면 됩니다.
+
+`deploy` 메소드의 인자로 해당모의계약파일의 이름과 넘겨줄 파라미터들을 입력해줍니다.
+
+근데 여기서 `VRFCoordinatorV2Mock`의 `args`는 무엇이 되어야 할까요?
+
+```js
+const {developmentChains } = require("../helper-hardhat-config");
+
+module.exports = async function ({ getNamedAccounts, deployments }) {
+  const { deploy, log } = deployments;
+  const { deployer } = await getNamedAccounts();
+  const chainId = network.config.chainId;
+  // const chainName = network.name;
+
+  if(developmentChains.includes(network.name)) {
+    log("로컬 네트워크 감지됨! 모의계약 배포중...")
+    // deploy a mock vrfCoordinatorV2...
+    await deploy("VRFCoordinatorV2Mock", {
+      from: deployer,
+      log: true,
+      args:
+    })
+  }
+};
+```
+
+`VRF2CoordinatorV2Mock.sol` 파일을 노드모듈이나 체인링크 깃헙리포지토리에서 찾아봅시다.
+
+constructor를 찾아보면 2가지 인수를 받습니다.
+
+```solidity
+  constructor(uint96 _baseFee, uint96 _gasPriceLink) {
+    BASE_FEE = _baseFee;
+    GAS_PRICE_LINK = _gasPriceLink;
+  }
+```
+
+바로 `_baseFee` 와 `_gasPriceLink`입니다.
+
+첫번째는 BASE_FEE입니다. 체인링크 문서로 돌아가봅시다. 
+
+>https://docs.chain.link/docs/vrf-contracts/#rinkeby-testnet
+>|Item|	Value|
+>|-|-|
+>|LINK Token|	0x01BE23585060835E02B77ef475b0Cc51aA1e0709Add to wallet|
+>|VRF Coordinator|	0x6168499c0cFfCaCD319c818142124B7A15E857ab|
+>|30 gwei Key Hash|	0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc|
+>|Premium|	0.25 LINK|
+>|Minimum Confirmations|	3|
+>|Maximum Confirmations|	200|
+>|Maximum Random Values|	500|
+
+여기에서 `Premium`이란 항목에 주목해봅시다.
+
+이 말은 매 request마다 0.25LINK 토큰의 base fee가 존재한다는 뜻입니다.
+그래서 링크비에 랜덤숫자 요청을 보냈을 경우 매 요청마다 0.25LINK(오라클가스) 만큼 지불하게 됩니다.
+
+`00-deploy-mocks.js`로 돌아가서 값을 지정해보겠습니다.
+
+```js
+const BASE_FEE = ethers.utils.parseEther("0.25")
+```
+
+pricefeed와 달리 randomness 요청에 돈이 들어가는 이유는 pricefeed는 여러 스폰서 회사들이 요청에 대해 이미 돈을 지불하고 있지만, randomness는 현재 앱을 만들고 있는 본인만 사용하고 있기 때문에 요금을 내야합니다. 
+
+다음은 GAS_PRICE_LINK 입니다.
+
+이것은 실제로 체인의 gasprice에 기반하여 계산된 값입니다. 
+
+예를 들어 우리가 랜덤숫자 요청을 보냈을때 Eth 값이 급상승한다면 ex) $1,000,000,000  gas 또한 엄청나게 비싸질 것입니다.
+
+체인링크노드가 randomness값을 가져오기 위해 gas fee를 지불하고, 외부 실행작업 등을 실시합니다.
+
+체인링크노드는 randomness값을 반환받기위해 혹은 upkeep을 실행하기 위해 가스값을 지불합니다.
+
+raffle.sol에는 requestRandomWords와 fulfillRandomWords 있는데 , 체인링크 노드가 이 두가지 함수를 호출하고 가스값을 지불합니다. 이러한 비용을 상쇄하기 위해 오라클가스(LINK)로 비용을 받습니다.
+
+만약 eth값이 갑자기 천정부지로 치솟게된다면 체인링크노드가 함수를 실행하게 된다면 치솟은 eth만큼에 해당하는 가스값을 지불하게 됩니다. 그래서 체인링크노드는 `Gas pirce per link`라 불리는 계산된 변수를 가진 계산된 요금을 가지고 있습니다. gas price per link는 실제 체인 가격에 따라 변동하기 때문에 체인링크노드는 절대 파산하지 않습니다.
+
+그래서 체인링크노드의 요청 요금은 price of gas 에 따라 바뀝니다. 
+gas price link는 link per gas라고 생각할 수 있습니다.
+
+```js
+const GAS_PRICE_FEE = 1e9;
+```
+
+이제 만들어진 두 변수를 `args`변수에 배열을 만들어서 넣어주고, constructor args에 전달해줍니다.
+
+마무리로 배포가 완료되었다는 log와 module.export.tags로 실행키워드 태그를 지정해줍니다.
+
+```js
+const {developmentChains } = require("hardhat");
+
+const BASE_FEE = ethers.utils.parseEther("0.25") // 0.25 is the premium. It costs 0.25 LINK per request
+const GAS_PRICE_LINK = 1e9;
+
+module.exports = async function ({ getNamedAccounts, deployments }) {
+  const { deploy, log } = deployments;
+  const { deployer } = await getNamedAccounts();
+  const chainId = network.config.chainId;
+  // const chainName = network.name;
+  const args = [BASE_FEE, GAS_PRICE_LINK];
+
+  if(developmentChains.includes(network.name)) {
+    log("로컬 네트워크 감지됨! 모의계약 배포중...")
+    // deploy a mock vrfCoordinatorV2...
+    await deploy("VRFCoordinatorV2Mock", {
+      from: deployer,
+      log: true,
+      args: args
+    })
+    log("모의계약 배포완료!")
+  }
+};
+
+module.exports.tags = ["all", "mocks"];
+
+```
+
+### args: vrfCoordinatorV2Address
+
+이제 다시 `01-deploy-raffle.js`파일로 되돌아 옵니다.
+
+아까 mocks를 배포한것과 비슷하게 네트워크가 개발체인일 경우 모의계약을 배포합니다.
+그리고 vrfCoordinatorV2Address를 선언해서 raffle.sol constructor에 넘겨줄 vrfCoordinatorV2Address값을 VRFCoordinatorV2Mock에서 가져옵니다.
+
+또한 로컬호스트나 하드햇 네트워크가 아닌경우 `helper-hardhat-config.js`에서 작성한 networkConfig를 가져와서 해당 chainId로 접근해 vrf2CoordinatorV2의 주소를 받을 수 있게 만들어줍니다.
+
+```js
+const { network, ethers } = require("hardhat");
+const { developmentChains } = require("../helper-hardhat-config");
+
+module.exports = async function ({ getNamedAccounts, deployments }) {
+  const { deploy, log } = deployments;
+  const { deployer } = await getNamedAccounts();
+  const chainId = network.config.chainId;
+  let vrfCoordinatorV2Address
+
+  if(developmentChains.includes(network.name)) {
+    const vrfCoordinatorV2Mock = await ethers.getContract("VRFCoordinatorV2Mock");
+    vrfCoordinatorV2Address = vrfCoordinatorV2Mock.address
+  } else {
+    vrfCoordinatorV2Address = networkConfig[chainId]["VRFCoordinatorV2"]
+  }
+
+  const args = []
+  const raffle = await deploy("Raffle", {
+    from: deployer,
+    args: [],
+    log: true,
+    waitConfirmations: network.config.blockConfirmations,
+  })
+};
+```
+### args: entranceFee
+다음에 들어갈 어규먼트는 `entranceFee` 입니다. 체인환경에 따라 지불하는 금액을 달리할 겁니다.
+
+`helper-hardhat-config.js`로 돌아가서 `entracneFee`를 추가해줍니다.
+
+4번 링크비는 0.01 eth로 설정해보겠습니다. 
+
+다음은 31337 즉 하드햇 네트워크입니다. 하드햇네트워크는 Mock에서 vrfCoordinatorV2 주소를 받아오기때문에 name과 entracneFee 만 적어주도록 합시다. 물론 raffle.sol에서 entracnceFee의 기본값을 설정할 수 있겠지만 조금 더 강조하여 표현하기 위해 networkConfig에 작성할겁니다.
+
+```js
+const { ethers } = require("hardhat");
+
+const networkConfig = {
+    4: {
+        name: "rinkeby",
+        vrfCoordinatorV2: "0x6168499c0cFfCaCD319c818142124B7A15E857ab",
+        entranceFee: ethers.utils.parseEther("0.01"),
+    },
+    31337: {
+        name: "hardhat",
+        entranceFee: ethers.utils.parseEther("0.01"),
+    }
+}
+
+const developmentChains = ["hardhat","localhost"];
+
+module.exports = {
+    networkConfig,
+    developmentChains,
+}
+```
+
+다시 `01-deploy-raffle.js`에서 chainId에 따라 바뀌는 entranceFee를 선언해줍시다.
+
+그리고 만들어진 `vrfCoordinatorV2Address`와 `entranceFee`를 `const args=[]`안의 배열에 넣어줍시다.
+
+```js
+const { network, ethers } = require("hardhat");
+const {
+  developmentChains,
+  networkConfig,
+} = require("../helper-hardhat-config");
+
+module.exports = async function ({ getNamedAccounts, deployments }) {
+  const { deploy, log } = deployments;
+  const { deployer } = await getNamedAccounts();
+  const chainId = network.config.chainId;
+  let vrfCoordinatorV2Address;
+
+  if (developmentChains.includes(network.name)) {
+    const vrfCoordinatorV2Mock = await ethers.getContract(
+      "VRFCoordinatorV2Mock"
+    );
+    vrfCoordinatorV2Address = vrfCoordinatorV2Mock.address;
+  } else {
+    vrfCoordinatorV2Address = networkConfig[chainId]["vrfCoordinatorV2"];
+  }
+
+  const entranceFee = networkConfig[chainId]["entranceFee"];
+  const args = [vrfCoordinatorV2Address, entranceFee];
+  const raffle = await deploy("Raffle", {
+    from: deployer,
+    args: [],
+    log: true,
+    waitConfirmations: network.config.blockConfirmations,
+  });
+};
+```
+
+### args: GasLane
+다음은 GasLane(keyHash)입니다.
+링크비나 다른 네트워크에는 선택할 수 있는 가스레인 종류가 몇가지 있습니다.
+>https://docs.chain.link/docs/vrf-contracts/#rinkeby-testnet
+>|30 gwei Key Hash|0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc|
+>|-|-|
+
+이중에 `30 gwei Key Hash`를 선택해서 가져오겠습니다.
+
+`00-deploy-mocks.js`로 가서 `keyHash`(gasLane)속성을 추가해줍니다.
+
+하드햇 네트워크는 모의계약이기 때문에 가스레인이 상관없습니다. 심지어 빈값이어도 말이죠.
+
+```js
+const { ethers } = require("hardhat");
+
+const networkConfig = {
+    4: {
+        name: "rinkeby",
+        vrfCoordinatorV2: "0x6168499c0cFfCaCD319c818142124B7A15E857ab",
+        entranceFee: ethers.utils.parseEther("0.01"),
+        keyHash: "0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc"
+    },
+    31337: {
+        name: "hardhat",
+        entranceFee: ethers.utils.parseEther("0.01"),
+        keyHash: "0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc" //모의계약이기때문에 뭐가와도 상관없음(비어있어도 돌아감)
+    }
+}
+
+const developmentChains = ["hardhat","localhost"];
+
+module.exports = {
+    networkConfig,
+    developmentChains,
+}
+```
+
+마찬가지로 raffle 배포스크립트로 가서 keyHash(gasLane)값을 가져와서 args안에 넣어줍니다.
+
+```js
+  const keyHash = networkConfig[chainId]["keyHash"];
+  const args = [vrfCoordinatorV2Address, entranceFee, keyHash];
+```
+
+### args: subscriptionId
+
+이제 `subscriptionId`를 설정할 차례입니다.
+
+실제 메인넷이나 테스트넷에서는 chainlink keepers 인터페이스를 통해 `subscriptionId`를 가져오기 수월하지만.
+hardhat 로컬 네트워크에서는 조금 까다롭습니다.
+
+fund subscription과 create subscription 하는 방법을 알아야 합니다.
+
+`01-deploy-raffle.js`로 이동합니다.
+
+개발체인(로컬네트워크)일 경우 구독을 생성합니다.(createSubscription)
+
+`transactionReceipt` 안에는 subscription을 가져올 수 있는 emit된 event가 포함되어있습니다. 이것이 emtting events가 도움이 되는 또다른 경우입니다. 그래서 사실은 `VRFCoordinatorV2Mock.sol`파일을 다시 열어 살펴보면
+
+
+`VRFCoordinatorV2`안의 createSubscription 함수
+```solidity
+  event SubscriptionCreated(uint64 indexed subId, address owner);
+
+  //...
+  //...
+
+  function createSubscription() external override returns (uint64 _subId) {
+    s_currentSubId++;
+    s_subscriptions[s_currentSubId] = Subscription({owner: msg.sender, balance: 0});
+    emit SubscriptionCreated(s_currentSubId, msg.sender);
+    return s_currentSubId;
+  }
+```
+`emit SubscriptionCreated(s_currentSubId, msg.sender);`에서 `SubscriptionCreated`라는 이벤트를 emit하는데 s_currentSubId 즉 현재 subscriptionId를 이용해 emit하고 있습니다.
+
+이 이벤트를 transactionReceipt에서 emit시켜 가져올 수 있습니다.
+
+이제 이를 적용시키기 위해 subscriptionId 변수를 만들어줍니다.
+
+그리고 transactionResponse에 vrfCoordinatorV2Mocks.createSubscription()을 할당하여 해당 메소드를 실행 후
+transactionReceipt에서 transaction이 컨펌될때까지 wait(1) 시켜줍니다.
+
+그리고 transactionReceipt에서 해당 이벤트에 접근 후, `subId`를 가져와서 할당해줍니다.
+`subscriptionId = transactionReceipt.events[0].args.subId;`
+
+```js
+const { network, ethers } = require("hardhat");
+const {
+  developmentChains,
+  networkConfig,
+} = require("../helper-hardhat-config");
+
+module.exports = async function ({ getNamedAccounts, deployments }) {
+  const { deploy, log } = deployments;
+  const { deployer } = await getNamedAccounts();
+  const chainId = network.config.chainId;
+  let vrfCoordinatorV2Address, subscriptionId;
+
+  if (developmentChains.includes(network.name)) {
+    const vrfCoordinatorV2Mock = await ethers.getContract(
+      "VRFCoordinatorV2Mock"
+    );
+    vrfCoordinatorV2Address = vrfCoordinatorV2Mock.address;
+    const transactionResponse = await vrfCoordinatorV2Mock.createSubscription();
+    const transactionReceipt = await transactionResponse.wait(1);
+    subscriptionId = transactionReceipt.events[0].args.subId;
+    
+  } else {
+    vrfCoordinatorV2Address = networkConfig[chainId]["vrfCoordinatorV2"];
+  }
+
+  const entranceFee = networkConfig[chainId]["entranceFee"];
+  const keyHash = networkConfig[chainId]["keyHash"];
+  const args = [vrfCoordinatorV2Address, entranceFee, keyHash];
+  const raffle = await deploy("Raffle", {
+    from: deployer,
+    args: [],
+    log: true,
+    waitConfirmations: network.config.blockConfirmations,
+  });
+};
+
+```
+
+이제 Fund subscription을 할 차례입니다.
+
+실제 네트워크에서는 LINK토큰이 필요할 겁니다. 하지만 로컬네트워크의 mock계약에서는 이 없이도 가능합니다.
+아래와 같이 fundSubscription 함수를 호출합니다. 그리고 VRF_SUB_FUND_AMOUNT를 설정해 fund할 량을 설정하고 아규먼트로 넘겨줍니다.
+
+```js
+const VRF_SUB_FUND_AMOUNT = ethers.utils.parseEther("2");
+//...
+await vrfCoordinatorV2Mock.fundSubscription(subscriptionId, VRF_SUB_FUND_AMOUNT);
+```
+
+```js
+const { network, ethers } = require("hardhat");
+const {
+  developmentChains,
+  networkConfig,
+} = require("../helper-hardhat-config");
+
+const VRF_SUB_FUND_AMOUNT = ethers.utils.parseEther("2"); //30 is OverKill 2 would work
+
+module.exports = async function ({ getNamedAccounts, deployments }) {
+  const { deploy, log } = deployments;
+  const { deployer } = await getNamedAccounts();
+  const chainId = network.config.chainId;
+  let vrfCoordinatorV2Address, subscriptionId;
+
+  if (developmentChains.includes(network.name)) {
+    const vrfCoordinatorV2Mock = await ethers.getContract(
+      "VRFCoordinatorV2Mock"
+    );
+    vrfCoordinatorV2Address = vrfCoordinatorV2Mock.address;
+    const transactionResponse = await vrfCoordinatorV2Mock.createSubscription();
+    const transactionReceipt = await transactionResponse.wait(1);
+    subscriptionId = transactionReceipt.events[0].args.subId;
+    //Fund the subscription
+    // Usually, you'd need the link token on a real network
+    await vrfCoordinatorV2Mock.fundSubscription(subscriptionId, VRF_SUB_FUND_AMOUNT);
+  } else {
+    vrfCoordinatorV2Address = networkConfig[chainId]["vrfCoordinatorV2"];
+  }
+
+  const entranceFee = networkConfig[chainId]["entranceFee"];
+  const keyHash = networkConfig[chainId]["keyHash"];
+  const args = [vrfCoordinatorV2Address, entranceFee, keyHash];
+  const raffle = await deploy("Raffle", {
+    from: deployer,
+    args: [],
+    log: true,
+    waitConfirmations: network.config.blockConfirmations,
+  });
+};
+
+```
+
+이제 로컬네트워크에서 subscriptionId를 받아오는것이 끝났고 실제 네트워크에서 설정하는 작업을 해보겠습니다.
+
+`helper-hardhat-config.js`로 넘어갑니다.
+
+여기서는 그냥 `0`으로 둘것이지만 나중에 실제 chainlink keepers를 이용해 subscription하고 Id를 받아올겁니다.
+```js
+const networkConfig = {
+    4: {
+        name: "rinkeby",
+        vrfCoordinatorV2: "0x6168499c0cFfCaCD319c818142124B7A15E857ab",
+        entranceFee: ethers.utils.parseEther("0.01"),
+        keyHash: "0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc",
+        subscriptionId: "0",
+    },
+}
+```
+
+다시 `01-deploy-raffle.sol`로 넘어가서 개발체인이 아닐경우 subscriptionId를 설정해 줍니다.
+
+`subscriptionId = networkConfig[chainId]["subscriptionId"];`
+
+```js
+const { network, ethers } = require("hardhat");
+const {
+  developmentChains,
+  networkConfig,
+} = require("../helper-hardhat-config");
+
+const VRF_SUB_FUND_AMOUNT = ethers.utils.parseEther("2"); //30 is OverKill 2 would work
+
+module.exports = async function ({ getNamedAccounts, deployments }) {
+  const { deploy, log } = deployments;
+  const { deployer } = await getNamedAccounts();
+  const chainId = network.config.chainId;
+  let vrfCoordinatorV2Address, subscriptionId;
+
+  if (developmentChains.includes(network.name)) {
+    const vrfCoordinatorV2Mock = await ethers.getContract(
+      "VRFCoordinatorV2Mock"
+    );
+    vrfCoordinatorV2Address = vrfCoordinatorV2Mock.address;
+    const transactionResponse = await vrfCoordinatorV2Mock.createSubscription();
+    const transactionReceipt = await transactionResponse.wait(1);
+    subscriptionId = transactionReceipt.events[0].args.subId;
+    //Fund the subscription
+    // Usually, you'd need the link token on a real network
+    await vrfCoordinatorV2Mock.fundSubscription(subscriptionId, VRF_SUB_FUND_AMOUNT);
+  } else {
+    vrfCoordinatorV2Address = networkConfig[chainId]["vrfCoordinatorV2"];
+    subscriptionId = networkConfig[chainId]["subscriptionId"];
+  }
+
+  const entranceFee = networkConfig[chainId]["entranceFee"];
+  const keyHash = networkConfig[chainId]["keyHash"];
+  const args = [vrfCoordinatorV2Address, entranceFee, keyHash];
+  const raffle = await deploy("Raffle", {
+    from: deployer,
+    args: [],
+    log: true,
+    waitConfirmations: network.config.blockConfirmations,
+  });
+};
+
+```
+
+### args: callbackGasLimit
+
+`callbackGasLimit`을 설정할 차례입니다 `callbackGasLimit`은 네트워크에 따라서 다양합니다.
+
+그래서 현재 가스리밋은 500,000로 설정할 것이고, 로컬네트워크도 똑같이 설정해줍니다.
+
+```js
+const { ethers } = require("hardhat");
+
+const networkConfig = {
+    4: {
+        name: "rinkeby",
+        vrfCoordinatorV2: "0x6168499c0cFfCaCD319c818142124B7A15E857ab",
+        entranceFee: ethers.utils.parseEther("0.01"),
+        keyHash: "0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc",
+        subscriptionId: "0",
+        callbackGasLimit: "500000", // 500,000
+    },
+    31337: {
+        name: "hardhat",
+        entranceFee: ethers.utils.parseEther("0.01"),
+        keyHash: "0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc", //모의계약이기때문에 뭐가와도 상관없음(비어있어도 돌아감)
+        callbackGasLimit: "500000", // 500,000
+    }
+}
+
+const developmentChains = ["hardhat","localhost"];
+
+module.exports = {
+    networkConfig,
+    developmentChains,
+}
+```
+
+`01-delpoy-raffle.js`로 돌아와서 가져오고 마찬가지로 args에 넣어줍시다.
+
+```js
+  const callbackGasLimit = networkConfig[chainId]["callbackGasLimit"];
+
+  const args = [vrfCoordinatorV2Address, entranceFee, keyHash, subscriptionId, callbackGasLimit];
+```
+
+## args: interval
+
+이제 남은건 `interval`값입니다.
+
+이 값 도한 네트워크에 따라 다르게 정할 수 있습니다. 링크비와 하드햇에서는 `30`초로 설정해놓겠습니다.
+
+```js
+const { ethers } = require("hardhat");
+
+const networkConfig = {
+    4: {
+        name: "rinkeby",
+        vrfCoordinatorV2: "0x6168499c0cFfCaCD319c818142124B7A15E857ab",
+        entranceFee: ethers.utils.parseEther("0.01"),
+        keyHash: "0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc",
+        subscriptionId: "0",
+        callbackGasLimit: "500000", // 500,000
+        interval: "30",
+    },
+    31337: {
+        name: "hardhat",
+        entranceFee: ethers.utils.parseEther("0.01"),
+        keyHash: "0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc", //모의계약이기때문에 뭐가와도 상관없음(비어있어도 돌아감)
+        callbackGasLimit: "500000", // 500,000
+        interval: "30",
+    }
+}
+
+const developmentChains = ["hardhat","localhost"];
+
+module.exports = {
+    networkConfig,
+    developmentChains,
+}
+```
+
+마찬가지로 `01-delpoy-raffle.js`에 가져오고 args에 넣어줍시다.
+
+```js
+const interval = networkConfig[chainId]["interval"]
+const args = [vrfCoordinatorV2Address, entranceFee, keyHash, subscriptionId, callbackGasLimit, interval];
+```
+
+휴, 이제 Raffle.sol의 constructor에 들어갈 arguments들을 모두 입력했습니다.
+
+다음은 `verification`을 할 차례입니다.
+
+### Raffle - verification
+
+계약 검증을 추가해봅시다.
+
+`utils`폴더를 만들고 `verify.js` 파일을 생성합니다.
+
+지난 프로젝트의 `verify.js`를 그대로 사용하겠습니다.
+
+```js
+const { run } = require("hardhat");
+
+const verify = async (contractAddress, args) => {
+  console.log("계약 검증중...");
+  try {
+    await run("verify:verify", {
+      address: contractAddress,
+      constructorArguments: args,
+    });
+  } catch (error) {
+    if (error.message.toLowerCase().includes("already verifide")) {
+      console.log("이미 검증된 계약입니다.");
+    } else {
+      console.log(error);
+    }
+  }
+};
+
+module.exports = { verify };
+
+```
+
+`01-deploy-raffle.js`에 넘어와서 `verify`를 불러옵니다.
+`verify`를 불러올때는 `helper-hardhat-config`로 불러와야 합니다!
+그리고 `developmentChain`이 아닌 곳에서 `ETHERSCAN API KEY`가 있으면 `verify`를 호출하여 검증을 실시합니다.
+
+```js
+const { network, ethers } = require("hardhat");
+const {
+  developmentChains,
+  networkConfig,
+  verify
+} = require("../helper-hardhat-config");
+
+const VRF_SUB_FUND_AMOUNT = ethers.utils.parseEther("2"); //30 is OverKill, 2 would work
+
+module.exports = async function ({ getNamedAccounts, deployments }) {
+  const { deploy, log } = deployments;
+  const { deployer } = await getNamedAccounts();
+  const chainId = network.config.chainId;
+  let vrfCoordinatorV2Address, subscriptionId;
+
+  if (developmentChains.includes(network.name)) {
+    const vrfCoordinatorV2Mock = await ethers.getContract(
+      "VRFCoordinatorV2Mock"
+    );
+    vrfCoordinatorV2Address = vrfCoordinatorV2Mock.address;
+    const transactionResponse = await vrfCoordinatorV2Mock.createSubscription();
+    const transactionReceipt = await transactionResponse.wait(1);
+    subscriptionId = transactionReceipt.events[0].args.subId;
+    //Fund the subscription
+    // Usually, you'd need the link token on a real network
+    await vrfCoordinatorV2Mock.fundSubscription(subscriptionId, VRF_SUB_FUND_AMOUNT);
+  } else {
+    vrfCoordinatorV2Address = networkConfig[chainId]["vrfCoordinatorV2"];
+    subscriptionId = networkConfig[chainId]["subscriptionId"];
+  }
+
+  const entranceFee = networkConfig[chainId]["entranceFee"];
+  const keyHash = networkConfig[chainId]["keyHash"];
+  const callbackGasLimit = networkConfig[chainId]["callbackGasLimit"];
+  const interval = networkConfig[chainId]["interval"];
+
+  const args = [vrfCoordinatorV2Address, entranceFee, keyHash, subscriptionId, callbackGasLimit, interval];
+  const raffle = await deploy("Raffle", {
+    from: deployer,
+    args: args,
+    log: true,
+    waitConfirmations: network.config.blockConfirmations,
+  });
+
+  if(!developmentChains.includes(network.name) && process.env.ETHERSCAN_API_KEY) {
+    log("계약 검증하는중...");
+    await verify(raffle.address, args);
+  }
+  log("----------------------------------")
+};
+
+module.exports.tags = ["all", "raffle"]
+```
+
+이제 deploy 해봅시다.
+```bash
+hh deploy
+```
+```bash
+로컬 네트워크 감지됨! 모의계약 배포중...
+deploying "VRFCoordinatorV2Mock" (tx: 0x11b9dfa83e5a81e783d8d818bd6499fa1504a937113eca5f07b8cfafe70751ea)...: deployed at 0x5FbDB2315678afecb367f032d93F642f64180aa3 with 1797707 gas
+모의계약 배포완료!
+-------------------------------------
+deploying "Raffle" (tx: 0x06c2170546f669c1ab91b1e710a19f5875bb6cd03fc3813aedd51b80a0bccac7)...: deployed at 0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9 with 1186902 gas
+----------------------------------
+Done in 3.04s.
+
+```
+
+성공적으로 배포가 되었습니다!
+
+## Raffle.sol Unit Tests
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-04%20230946.png)
+
+`test/unit/raffle.test.js` 파일을 생성합니다.
+
+이번 섹션의 테스트는 굉장히 장황해질겁니다. 잘 작성할것이고 좋은 커버리지율을 가지게 작성할 것입니다. 그만큼 속도조절을 하시면서 따라오시기 바랍니다.
+이러한 테스트를 작성하면서 뭘 해야하는지 이해하면서 몸에 익히는건 정말 좋습니다.
+당신이 무엇을 어떻게 해야하는지 모를때 이러한 테스트를 작성하면서 머슬메모리에 새기는것이 당신을 뛰어난 엔지니어로 만들어 줄겁니다.
+
+우선 개발체인과 개발체인이 아닐때를 구분하여 개발체인일 경우에만 uint 테스트가 작동하도록 만듭니다.
+
+describe를 이용해 Raffle을 테스트를 할것임을 명시하고 내용을 작성할겁니다.
+
+```js
+const { developmentChains } = require("../../helper-hardhat-config");
+
+!developmentChains.includes(network.name)
+  ? describe.skip
+  : describe("Raffle", async function () {
+    
+  });
+```
+이제 raffle을 deploy 합니다.
+
+`deployments.fixture(["all"])`로 모든 all태그를 가진 계약들, 즉 모든 계약들을 배포합니다.
+
+그런다음 각각의 배포된 계약들을 `getContract`로 변수를 정해 할당해줍니다.
+
+```js
+const { getNamedAccounts, deployments, ethers } = require("hardhat");
+const { developmentChains } = require("../../helper-hardhat-config");
+
+!developmentChains.includes(network.name)
+  ? describe.skip
+  : describe("Raffle", async function () {
+      let raffle, vrfCoordinatorV2Mock;
+
+      beforeEach(async function () {
+        const { deployer } = await getNamedAccounts();
+        await deployments.fixture(["all"]);
+        raffle = await ethers.getContract("Raffle", deployer);
+        vrfCoordinatorV2Mock = await ethers.getContract(
+          "VRFCoordinatorV2Mock",
+          deployer
+        );
+      });
+    });
+```
+
+이제 계약도 배포되었고 `describe`를 작성할 준비가 끝났습니다.
+
+constructor 테스트 먼저 작성해보겠습니다.
+
+`raffleState`가 `OPEN` 인 상태로 시작하는지 테스트 해볼겁니다.
+
+우리가 작성한 RaffleState 타입은 enum이며 0은 `OPEN`을 1은 `CALCULATING`에 접근할 수 있습니다.
+
+그리고 getRaffleState()로 받은 RaffleState 값은 BigNumber이기때문에 toStirng으로 변환해줍니다.
+
+그리고 `OPEN`값을 뜻하는 `"0"`과 비교합니다.
+
+```js
+
+```
