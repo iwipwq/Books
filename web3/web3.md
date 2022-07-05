@@ -19752,6 +19752,436 @@ constructor 테스트 먼저 작성해보겠습니다.
 
 그리고 `OPEN`값을 뜻하는 `"0"`과 비교합니다.
 
+다음은 `interval` 값을 비교합니다. interval은 networkConfig에서 네트워크마다 값을 다르게 구현했으니, 현재 체인ID에 따라 interval 값을 찾아와 raffle계약이 받은 interval 값과 비교합니다.
+
 ```js
+    const chainId = network.config.chainId;
+    //...
+    //...
+      describe("constructor", async function () {
+        it("Raffle을 정상적으로 초기화", async function () {
+            // Ideally we make our tests have just 1 assert per "it"
+            const raffleState = await raffle.getRaffleState();
+            const interval = await raffle.getInterval();
+            assert.equal(raffleState.toString(), "0");
+            assert.equal(interval.toString(), networkConfig[chainId]["interval"])
+        })
+      });
+```
+
+테스트해봅시다.
+```bash
+hh test
+```
+```bash
+
+  Raffle
+    constructor
+      √ Raffle을 정상적으로 초기화
+
+
+  1 passing (734ms)
+
+Done in 5.85s.
 
 ```
+
+테스트가 통과되었습니다. 다음은 `enterRaffle` 함수를 테스트해보겠습니다.
+
+enterRaffle이 참가자가 낸 돈이 참가비보다 작다면 제대로 revert 하는지 확인할겁니다.
+
+새 describe블럭을 만들고 it문을 작성합니다.
+expect 문으로 enterRaffle에 아무값도 집어넣지 않은채로 revertedWith에 해당 에러코드를 삽입합니다.
+
+```js
+      describe("enterRaffle", async function() {
+        it("참가비가 충분하지 않을때 revert 시킴", async function() {
+          await expect(raffle.enterRaffle()).to.be.revertedWith("Raffle__NotEnoughETHEntered")
+        })
+      })
+```
+
+테스트해보겠습니다.
+```bash
+hh test --grep "참가비"
+```
+```bash
+
+  Raffle
+    enterRaffle
+      √ 참가비가 충분하지 않을때 revert 시킴
+
+
+  1 passing (750ms)
+
+Done in 4.98s.
+
+```
+
+테스트가 통과되었습니다.
+
+두번째로 raffle이 "OPEN" 상태가 아닐경우도 revert하는지 테스트합니다. 이는 조금 있다 뒤로 미루겠습니다.
+
+그리고 참가자들이 참가했을때 참가자를 제대로 기록하는지 확인합니다.
+
+그 전에 deployer를 사용하기 위해 전역으로 선언해줍니다.
+
+```js
+
+!developmentChains.includes(network.name)
+  ? describe.skip
+  : describe("Raffle", async function () {
+    let raffle, vrfCoordinatorV2Mock, raffleEntranceFee, deployer;
+    const chainId = network.config.chainId;
+    
+      beforeEach(async function () {
+        deployer = (await getNamedAccounts()).deployer;
+        await deployments.fixture(["all"]);
+        raffle = await ethers.getContract("Raffle", deployer);
+        vrfCoordinatorV2Mock = await ethers.getContract(
+          "VRFCoordinatorV2Mock",
+          deployer
+        );
+        raffleEntranceFee = await raffle.getEntranceFee()
+      });
+
+      //...
+      //...
+
+      describe("enterRaffle", async function() {
+        it("참가비가 충분하지 않을때 revert 시킴", async function() {
+          await expect(raffle.enterRaffle()).to.be.revertedWith("Raffle__NotEnoughETHEntered")
+        })
+        // it("Raffle이 'OPEN'상태가 아닐때 revert 시킴", async function() {
+        //   await expect(raffle.enterRaffle())
+        // })
+        it("플레이어들이 참가했을때 기록함",async function() {
+          await raffle.enterRaffle({value: raffleEntranceFee});
+          const playerFromContract = await raffle.getPlayer(0);
+          assert.equal(playerFromContract, deployer);
+        })
+      })
+```
+
+테스트하겠습니다.
+```bash
+hh test --grep "기록함"
+```
+```bash
+
+  Raffle
+    enterRaffle
+      √ 플레이어들이 참가했을때 기록함
+
+
+  1 passing (821ms)
+
+Done in 4.96s.
+
+```
+
+## Testing Events & Chai Matchers
+
+또 enterRaffle은 event를 emit 합니다. enterRaffle이 제대로 event를 emit하는지 테스트합니다.
+
+enit event (이벤트전송) 함수를 테스트하는 첫번째 시간일겁니다.
+
+>https://ethereum-waffle.readthedocs.io/en/latest/matchers.html#emitting-events
+>```js
+>await expect(token.transfer(walletTo.address, 7))
+>  .to.emit(token, 'Transfer')
+>  .withArgs(wallet.address, walletTo.address, 7);
+>```
+
+chaimatcher의 emitting events 샘플코드를 참고해서 다음과 같이 작성합니다.
+to.emit()을 이용해 첫번째는 contract 두번째인수에는 emit되는 이벤트명을 적어줍니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-04%20230946.png)
+
+```js
+        it("참가했을때 emit event", async function () {
+          await expect(
+            raffle.enterRaffle({ value: raffleEntranceFee })
+          ).to.emit(raffle, "RaffleEnter");
+        });
+```
+
+테스트해봅니다.
+```bash
+hh test --grep "emit"
+```
+```bash
+
+  Raffle
+    enterRaffle
+      √ 참가했을때 emit event
+
+
+  1 passing (761ms)
+
+Done in 4.90s.
+
+```
+
+## Raffle.sol Unit Tests Continued
+
+이제 아까 하려던 CALCULATING 상태일때 Raffle에 참가하지 못하도록 하는 테스트를 진행해보겠습니다.
+
+먼저 enterRaffle 함수에 참가비를 넣고 호출합니다.
+
+```js
+        it("Raffle이 'CALCULATING'상태일때 참가를 불허함", async function () {
+          await raffle.enterRaffle({ value: raffleEntranceFee });
+        });
+```
+
+그리고 이제 해야할것은, Raffle이 닫혀있는 상태를 가져오는겁니다. 
+
+Raffle.sol 코드를 살펴봤을때 `revert Raffle__NotOpen()`이 되도록 `RaffleState` 상태를 가지고 와야합니다.
+```solidity
+
+    function enterRaffle() public payable {
+        // require (msg.value > i_entranceFee, "eth가 충분하지 않습니다!")
+        if (msg.value < i_entranceFee) {
+            revert Raffle__NotEnoughETHEntered();
+        }
+        if (s_raffleState != RaffleState.OPEN) {
+            revert Raffle__NotOpen();
+        }
+        s_players.push(payable(msg.sender));
+        // Emit an event when we update a dynamic array or mapping
+        // Named events with the function name reversed
+        emit RaffleEnter(msg.sender);
+    }
+```
+
+그러나 현재 `enterRaffle`에서는 `RaffleState`가 `OPEN` 된 상태입니다.
+
+이를 다시 `CALCULATING` 상태로 바꿔주는 코드는 바로 `performUpkeep` 입니다.
+
+우승자를 추첨한 후 `s_raffleState` 를 `RaffleState.CALCULATING`으로 바꿔주고 있습니다.
+
+```solidity
+    // function requestRandomWinner() external {
+    function performUpkeep(
+        bytes calldata /* perfromData */
+    ) external override {
+        // request random number
+        // Once we get it, do someting with it
+        // 2 transaction process
+        (bool upkeepNeeded, ) = checkUpkeep("");
+        if (!upkeepNeeded) {
+            revert Raffle__UpkeepNotNeeded(
+                address(this).balance,
+                s_players.length,
+                uint256(s_raffleState)
+            );
+        }
+
+        s_raffleState = RaffleState.CALCULATING;
+        uint256 requestId = i_vrfCoordinator.requestRandomWords(
+            i_keyHash, //gasLane
+            i_subscriptionId,
+            REQUEST_CONFIRMATIONS,
+            i_callbackGasLimit,
+            NUM_WORDS
+        );
+        emit RequestedRaffleWinner(requestId);
+    }
+```
+
+하지만 `performUpkeep`이 작동하기 위해선 `checkUpkeep`이 `true`를 반환시키도록 만들어야 합니다.
+
+So what we need to do is we need to make 'check upkeep' return true. And we will pretend to be the 'chainlink keeper' network to keep calling 'checkupkeep' waiting for it to be 'true'. And once we make it 'true', then we'll pretend to be the 'chainlink keepers' and call 'performupkeep' to put this contract in a state of 'calculating'.
+
+그래서 우리가 해야 할 일은 `checkUpkeep`를 `true`로 반환시키는 것입니다. 그리고 우리는 `checkUpkeep`을 계속 호출하기 위해 `chainlink keepers` 네트워크인 척하면서 `true`가 되기를 기다릴 것입니다. 그리고 일단 `true`가 되면, 우리는 `chainlink keepers`인 척하고 `performUpkeep`을 호출해 이 계약을 `CALCULATING` 상태로 만들 것입니다.
+
+## Hardhat Methods & "Time Travel"
+
+자 이제 어떻게 하면 될까요?
+
+첫번째로, `checkUpkeep`코드블럭 안에서 `checkUpkeep`이 확실히 `OPEN`이 되었는지 확인할 필요가 있습니다.
+```solidity
+bool isOpen = (s_raffleState == RaffleState.OPEN);
+```
+다음으로 할것은 `timePassed`를 기다리는 것입니다. 실제로 우리가 설정해놓은 `30`초를 기다려야 합니다.
+```solidity
+bool timePassed = ((block.timestamp - s_lastTimeStamp) > i_interval);
+```
+이 사실은 참 끔찍하네요, 매 테스트마다 30초씩 기다려야하는 걸까요? 만약 `interval`이 `10일` 이라면 정말 열흘동안 기다려야 하는걸까요? 정말 터무니없는 말 입니다.
+
+사실 하드햇은 말그대로 우리가 원하는대로 블록체인을 조작할 수 있는 다양한 함수를 내장하고 있습니다.
+
+하드햇 문서를 보시면 `hardhat network reference`라는 항목이 있습니다.
+>https://hardhat.org/hardhat-network/reference#hardhat-network-reference
+
+이곳에 hardhat nework가 config에 따라 어떻게 작동되는지 자세한 설명이 나와있습니다.
+
+스크롤을 내려 JSON-RPC methods support 항목을 봅시다.
+>https://hardhat.org/hardhat-network/reference#json-rpc-methods-support
+
+보통의 블록체인이 가지고 있는 이러한 메소드들을 활용할 수 있습니다.
+
+추가적으로, 이런것보다 더 많은 걸 할 수 있습니다.
+
+이런걸 Hardhat Network Method라 부릅니다. 
+
+이것이 우리의 로컬 하드햇 네트워크이기 때문에 우리는 이것을 테스트에 사용할 수 있습니다.
+우리는 어떤 상황이든 테스트하고 싶습니다.
+
+set_storage같은 여러메소들로 따로 연습을 시도해보시는것도 좋습니다.
+
+하지만 여기서 주목할건 `Special tsting/debbugging methods` 부분입니다.
+
+이중에서도 `evm_increaseTime`,`evm_mine`을 살펴봅시다.
+
+- `evm_increaseTime` 블록체인과 EVM의 시간을 자동으로 증가시킬수 있습니다.
+
+- `evm_mine` 새 블록을 채굴 혹은 생성 할 수 있습니다.
+
+만약 우리가 시간을 증가시킨다 해도, 새 블록이 생성되지 않는다면 아무것도 일어나지 않을겁니다.
+
+그래서 우리가 해야할건
+
+network.provider.send()를 사용하여 send의 첫번재 아규먼트로 네트워크 컨픽 메소드 `"evm_increaseTime"`을 문자열로 넣어줍니다.
+두번째 아규먼트로 evm_increaseTime에 전달해줄 파라미터 목록을 넣을 수 있습니다.
+여기서는 `[interval.toNumber() + 1]`이 될겁니다. +1 해준 이유는 확실하게 `interval` 시간을 넘겨서 `checkUpkeep`이 `true`값을 반환하도록 하기 위함입니다.
+
+```js
+        it("Raffle이 'CALCULATING'상태일때 참가를 불허함", async function () {
+          await raffle.enterRaffle({ value: raffleEntranceFee });
+          await network.provider.send("eth_increaseTime",[interval.toNumber() + 1]);
+        });
+```
+
+추가로 `interval`을 사용하기 위해 전역으로 선언해준후 `raffle.getInterval()`을 통해서 `interval` 값을 할당해줍니다.
+
+```js
+describe("Raffle",async function() {
+
+  //...
+  let interval;
+
+  //...
+
+  beforeEach(async function() {
+    //...
+    interval = await raffle.getInterval();
+  })
+
+})
+
+```
+
+그리고나서 network.provider.send()에 `"evm_mine"`을 넘겨주고 두번째 인수로 `[]` 빈 배열을 넣어줍니다. 왜냐하면 하나의 추가블록만 필요하기 때문입니다.
+
+아니라면 이렇게도 사용할 수 있습니다. 위와 아래는 기본적으로 동일합니다.
+
+```js
+await network.provider.send("evm_mine",[]);
+await network.provider.request({method:"evm_mine", params: []})
+```
+
+이제 Chainlink Keeper로 위장할때가 왔습니다.
+
+`await raffle.performUpkeep()`로 performUpkeep을 호출하고 인수로 비어있는 `calldata`를 전달해줍니다. 이는 `[]`빈 배열로 전달해주면 됩니다.
+```js
+await raffle.performUpkeep([]);
+```
+
+자 이제, `s_raffleState`가 `CALCULATING`인 상태로 바뀌어야 합니다.
+우리가 calldata를 빈 배열로 빈 값을 전해주었으니 RaffleState가 CALCULATING으로 바뀔것이고,
+`CALCULATING`인 상태라면 `enterRaffle` 함수가 `OPEN`이 아닌상태이므로 제대로 `revert`되어야 한다고 말할 수 있습니다.
+
+```js
+await raffle.performUpkeep([]);
+await expect(raffle.enterRaffle({value: entranceFee})).to.be.revertedWith("Raffle__NotOpen")
+```
+
+### `Raffle.test.js`전체코드
+```js
+const { assert, expect } = require("chai");
+const { getNamedAccounts, deployments, ethers, network } = require("hardhat");
+const {
+  developmentChains,
+  networkConfig,
+} = require("../../helper-hardhat-config");
+
+!developmentChains.includes(network.name)
+  ? describe.skip
+  : describe("Raffle", async function () {
+      let raffle, vrfCoordinatorV2Mock, raffleEntranceFee, deployer, interval;
+      const chainId = network.config.chainId;
+
+      beforeEach(async function () {
+        deployer = (await getNamedAccounts()).deployer;
+        await deployments.fixture(["all"]);
+        raffle = await ethers.getContract("Raffle", deployer);
+        vrfCoordinatorV2Mock = await ethers.getContract(
+          "VRFCoordinatorV2Mock",
+          deployer
+        );
+        raffleEntranceFee = await raffle.getEntranceFee();
+        interval = await raffle.getInterval();
+      });
+
+      describe("constructor", async function () {
+        it("Raffle을 정상적으로 초기화", async function () {
+          // Ideally we make our tests have just 1 assert per "it"
+          const raffleState = await raffle.getRaffleState();
+          assert.equal(raffleState.toString(), "0");
+          assert.equal(interval.toString(), networkConfig[chainId]["interval"]);
+        });
+      });
+
+      describe("enterRaffle", async function () {
+        it("참가비가 충분하지 않을때 revert 시킴", async function () {
+          await expect(raffle.enterRaffle()).to.be.revertedWith(
+            "Raffle__NotEnoughETHEntered"
+          );
+        });
+        it("플레이어들이 참가했을때 기록함", async function () {
+          await raffle.enterRaffle({ value: raffleEntranceFee });
+          const playerFromContract = await raffle.getPlayer(0);
+          assert.equal(playerFromContract, deployer);
+        });
+        it("참가했을때 emit event", async function () {
+          await expect(
+            raffle.enterRaffle({ value: raffleEntranceFee })
+          ).to.emit(raffle, "RaffleEnter");
+        });
+        it("Raffle이 'CALCULATING'상태일때 참가를 불허함", async function () {
+          await raffle.enterRaffle({ value: raffleEntranceFee });
+          await network.provider.send("evm_increaseTime",[interval.toNumber() + 1])
+          await network.provider.send("evm_mine",[]);
+          // await network.provider.request({method:"evm_mine", params:[]}); //위와 동일
+          // chainlink keeper로 위장
+          await raffle.performUpkeep([]);
+          await expect(raffle.enterRaffle({value: raffleEntranceFee})).to.be.revertedWith("Raffle__NotOpen");
+        });
+      });
+    });
+
+```
+
+
+이제 Raffle이 CACULATING일때 참가금지하는 테스트를 시행해보겠습니다.
+
+```bash
+hh test --grep ""
+```
+```bash
+
+  Raffle
+    enterRaffle
+      √ Raffle이 'CALCULATING'상태일때 참가를 불허함
+
+
+  1 passing (943ms)
+
+Done in 5.23s.
+
+```
+완벽합니다. 테스트를 잘 통과했습니다.
+
+## Raffle.sol Unit Tests -Continued 2
