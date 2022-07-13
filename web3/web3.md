@@ -6795,7 +6795,7 @@ Done in 2.70s.
 하드햇은 `Hardhat Network`라는 빌트인 툴이 있습니다.
 
 >https://hardhat.org/hardhat-network#hardhat-network
-Hardhat은 Ganache, 'geth --dev' 등과 유사하게 개발을 위해 설계된 로컬 이더리움 네트워크 노드인 Hardhat Network와 함께 내장되어 있다. 계약을 배포하고, 테스트를 실행하고, 코드를 디버깅할 수 있습니다.
+Hardhat은 Ganache, 'geth --dev' 등과 유사하게 개발을 위해 설계된 로컬 이더리움 네트워크 노드인 Hardhat Network와 함께 내장되어 있습니다. 계약을 배포하고, 테스트를 실행하고, 코드를 디버깅할 수 있습니다.
 
 우리가 `command hardhat`이나 `script hardhat` 또는 `task hardhat`을 실행할때마다. 우리는 이를 페이크 하드햇 네트워크에 배포하게 됩니다.
 
@@ -6812,7 +6812,7 @@ module.exports = {
 }
 ```
 
-특정 네트워크를 설정하지 않고 하드햇 스크립틀 실행시키면 언제나 hardhat 페이크 네트워크를 사용하며, 하드햇 네트워크는 사용자를 위한 RPCURL과 private key를 자동으로 제공합니다. 그래서 그것들을 넣지 않아도 되는겁니다.
+특정 네트워크를 설정하지 않고 하드햇 스크립트를 실행시키면 언제나 hardhat 페이크 네트워크를 사용하며, 하드햇 네트워크는 사용자를 위한 RPCURL과 private key를 자동으로 제공합니다. 그래서 그것들을 넣지 않아도 되는겁니다.
 
 이것이 하드햇을 사용하는 주요이점입니다.
 
@@ -7263,7 +7263,7 @@ main() 함수에 마지막 줄에서 생각해봅시다.
 
 하드햇네트워크에 배포한 계약을 이더스캔네트워크에서 검증한다. 말이 안됩니다. 물론 hardhat.etherscan.io 라는 하드햇 테스트넷도 없을 것입니다.
 
-그러므로 하드햇 네트워크에 배포했을때르 조건으로 처리해주어야 합니다.
+그러므로 하드햇 네트워크에 배포했을때를 조건문으로 처리해주어야 합니다.
 
 이 때 config에 설정해놓은 chainId를 유용하게 사용할 수 있습니다.
 네트워크 상태를 network 패키지를 가져와서 확인 할 수 있습니다.
@@ -7357,7 +7357,7 @@ async function main() {
 인수로는 simpleStorage.address로 계약주소를 넘겨주고, 두번째 인수 constructor는 없으므로 빈([])을 넣어줍니다.
 또한 verify는 async 함수이므로 await을 사용해줍니다.
 
-또한 배포가 될때 이더스캔이 이것의 트랜잭션을 알아차리는데 시간이 ㅇ걸립니다. 그러므로 이에 대한 모범사례는 전에 했던것처럼 블록이 추가될때까지 기다리는겁니다. 단 이번엔 6번째 블록이 추가될때입니다.
+또한 배포가 될때 이더스캔이 이것의 트랜잭션을 알아차리는데 시간이 걸립니다. 그러므로 이에 대한 모범사례는 전에 했던것처럼 블록이 추가될때까지 기다리는겁니다. 단 이번엔 6번째 블록이 추가될때입니다.
 
 ## Interaction with Contracts in Hardhat
 
@@ -16877,7 +16877,7 @@ enterRaffle함수에서 배열의 정보가 업데이트되면 이벤트를 발�
 
 chainlink VRF version 2
 
-체인링크 버전2는 우리 조심해야 할 서로다른 많은 metal model을 가지고 있습니다.
+체인링크 버전2는 우리 조심해야 할 서로다른 많은 mental model을 가지고 있습니다.
 그것을 어떻게 사용하는지 알려드리겠습니다.
 
 link를 이용해 계약에 funding하는 체인링크 버전1 과 달리 체인링크 버전2에선 기본적으로 당신이 다수의 소비자 계약의 자금을 fund하고 유지보수 할 수 있는 계정을 구독(subscription)하여 funding할 것입니다.
@@ -20185,3 +20185,4010 @@ Done in 5.23s.
 완벽합니다. 테스트를 잘 통과했습니다.
 
 ## Raffle.sol Unit Tests -Continued 2
+
+마무리로 hardhat test로 전체코드를 테스트합니다.
+
+```bash
+
+  Raffle
+    constructor
+      √ Raffle을 정상적으로 초기화
+    enterRaffle
+      √ 참가비가 충분하지 않을때 revert 시킴
+      √ 플레이어들이 참가했을때 기록함
+      √ 참가했을때 emit event
+      √ Raffle이 'CALCULATING'상태일때 참가를 불허함
+
+
+  5 passing (1s)
+
+Done in 6.54s.
+
+```
+
+커버리지를 확인합니다.
+```bash
+yarn hardhat coverage
+```
+
+```bash
+
+Version
+=======
+> solidity-coverage: v0.7.21
+
+Instrumenting for coverage...
+=============================
+
+> KeeepersExample.sol
+> Raffle.sol
+> SampleEvents.sol
+> VRFCoordinatorV2Mock.sol
+
+Compilation:
+============
+
+Warning: Unnamed return variable can remain unassigned. Add an explicit return with value to all non-reverting code paths or name the variable.
+  --> contracts/KeeepersExample.sol:38:109:
+   |
+38 |  ... erride returns (bool upkeepNeeded, bytes memory /* performData */) {c_0x4210166a(0 ...
+   |                                         ^^^^^^^^^^^^
+
+
+Warning: Unnamed return variable can remain unassigned. Add an explicit return with value to all non-reverting code paths or name the variable.
+   --> contracts/Raffle.sol:143:13:
+    |
+143 |             bytes memory /* performData */
+    |             ^^^^^^^^^^^^
+
+
+Warning: Unused function parameter. Remove or comment out the variable name to silence this warning.
+   --> @chainlink/contracts/src/v0.8/mocks/VRFCoordinatorV2Mock.sol:186:24:
+    |
+186 |   function addConsumer(uint64 _subId, address _consumer) external pure override {
+    |                        ^^^^^^^^^^^^^
+
+
+Warning: Unused function parameter. Remove or comment out the variable name to silence this warning.
+   --> @chainlink/contracts/src/v0.8/mocks/VRFCoordinatorV2Mock.sol:186:39:
+    |
+186 |   function addConsumer(uint64 _subId, address _consumer) external pure override {
+    |                                       ^^^^^^^^^^^^^^^^^
+
+
+Warning: Unused function parameter. Remove or comment out the variable name to silence this warning.
+   --> @chainlink/contracts/src/v0.8/mocks/VRFCoordinatorV2Mock.sol:190:27:
+    |
+190 |   function removeConsumer(uint64 _subId, address _consumer) external pure override {
+    |                           ^^^^^^^^^^^^^
+
+
+Warning: Unused function parameter. Remove or comment out the variable name to silence this warning.
+   --> @chainlink/contracts/src/v0.8/mocks/VRFCoordinatorV2Mock.sol:190:42:
+    |
+190 |   function removeConsumer(uint64 _subId, address _consumer) external pure override {
+    |                                          ^^^^^^^^^^^^^^^^^
+
+
+Warning: Unused function parameter. Remove or comment out the variable name to silence this warning.
+   --> @chainlink/contracts/src/v0.8/mocks/VRFCoordinatorV2Mock.sol:194:45:
+    |
+194 |   function requestSubscriptionOwnerTransfer(uint64 _subId, address _newOwner) external pure override {  
+    |                                             ^^^^^^^^^^^^^
+
+
+Warning: Unused function parameter. Remove or comment out the variable name to silence this warning.
+   --> @chainlink/contracts/src/v0.8/mocks/VRFCoordinatorV2Mock.sol:194:60:
+    |
+194 |   function requestSubscriptionOwnerTransfer(uint64 _subId, address _newOwner) external pure override {  
+    |                                                            ^^^^^^^^^^^^^^^^^
+
+
+Warning: Unused function parameter. Remove or comment out the variable name to silence this warning.
+   --> @chainlink/contracts/src/v0.8/mocks/VRFCoordinatorV2Mock.sol:198:44:
+    |
+198 |   function acceptSubscriptionOwnerTransfer(uint64 _subId) external pure override {
+    |                                            ^^^^^^^^^^^^^
+
+
+Warning: Function state mutability can be restricted to view
+   --> contracts/Raffle.sol:136:5:
+    |
+136 |     function checkUpkeep(
+    |     ^ (Relevant source part starts here and spans across multiple lines).
+
+
+Compiled 11 Solidity files successfully
+
+Network Info
+============
+> HardhatEVM: v2.9.9
+> network:    hardhat
+
+
+
+  Raffle
+    constructor
+      ✔ Raffle을 정상적으로 초기화
+    enterRaffle
+      ✔ 참가비가 충분하지 않을때 revert 시킴 (40ms)
+      ✔ 플레이어들이 참가했을때 기록함 (48ms)
+      ✔ 참가했을때 emit event (41ms)
+      ✔ Raffle이 'CALCULATING'상태일때 참가를 불허함 (89ms)
+
+
+  5 passing (890ms)
+
+---------------------------|----------|----------|----------|----------|----------------|
+File                       |  % Stmts | % Branch |  % Funcs |  % Lines |Uncovered Lines |
+---------------------------|----------|----------|----------|----------|----------------|
+ contracts\                |       52 |       50 |    42.11 |    52.83 |                |
+  KeeepersExample.sol      |        0 |        0 |        0 |        0 |... 28,34,35,36 |
+  Raffle.sol               |       65 |     62.5 |    57.14 |    65.12 |... 182,186,190 |
+  SampleEvents.sol         |        0 |      100 |        0 |        0 |       15,21,25 |
+  VRFCoordinatorV2Mock.sol |      100 |      100 |      100 |      100 |                |
+---------------------------|----------|----------|----------|----------|----------------|
+All files                  |       52 |       50 |    42.11 |    52.83 |                |
+---------------------------|----------|----------|----------|----------|----------------|
+
+> Istanbul reports written to ./coverage/ and ./coverage.json
+Done in 5.51s.
+
+```
+
+이제 `checkUpkeep`을 테스트해보겠습니다.
+마찬가지로 checkUpkeep이 true를 반환해야하므로 다음과 같이 입력합니다.
+
+```js
+      describe("checkUpkeep",async function() {
+        it("참여자가 ETH를 지불하지 않았다면 false를 반환", async function() {
+          await network.provider.send("evm_increaseTime",[interval.toNumber() + 1]);
+          await network.provider.send("evm_mine",[]);
+        })
+      })
+```
+
+## Callstatic
+
+이제 checkUpkeep을 호출할겁니다.
+
+여기서 중요한건, checkUpkeep 은 public 함수라는 것입니다.
+
+그래서 우리가 `await raffle.checkUpkeep([])` 로 호출하면 이것이 트랜잭션을 시작하게 될것입니다. 왜냐하면 하드햇이 "public 함수로군, 분명히 트랜잭션을 전송할거야" 라는걸 알고 있기 때문입니다. 이 함수가 만약 public view 함수였다면 그렇지 않았을겁니다. view를 리턴했겠죠 , 그러나 중요한점은 현재 트랜잭션을 전송하고 싶지는 않고, 이 트랜잭션을 모의 전송(simulate sending)하고 `upkeepNeeded`가 리턴하는 값이 궁금한 겁니다. 
+
+사실 이것은 `CallStatic`이라는것을 통해 알 수 있습니다. 이 트랜잭션 호출을 시뮬레이션할 수 있고 무엇이 응답되는지 알 수 있습니다. 그래서 `raffle.checkUpkeep([])`대신에, 
+
+```js
+await raffle.callStatic.checkUpkeep([]);
+```
+
+으로 사용할 수 있습니다. 그리고 이것이 upkeepNeeded 가 반환하는 값(true 혹은 false)과 bytes meemor performData를 가져올 것입니다. 
+
+그리고 이렇게 upkeepNeeded를 특정해서 upkeepNeeded값을 예상할 수 있습니다.
+
+```js
+const { upkeepNeeded } = await raffle.callStatic.checkUpkeep([]);
+```
+
+그런다음 `assert` 메소드로 `!upkeepNeeded`값이 false인지 확인할 겁니다. 왜냐하면 현상태에서 `upkeepNeeded`는 `false`를 반환해야할 것이기 때문입니다.
+
+```js
+const { upkeepNeeded } = await raffle.callStatic.checkUpkeep([]);
+asset(!upkeepNeeded);
+```
+
+테스트해봅시다.
+
+```bash
+
+  Raffle
+    checkUpkeep
+      √ 참여자가 ETH를 지불하지 않았다면 false를 반환
+
+
+  1 passing (743ms)
+
+Done in 4.79s.
+
+```
+
+통과되었습니다.
+
+## Raffle.sol Unit Tests -Continued 3 / 15:40:00
+
+이제 `checkUpkeep`이 RaffleState가 "OPEN"이 아닐때 retrun값으로 false를 반환하는지도 테스트하겠습니다.
+
+`checkUpkeep`에 있는 조건중 `isOpen` 만 `CALCULATING` 이 되도록 할겁니다.
+
+```js
+await raffle.enterRaffle({value: raffleEntranceFee}); // --> address(this).balance에 자금을 넣습니다.
+await network.provider.send("evm_increaseTime",[interval.toNumber() + 1]); // --> 인터벌 타임을 초과시킵니다.
+await network.provider.send("evm_mine",[]); // --> 블록을 생성합니다.
+await raffle.performUpkeep("0x"); // ([])과 동일 '빈 바이트'임을 하드햇이 인식 // --> performUpkeep을 실행시켜 raffleState를 CALCULATING으로 변경합니다.
+```
+
+그리고 `getRaffleState()`로 raffleState 값을 변수에 할당하고 `upkeepNeeded` 반환값 `false`를 checkUpkeep을 callStatic으로 시뮬레이션해서 받아옵니다.
+
+`raffleState` 값은 현재 "CALCULATING"상태이므로 enum 인데스 `1`이 될겁니다. assert로 `1`과 비교해줍니다.
+`upkeepNeeded`는 false값을 받으니 false와 비교해줍니다.
+
+```js
+        it("Raffle이 OPEN 상태가 아닐때 false를 반환", async function() {
+          await raffle.enterRaffle({value: raffleEntranceFee});
+          await network.provider.send("evm_increaseTime",[interval.toNumber() + 1]);
+          await network.provider.send("evm_mine",[]);
+          await raffle.performUpkeep("0x"); // ([])과 동일 '빈 바이트'임을 하드햇이 인식
+          const raffleState = await raffle.getRaffleState();
+          const {upkeepNeeded} = await raffle.callStatic.checkUpkeep([]);
+          assert.equal(raffleState.toString(), "1");
+          assert.equal(upkeepNeeded, false);
+        })
+```
+테스트해보겠습니다.
+```bash
+
+  Raffle
+    checkUpkeep
+      √ Raffle이 OPEN 상태가 아닐때 false를 반환
+
+
+  1 passing (810ms)
+
+Done in 5.42s.
+
+```
+통과되었습니다.
+
+나머지 두 조건도 앞서 실습해본 방식으로 테스트할 수 있습니다.
+
+```js
+        it("충분한 시간(interval)이 지나지 않았다면 false 반환", async function () {
+          await raffle.enterRaffle({ value: raffleEntranceFee });
+          await network.provider.send("evm_increaseTime", [
+            interval.toNumber() - 1,
+          ]);
+          await network.provider.send("evm_mine", []);
+          const { upkeepNeeded } = await raffle.callStatic.checkUpkeep([]);
+          assert(!upkeepNeeded);
+        });
+        it("1.충분한 시간(interval)이 지나고, 2.참가자가 존재하고, 3.eth가 계약 자금에 존재하고, 4.OPEN 상태일때 -> true를 반환", async function () {
+          await raffle.enterRaffle({ value: raffleEntranceFee });
+          await network.provider.send("evm_increaseTime", [
+            interval.toNumber() + 1,
+          ]);
+          await network.provider.request({ method: "evm_mine", params: [] });
+          const { upkeepNeeded } = await raffle.callStatic.checkUpkeep([]);
+          assert(checkUpkeep);
+        });
+```
+```bash
+yarn hardhat test --grep "충분한 시간"
+```
+```bash
+
+  Raffle
+    checkUpkeep
+      √ 충분한 시간(interval)이 지나지 않았다면 false 반환
+      √ 1.충분한 시간(interval)이 지나고, 2.참가자가 존재하고, 3.eth가 계약 자금에 존재하고, 4.OPEN 상태일때 -> true를 반환
+
+
+  2 passing (840ms)
+
+Done in 4.90s.
+
+```
+
+통과되었습니다.
+
+그리고 추가로 `describe` 에서는 `Promise`와 함께 작동할 수 없습니다. 따라서 `async`로 사용할 수 없습니다. `describe` 코드블럭에 있는 `async` 를 제거하겠습니다.
+
+
+### perfomrUpkeep test
+
+이제 `perfomrUpkeep`함수를 테스트하겠습니다.
+
+`tx`가 error가 나거나 작동하지 않는다면 `assert(tx)`는 실패할겁니다.
+그러므로 checkUpkeep이 true일때 performUpkeep이 작동하는지 알 수 있습니다.
+
+```js
+      describe("perfromUpkeep", function() {
+        it("checkUpkeep이 true일때만 작동", async function() {
+          await raffle.enterRaffle({value:raffleEntranceFee});
+          await network.provider.send("evm_increaseTime",[interval.toNumber() + 1]);
+          await network.provider.send("evm_mine", []);
+          const tx = await raffle.performUpkeep([]);
+          assert(tx);
+        })
+      })
+```
+
+다음은 `checkUpkeeps` 가 `false`를 반환했을때 제대로 `revert`시키는지 테스트해보겠습니다.
+
+```js
+        it("checkUpkeep이 false를 반환했을때 revert", async function() {
+          await expect(raffle.performUpkeep([])).to.be.revertedWith("Raffle__UpkeepNotNeeded");
+        })
+```
+
+여기서 `Raffle__UpkeepNotNeeded`가 자동으로 에러인자들을 처리하고 있다는걸 알아차렸을겁니다.
+에러인자를 특정하고 싶다면 `Raffle.sol`에서 작성한 에러인자들을 넣어주면 됩니다.
+
+```js
+        it("checkUpkeep이 false를 반환했을때 revert", async function() {
+          await expect(raffle.performUpkeep([])).to.be.revertedWith(`Raffle__UpkeepNotNeeded(${})`);
+        })
+```
+
+이제 raffleState, emits, event를 업데이트하고 vrfCoordinator를 호출하는지 테스트합니다.
+
+`requestId`는 `performUpkeep`안의 `emit RequestedRaffleWinner(requestId)`에서 얻을 수 있습니다.
+
+그런데 여기서 `VRFCoordinatorV2Mock.sol`파일을 살펴봅시다.
+
+```solidity
+//...
+  function requestRandomWords(
+    bytes32 _keyHash,
+    uint64 _subId,
+    uint16 _minimumRequestConfirmations,
+    uint32 _callbackGasLimit,
+    uint32 _numWords
+  ) external override returns (uint256) {
+    if (s_subscriptions[_subId].owner == address(0)) {
+      revert InvalidSubscription();
+    }
+
+    uint256 requestId = s_nextRequestId++;
+    uint256 preSeed = s_nextPreSeed++;
+
+    s_requests[requestId] = Request({subId: _subId, callbackGasLimit: _callbackGasLimit, numWords: _numWords});
+
+    emit RandomWordsRequested(
+      _keyHash,
+      requestId,
+      preSeed,
+      _subId,
+      _minimumRequestConfirmations,
+      _callbackGasLimit,
+      _numWords,
+      msg.sender
+    );
+    return requestId;
+  }
+```
+여기서도 `emit RandomWordsRequested`로 event를 emit하는걸 볼 수 있습니다.
+
+이 emit의 두번째 인자가 `requestId`인 것이 틀림없어보입니다.
+
+때문에 우리가 `requestId`를 `emit`하는건 불필요한(redundant) 일입니다. 우리는 그저 VRFCoordinator 에서 온 RequestId를 사용하기만 하면 됩니다.
+
+그러니 사실 performUpkeep 안의 emit RequestRandomWords는 필요없습니다.
+
+```solidity
+        s_raffleState = RaffleState.CALCULATING;
+        uint256 requestId = i_vrfCoordinator.requestRandomWords(
+            i_keyHash, //gasLane
+            i_subscriptionId,
+            REQUEST_CONFIRMATIONS,
+            i_callbackGasLimit,
+            NUM_WORDS
+        );
+        emit RequestedRaffleWinner(requestId);
+```
+
+만약 Raffle.sol의 emit RequestRandomWords를 놔두지 않고 그대로 진행한다면, reqeustId에서 `i_vrfCoordinator.requestRandomWords()`로 requestRandomWords를 호출하고 있습니다. 여기에서 event가 한번 발생함으로 트랜잭션내역(txReceipt)의 events에 [0]로 들어가게 됩니다. 그 다음 `emit RequestedRaffleWinner(requestId)`로 events를 한번 더 emit 해서 txReceipt의 events[1]로 들어가게 됩니다.
+
+그러니 txReceipt에서 requestId를 가져올때 events[1]에서 가져와야합니다.
+
+
+```js
+        it("raffleState, emits, event 를 업데이트 하고 vrfCooridnator를 호출", async function() {
+          await raffle.enterRaffle({value:raffleEntranceFee});
+          await network.provider.send("evm_increaseTime",[interval.toNumber() + 1]);
+          await network.provider.send("evm_mine", []);
+          const txResponse = await raffle.performUpkeep([]);
+          const txReceipt = await txResponse.wait(1);
+          const requestId = txReceipt.events[1].args.requestId;
+          const raffleState = await raffle.getRaffleState();
+          assert(requestId.toNumber()>0)
+          assert(raffleState.toString() == "1");
+        })
+```
+
+테스트해보겠습니다.
+
+```bash
+
+  Raffle
+    perfromUpkeep
+      √ raffleState, emits, event 를 업데이트 하고 vrfCooridnator를 호출
+
+
+  1 passing (819ms)
+
+Done in 4.99s.
+
+```
+통과했습니다.
+
+### fulfillRandomWords Test
+
+다음은 `fulfillRandomWords`를 테스트하겠습니다.
+
+fulfillRandomWords는 오직 requestId가 전송되었을때 실행됩니다.
+
+```solidity
+//Raffle.sol
+    function performUpkeep(
+        bytes calldata /* perfromData */
+    ) external override {
+        // request random number
+        // Once we get it, do someting with it
+        // 2 transaction process
+        (bool upkeepNeeded, ) = checkUpkeep("");
+        if (!upkeepNeeded) {
+            revert Raffle__UpkeepNotNeeded(
+                address(this).balance,
+                s_players.length,
+                uint256(s_raffleState)
+            );
+        }
+
+        s_raffleState = RaffleState.CALCULATING;
+        uint256 requestId = i_vrfCoordinator.requestRandomWords(
+            i_keyHash, //gasLane
+            i_subscriptionId,
+            REQUEST_CONFIRMATIONS,
+            i_callbackGasLimit,
+            NUM_WORDS
+        );
+        emit RequestedRaffleWinner(requestId);
+    }
+
+
+```
+
+이 부분에서 requestId가 vrfCoordinator의  requestRanodmWords를 호출하고 있기때문입니다.
+```solidity
+        s_raffleState = RaffleState.CALCULATING;
+        uint256 requestId = i_vrfCoordinator.requestRandomWords(
+            i_keyHash, //gasLane
+            i_subscriptionId,
+            REQUEST_CONFIRMATIONS,
+            i_callbackGasLimit,
+            NUM_WORDS
+        );
+        emit RequestedRaffleWinner(requestId);
+```
+
+vrfCoordinatorV2Mock.fulfillRandomWords를 호출하는데,
+vrfCoordinatorV2Mock를 보면, 체인 링크 노드가 실제로 부르는 것과 내부에 있는 'fulfillRandomWords' 함수가 있습니다. 실제 계약에 이 기능을 추가하면 난수 확인을 하는 다른 계약을 호출할 수 있습니다.
+
+그리고 보시다시피 requestId가 없는 경우 "nonexistent request"라는 메세지와 함께 revert시키고 있습니다.
+
+또한 아규먼트로 requestId 뿐만아니라 consumer 주소도 필요합니다.
+
+```solidity
+// VRFCoordinationV2Mock.sol
+//...
+function fulfillRandomWords(uint256 _requestId, address _consumer) external {
+    uint256 startGas = gasleft();
+    if (s_requests[_requestId].subId == 0) {
+      revert("nonexistent request");
+    }
+    Request memory req = s_requests[_requestId];
+
+    uint256[] memory words = new uint256[](req.numWords);
+    for (uint256 i = 0; i < req.numWords; i++) {
+      words[i] = uint256(keccak256(abi.encode(_requestId, i)));
+    }
+
+    VRFConsumerBaseV2 v;
+    bytes memory callReq = abi.encodeWithSelector(v.rawFulfillRandomWords.selector, _requestId, words);
+    (bool success, ) = _consumer.call{gas: req.callbackGasLimit}(callReq);
+
+    uint96 payment = uint96(BASE_FEE + ((startGas - gasleft()) * GAS_PRICE_LINK));
+    if (s_subscriptions[req.subId].balance < payment) {
+      revert InsufficientBalance();
+    }
+    s_subscriptions[req.subId].balance -= payment;
+    delete (s_requests[_requestId]);
+    emit RandomWordsFulfilled(_requestId, _requestId, payment, success);
+  }
+  //...
+```
+
+fulfillRandomWords에 requestId와 raffle.address를 넣어줍니다.
+그리고 다른 requestId를 넣었을때도 똑같이 revert되는지 확인하기 위해 한번 더 fulfillRandomWords를 호출합니다.
+
+```js
+      describe("fulfillRandomWords", function () {
+        beforeEach(async function () {
+          await raffle.enterRaffle({ value: raffleEntranceFee });
+          await network.provider.send("evm_increaseTime", [
+            interval.toNumber() + 1,
+          ]);
+          await network.provider.send("evm_mine", []);
+        });
+        it("반드시 performUpkeep 이후에 호출되어야 함", async function () {
+          await expect(
+            vrfCoordinatorV2Mock.fulfillRandomWords(0, raffle.address)
+          ).to.be.revertedWith("nonexeistent request");
+          await expect(
+            vrfCoordinatorV2Mock.fulfillRandomWords(1, raffle.address)
+          ).to.be.revertedWith("nonexeistent request");
+        });
+      });
+    });
+
+```
+
+그리고 이상적으로, 여기 어떤 요청(request)도 이 '임의 단어 채우기'를 통과시키지 못할 것입니다.
+당연하게도 하나하나 가능한 ID를 일일히 테스트해보는것은 굉장히 힘들것입니다. 그래서 나중에 이런 requestId(0,1,2,3,....)같은 엄청나게 많은 변수를 처리하는 문제를 해결할 수 잇는 `FUZZ testing`이라 불리는 것을 배울겁니다.
+
+일단 테스트해봅시다.
+
+```bash
+
+  Raffle
+    fulfillRandomWords
+      √ 반드시 performUpkeep 이후에 호출되어야 함
+
+
+  1 passing (799ms)
+
+Done in 5.06s.
+
+```
+
+통과하였습니다.
+
+## Massive Promise Test
+
+이제부터 시작할 테스트는 너무 크기때문에 따로 항목을 만들어서 시행할겁니다.
+스테이징테스트를 할때도 말그대로 이것과 동일하게 할겁니다.
+
+이건 아마도 모든 것을 모아논 테스트가 될겁니다.
+
+우승자를 추첨하고, 복권을 리셋하고, 우승자에게 돈을 보내는 걸 한번에 테스트할겁니다.
+
+```js
+describe("fulfillRandomWords", function () {
+        //...
+        //...
+        it("우승자를 추첨하고, 복권을 리셋하고, 우승자에게 돈을 보내기", async function() {
+          
+        })
+      });
+```
+
+자 여기서 새로운 트릭을 배울겁니다. 그러니 꼭 따라오세요.
+
+Now for this one, we're also going to add in some additional entrants additional people who are entering this lottery.
+
+자, 이번에는, 추첨에 참여할 사람들(Entrants)을 몇 명 더 추가할 예정입니다. 3명 더 추가해보죠
+
+```js
+        it("우승자를 추첨하고, 복권을 리셋하고, 우승자에게 돈을 보내기", async function() {
+          const additionalEntrants = 3
+        })
+
+```
+
+그리고 ethers로부터 가계정(fake Account)을 몇개 가져와 복권안에 넣을겁니다.
+
+```js
+        it("우승자를 추첨하고, 복권을 리셋하고, 우승자에게 돈을 보내기", async function() {
+          const additionalEntrants = 3
+          const startingAccountIndex = 1 // deployer(이 계약을 배포한 사람) = 0
+        })
+
+```
+
+그리고 for 문을 작성할겁니다.
+
+```js
+        it("우승자를 추첨하고, 복권을 리셋하고, 우승자에게 돈을 보내기", async function() {
+          const additionalEntrants = 3
+          const startingAccountIndex = 1 // deployer(이 계약을 배포한 사람) = 0
+          for(i = startingAccountIndex; i < startingAccountIndex + additionalEntrants; i++ ) {
+
+          }
+        })
+
+```
+
+Raffle.sol 계약에 연결된 계정을 `accountConnectedRaffle`이라 명명하고 `connect`메소드로 해당 for 루프의 인덱스가 되는 순서의 accounts와 연결합니다.
+
+그리고 `accounts`는 `ethers.getSingers()`로 가계정을 받아옵니다.
+
+그 후 await으로 연결된 계정에서 `enterRaffle`에 value를 넣어 호출합니다.
+
+이제 Raffle에 연결된 사람은 총 4명입니다.
+
+```js
+        it("우승자를 추첨하고, 복권을 리셋하고, 우승자에게 돈을 보내기", async function() {
+          const additionalEntrants = 3;
+          const startAccountIndex = 1; // deployer = 0
+          const accounts = await ethers.getSigners();
+          for(i = startAccountIndex; i < startAccountIndex + additionalEntrants; i++) {
+            const accountConnectedRaffle = raffle.connect(accounts[i]);
+            await accountConnectedRaffle.enterRaffle({ value: raffleEntranceFee });
+          }
+        })
+```
+
+ startingTimeStamp에 시작 타임스템프 시간을 할당합니다.
+
+```js
+        it("우승자를 추첨하고, 복권을 리셋하고, 우승자에게 돈을 보내기", async function() {
+          const additionalEntrants = 3;
+          const startAccountIndex = 1; // deployer = 0
+          const accounts = await ethers.getSigners();
+          for(i = startAccountIndex; i < startAccountIndex + additionalEntrants; i++) {
+            const accountConnectedRaffle = raffle.connect(accounts[i]);
+            await accountConnectedRaffle.enterRaffle({ value: raffleEntranceFee });
+          }
+          const startingTimeStamp = await raffle.getLatestTimeStamp();
+        })
+```
+
+우리가 원하는것은 `performUpkeep`입니다. `performUpkeep`이 모의계약이 `chainlink keepres`로 역할을 하게만들고, 이것이 `fulfillRandomWords`를 시작시키게 만듭니다. 그리고 `Chainlink VRF` 역할을 하는 모의계약도 모의계약으로 만들것입니다. 
+
+물론 `Raffle.sol`의 이부분
+
+```solidity
+// Raffle.sol
+//...
+    function fulfillRandomWords(
+        uint256, /*requestId*/
+        uint256[] memory randomWords
+    ) internal override {
+        uint256 indexOfWinner = randomWords[0] % s_players.length;
+        address payable recentWinner = s_players[indexOfWinner];
+        s_recentWinner = recentWinner;
+        s_raffleState = RaffleState.OPEN;
+        s_players = new address payable[](0);
+        s_lastTimeStamp = block.timestamp;
+        (bool success, ) = recentWinner.call{value: address(this).balance}("");
+        // require(success)
+        if (!success) revert Raffle__TransferFailed();
+        emit WinnerPicked(recentWinner);
+    }
+    //...
+```
+에서  s_recentWinner s_raffleState s_raffleState s_players s_lastTimeStamp 등이 리셋되었는지 직접 확인 할 수 있지만 우리는 좀더 특정해서 확인해보려합니다.
+
+우리가 `fulfillRandomWords`에서 이 확인과정을 테스트넷에서 다 거치고 나면, vrfCoordinator의 `fulfillRandomWords`가 호출되기를 기다려야합니다. 그러나 hardhat 로컬네트워크라면 이걸 기다릴 필요는 없을겁니다. 왜냐하면 블록체인을 마음대로 조작할 수 있으니까요, 하지만 여기선 이벤트가 호출될때까지 기다릴 필요가 있다는 것을 시뮬레이션할겁니다.
+
+이벤트를 기다리도록 시뮬레이션하기 위해선, 다시 한번 `listener`를 설정해야합니다.
+
+그 다음 `listener`가 `listening`을 끝내기 전에 테스트 코드가 끝나지 않도록 해야합니다.
+
+그렇기 때문에 , 새 `Promise`를 만들어야합니다.
+
+그리고 이것은 스테이징 테스트에 있어서도 매우 중요한 점입니다.
+
+그러므로 await으로 새 Promise를 만들어줍니다. 지난번에 만들었던 `once`를 이용한 Pormise문과 비슷합니다.
+
+그리고 `raffle.once`로 `WinnerPicked`이벤트가 발생했을시, 어떤 행동을 취하게 만듭니다.
+
+```js
+        it("우승자를 추첨하고, 복권을 리셋하고, 우승자에게 돈을 보내기", async function() {
+          const additionalEntrants = 3;
+          const startAccountIndex = 1; // deployer = 0
+          const accounts = await ethers.getSigners();
+          for(i = startAccountIndex; i < startAccountIndex + additionalEntrants; i++) {
+            const accountConnectedRaffle = raffle.connect(accounts[i]);
+            await accountConnectedRaffle.enterRaffle({ value: raffleEntranceFee });
+          }
+          const startingTimeStamp = await raffle.getLatestTimeStamp();
+
+          // performUpkeep (mock being Chainlink Keepers)
+          // fulfillRandomWords (mock being the Chainlink VRF)
+          // We will have to wait for the fulfillRandomWords to be called
+          await new Promise(async (resolve, reject) => {
+            raffle.once("WinnerPicked", async() => {})
+          })
+        })
+```
+
+once문 안에 모든 assert cert를 집어넣을겁니다. 왜냐하면 우승자 당첨을 기다릴것이기 때문입니다.
+
+자 이벤트가 발생되기 전에 , 당연히 우리는 `performUpkeep`과 `fulfillRandomWords`를 호출해야합니다. 그래서 약간 거꾸로 하는것처럼 보일겁니다. 
+
+So this is going to seem like it's a little bit backwards. But that's because we want to set up our 'listeners' so that when we do fire, the methods that will fire the 'event', our 'listener' is activated and is waiting for it. 
+
+이벤트를 발생시키는 메소드를 발생시킬때, 리스너가 활성화되서 그것을 기다리도록 리스너를 설정하기를 원하기 때문입니다.
+
+그리고 Promise 안에 코드를 작성할 겁니다. Pormise 바깥에 작성한다면 이 Promise는 절대 resolve 되지 못할것이고.  listener가 절대 event를 발생(emit)시키지 못할것이기 때문입니다.
+
+```js
+          await new Promise(async (resolve, reject) => {
+            raffle.once("WinnerPicked", async() => {})
+          })
+          fulfillRandomWords.
+```
+만약 이렇게 적는다면 Promise가 resolve 되지않는이상 fulfillRandomWords에 절대 닿지 못할겁니다.
+
+그러니 우리는 `Promise`문 안에 코드를 작성하되 `once`문 바깥에 작성해야합니다.
+
+```js
+        it("우승자를 추첨하고, 복권을 리셋하고, 우승자에게 돈을 보내기", async function() {
+          const additionalEntrants = 3;
+          const startAccountIndex = 1; // deployer = 0
+          const accounts = await ethers.getSigners();
+          for(i = startAccountIndex; i < startAccountIndex + additionalEntrants; i++) {
+            const accountConnectedRaffle = raffle.connect(accounts[i]);
+            await accountConnectedRaffle.enterRaffle({ value: raffleEntranceFee });
+          }
+          const startingTimeStamp = await raffle.getLatestTimeStamp();
+
+          // performUpkeep (mock being Chainlink Keepers)
+          // fulfillRandomWords (mock being the Chainlink VRF)
+          // We will have to wait for the fulfillRandomWords to be called
+          await new Promise(async (resolve, reject) => {
+            raffle.once("WinnerPicked", async() => {
+              resolve()
+            })
+            // Setting up the listener
+
+            // below, we will fire the event, and the listener will pick it up, and resolve
+          })
+        })
+```
+
+그리고 이상태에서 영원히 resolve될때까지 기다리고 싶진 않을겁니다. 그러니 reject를 작성해 줘야합니다.
+
+`hadrhat.config.js`로 가서 타임아웃(TimeOut)을 설정해 줄 수 있습니다.
+
+export문에 `mocha`항목을 추가해주고 `timeout`프로퍼티를 만들어줍니다.
+
+```js
+//hadrhat.config.js
+  mocha: {
+    timeout: 200000, // 200 second max
+  }
+```
+
+이렇게 작성하면 우리가 원하는바와 같이 `200000`밀리초 즉 `200`초 안에 이벤트가 발생하지 않으면, 실패로 간주하고 이 테스트는 실패로 판정됩니다.
+
+그리고 try catch문으로 reject를 처리해줘서 타임아웃이나 기타 에러시 에러핸들링을 해줍니다.
+
+```js
+        it("우승자를 추첨하고, 복권을 리셋하고, 우승자에게 돈을 보내기", async function() {
+          const additionalEntrants = 3;
+          const startAccountIndex = 1; // deployer = 0
+          const accounts = await ethers.getSigners();
+          for(i = startAccountIndex; i < startAccountIndex + additionalEntrants; i++) {
+            const accountConnectedRaffle = raffle.connect(accounts[i]);
+            await accountConnectedRaffle.enterRaffle({ value: raffleEntranceFee });
+          }
+          const startingTimeStamp = await raffle.getLatestTimeStamp();
+
+          // performUpkeep (mock being Chainlink Keepers)
+          // fulfillRandomWords (mock being the Chainlink VRF)
+          // We will have to wait for the fulfillRandomWords to be called
+          await new Promise(async (resolve, reject) => {
+            raffle.once("WinnerPicked", async() => {
+              try {  
+              } catch(error) {
+                reject(error);
+              }
+              resolve();
+            })
+            // Setting up the listener
+
+            // below, we will fire the event, and the listener will pick it up, and resolve
+          })
+        })
+```
+
+다음은 once문 바깥 그리고 Promise 안에서 다음과 같이 작성합니다.
+
+`performUpkeep`을 호출해서 event를 발생시킨다음 트랜잭션내역에서 해당 이벤트 아규먼트안의 `requestId`값을 가져와서 `vrf2CoordinatorV2Mock`안의 `fulfillRandomWords`함수에 라플계약주소와 함께 인수로 넣어서 호출합니다.
+
+```js
+        it("우승자를 추첨하고, 복권을 리셋하고, 우승자에게 돈을 보내기", async function () {
+          const additionalEntrants = 3;
+          const startAccountIndex = 1; // deployer = 0
+          const accounts = await ethers.getSigners();
+          for (
+            i = startAccountIndex;
+            i < startAccountIndex + additionalEntrants;
+            i++
+          ) {
+            const accountConnectedRaffle = raffle.connect(accounts[i]);
+            await accountConnectedRaffle.enterRaffle({
+              value: raffleEntranceFee,
+            });
+          }
+          const startingTimeStamp = await raffle.getLatestTimeStamp();
+
+          // performUpkeep (mock being Chainlink Keepers)
+          // fulfillRandomWords (mock being the Chainlink VRF)
+          // We will have to wait for the fulfillRandomWords to be called
+          await new Promise(async (resolve, reject) => {
+            raffle.once("WinnerPicked", async() => {
+              try {
+              } catch (error) {
+                reject(error);
+              }
+              resolve();
+            });
+            // Setting up the listener
+            // below, we will fire the event, and the listener will pick it up, and resolve
+            const tx = await raffle.performUpkeep([]);
+            const txReceipt = await tx.wait(1);
+            await vrfCoordinatorV2Mock.fulfillRandomWords(
+              txReceipt.events[1].args.requestId,
+              raffle.address
+            );
+          });
+        });
+```
+
+이 Promise 안의 것들은 모두 `WinnerPicker`이벤트를 위한 리스너를 설정하기 위한 것입니다.
+
+그리고 이 코드로 chainlink Keepers를 모킹하고(mocking)
+```js
+            const tx = await raffle.performUpkeep([]);
+            const txReceipt = await tx.wait(1);
+```
+이 코드로 Chainlink VRF를 모킹한것입니다.
+```js
+            await vrfCoordinatorV2Mock.fulfillRandomWords(
+              txReceipt.events[1].args.requestId,
+              raffle.address
+            )
+```
+그리고 `fulfillRandomWords`가 호출되면, 이 함수는 반드시 `WinnderPicked` 이벤트를 발생시켜야 합니다.
+
+그래서 이 `raffle.once( ... )` 블록이
+```js
+            raffle.once("WinnerPicked", async() => {
+              try {
+              } catch (error) {
+                reject(error);
+              }
+              resolve();
+            });
+```
+`WinnderPicked`이벤트를 감지하고 이제 어떤 작업을 실행하게 될겁니다.
+
+그래서 만약 `WinnderPicked`이벤트를 감지하게 된다면 console.log에서 메시지를 보내게 작성합니다.
+```js
+        it("우승자를 추첨하고, 복권을 리셋하고, 우승자에게 돈을 보내기", async function () {
+          const additionalEntrants = 3;
+          const startAccountIndex = 1; // deployer = 0
+          const accounts = await ethers.getSigners();
+          for (
+            i = startAccountIndex;
+            i < startAccountIndex + additionalEntrants;
+            i++
+          ) {
+            const accountConnectedRaffle = raffle.connect(accounts[i]);
+            await accountConnectedRaffle.enterRaffle({
+              value: raffleEntranceFee,
+            });
+          }
+          const startingTimeStamp = await raffle.getLatestTimeStamp();
+
+          // performUpkeep (mock being Chainlink Keepers)
+          // fulfillRandomWords (mock being the Chainlink VRF)
+          // We will have to wait for the fulfillRandomWords to be called
+          await new Promise(async (resolve, reject) => {
+            raffle.once("WinnerPicked", async() => {
+              console.log("이벤트를 감지했습니다!")
+              try {
+              } catch (error) {
+                reject(error);
+              }
+              resolve();
+            });
+            // Setting up the listener
+            // below, we will fire the event, and the listener will pick it up, and resolve
+            const tx = await raffle.performUpkeep([]);
+            const txReceipt = await tx.wait(1);
+            await vrfCoordinatorV2Mock.fulfillRandomWords(
+              txReceipt.events[1].args.requestId,
+              raffle.address
+            );
+          });
+        });
+```
+
+try 블록 안에 assert를 모두 넣을겁니다.
+
+그리고 `Raffle.sol`의 `fulfillRandomWords` 함수 안에 있는 이 조건들을 확인해볼겁니다.
+```solidity
+//...
+        s_recentWinner = recentWinner;
+        s_raffleState = RaffleState.OPEN;
+        s_players = new address payable[](0);
+        s_lastTimeStamp = block.timestamp;
+        //...
+```
+
+```js
+        it("우승자를 추첨하고, 복권을 리셋하고, 우승자에게 돈을 보내기", async function () {
+          const additionalEntrants = 3;
+          const startAccountIndex = 1; // deployer = 0
+          const accounts = await ethers.getSigners();
+          for (
+            i = startAccountIndex;
+            i < startAccountIndex + additionalEntrants;
+            i++
+          ) {
+            const accountConnectedRaffle = raffle.connect(accounts[i]);
+            await accountConnectedRaffle.enterRaffle({
+              value: raffleEntranceFee,
+            });
+          }
+          const startingTimeStamp = await raffle.getLatestTimeStamp();
+
+          // performUpkeep (mock being Chainlink Keepers)
+          // fulfillRandomWords (mock being the Chainlink VRF)
+          // We will have to wait for the fulfillRandomWords to be called
+          await new Promise(async (resolve, reject) => {
+            raffle.once("WinnerPicked", async() => {
+              console.log("이벤트를 감지했습니다!")
+              try {
+                const recentWinner = await raffle.getRecentWinner();
+                const raffleState = await raffle.getRaffleState();
+                const endingTimeStamp = await raffle.getLatestTimeStamp();
+                const numberOfPlayers = await raffle.getNumberOfPlayers();
+              } catch (error) {
+                reject(error);
+              }
+              resolve();
+            });
+            // Setting up the listener
+            // below, we will fire the event, and the listener will pick it up, and resolve
+            const tx = await raffle.performUpkeep([]);
+            const txReceipt = await tx.wait(1);
+            await vrfCoordinatorV2Mock.fulfillRandomWords(
+              txReceipt.events[1].args.requestId,
+              raffle.address
+            );
+          });
+        });
+```
+
+이제 assert문을 작성해봅시다.
+
+첫번째로 이 Raffle의 `s_player`배열이 `0`으로 리셋되어야 합니다.
+
+그러므로 `getNumberOfPlayers()` 함수를 호출했을때 `0`과 같아야합니다.
+
+둘째로 `RaffleState`는 추첨계산이 끝났으니 `OPEN`상태를 뜻하는 `0`으로 돌아가야합니다.
+
+셋째로 `endingTimeStamp`는 시작할때 설정했떤 `startingTimeStamp`보다 커야 합니다.
+
+```js
+        it("우승자를 추첨하고, 복권을 리셋하고, 우승자에게 돈을 보내기", async function () {
+          const additionalEntrants = 3;
+          const startAccountIndex = 1; // deployer = 0
+          const accounts = await ethers.getSigners();
+          for (
+            i = startAccountIndex;
+            i < startAccountIndex + additionalEntrants;
+            i++
+          ) {
+            const accountConnectedRaffle = raffle.connect(accounts[i]);
+            await accountConnectedRaffle.enterRaffle({
+              value: raffleEntranceFee,
+            });
+          }
+          const startingTimeStamp = await raffle.getLatestTimeStamp();
+
+          // performUpkeep (mock being Chainlink Keepers)
+          // fulfillRandomWords (mock being the Chainlink VRF)
+          // We will have to wait for the fulfillRandomWords to be called
+          await new Promise(async (resolve, reject) => {
+            raffle.once("WinnerPicked", async() => {
+              console.log("이벤트를 감지했습니다!")
+              try {
+                const recentWinner = await raffle.getRecentWinner();
+                const raffleState = await raffle.getRaffleState();
+                const endingTimeStamp = await raffle.getLatestTimeStamp();
+                const numberOfPlayers = await raffle.getNumberOfPlayers();
+                assert.equal(numberOfPlayers.toString(), "0")
+                assert.equal(raffleState.toString(), "0");
+                assert(endingTimeStamp > startingTimeStamp);
+                
+              } catch (error) {
+                reject(error);
+              }
+              resolve();
+            });
+            // Setting up the listener
+            // below, we will fire the event, and the listener will pick it up, and resolve
+            const tx = await raffle.performUpkeep([]);
+            const txReceipt = await tx.wait(1);
+            await vrfCoordinatorV2Mock.fulfillRandomWords(
+              txReceipt.events[1].args.requestId,
+              raffle.address
+            );
+          });
+        });
+```
+
+`randomWinner`를 콘솔로그로 확인해보고   `vrfCoordinatorV2Mock`의 `fulfillRandomWords`를 시뮬레이트하고 있기때문에 누가 우승자인지 `account`안의 모든 게정들을 console.log해서 확인해보겠습니다.
+
+```js
+        it("우승자를 추첨하고, 복권을 리셋하고, 우승자에게 돈을 보내기", async function () {
+          const additionalEntrants = 3;
+          const startAccountIndex = 1; // deployer = 0
+          const accounts = await ethers.getSigners();
+          for (
+            i = startAccountIndex;
+            i < startAccountIndex + additionalEntrants;
+            i++
+          ) {
+            const accountConnectedRaffle = raffle.connect(accounts[i]);
+            await accountConnectedRaffle.enterRaffle({
+              value: raffleEntranceFee,
+            });
+          }
+          const startingTimeStamp = await raffle.getLatestTimeStamp();
+
+          // performUpkeep (mock being Chainlink Keepers)
+          // fulfillRandomWords (mock being the Chainlink VRF)
+          // We will have to wait for the fulfillRandomWords to be called
+          await new Promise(async (resolve, reject) => {
+            raffle.once("WinnerPicked", async() => {
+              console.log("이벤트를 감지했습니다!")
+              try {
+                const recentWinner = await raffle.getRecentWinner();
+                console.log(recentWinner);
+                console.log(accounts[3])
+                console.log(accounts[2])
+                console.log(accounts[1])
+                console.log(accounts[0])
+                const raffleState = await raffle.getRaffleState();
+                const endingTimeStamp = await raffle.getLatestTimeStamp();
+                const numberOfPlayers = await raffle.getNumberOfPlayers();
+                assert.equal(numberOfPlayers.toString(), "0")
+                assert.equal(raffleState.toString(), "0");
+                assert(endingTimeStamp > startingTimeStamp);
+                
+              } catch (error) {
+                reject(error);
+              }
+              resolve();
+            });
+            // Setting up the listener
+            // below, we will fire the event, and the listener will pick it up, and resolve
+            const tx = await raffle.performUpkeep([]);
+            const txReceipt = await tx.wait(1);
+            await vrfCoordinatorV2Mock.fulfillRandomWords(
+              txReceipt.events[1].args.requestId,
+              raffle.address
+            );
+          });
+        });
+```
+
+테스트해보겠습니다.
+
+```bash
+hh test --grep "우승자를 추첨하고, 복권을 리셋하고, 우승자에게 돈을 보내기"
+```
+```bash
+  Raffle
+    fulfillRandomWords
+이벤트를 감지했습니다!
+0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+SignerWithAddress {
+  _isSigner: true,
+  address: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+  _signer: JsonRpcSigner {
+    _isSigner: true,
+    provider: EthersProviderWrapper {
+      _isProvider: true,
+      _events: [],
+      _emitted: [Object],
+      disableCcipRead: false,
+      formatter: [Formatter],
+      anyNetwork: false,
+      _networkPromise: [Promise],
+      _maxInternalBlockNumber: 11,
+      _lastBlockNumber: 11,
+      _maxFilterBlockRange: 10,
+      _pollingInterval: 4000,
+      _fastQueryDate: 1657281989454,
+      connection: [Object],
+      _nextId: 42,
+      _hardhatProvider: [BackwardsCompatibilityProviderAdapter],
+      _eventLoopCache: [Object],
+      _network: [Object],
+      _internalBlockNumber: [Promise],
+      _fastBlockNumber: 11,
+      _fastBlockNumberPromise: [Promise],
+      _poller: null,
+      _bootstrapPoll: null
+    },
+    _address: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+    _index: null
+  },
+  provider: EthersProviderWrapper {
+    _isProvider: true,
+    _events: [],
+    _emitted: {
+      block: 11,
+      't:0xc3971d18e0379127ce8056916a5259ee6232bdb1f35da7edc678093ae7309676': 2,
+      't:0x9bef6826cb81f7563a58d3ede5be36386e968ba3b2972989c7596ebca84cf613': 10,
+      'b:0xe7ecb109344b3766f2f4abf105fc66ebfe5c15113d5fc5d9965f840eb353a8f9': 11,
+      't:0xe7e2df4e3e9f2dccaf3396feb0fbb29f353b4e7273da59893292c3276ef83b2e': 11
+    },
+    disableCcipRead: false,
+    formatter: Formatter { formats: [Object] },
+    anyNetwork: false,
+    _networkPromise: Promise { [Object] },
+    _maxInternalBlockNumber: 11,
+    _lastBlockNumber: 11,
+    _maxFilterBlockRange: 10,
+    _pollingInterval: 4000,
+    _fastQueryDate: 1657281989454,
+    connection: { url: 'http://localhost:8545' },
+    _nextId: 42,
+    _hardhatProvider: BackwardsCompatibilityProviderAdapter {
+      _wrapped: [EGRDataCollectionProvider],
+      _provider: [EGRDataCollectionProvider],
+      sendAsync: [Function: bound sendAsync],
+      send: [Function: bound send],
+      _sendJsonRpcRequest: [Function: bound _sendJsonRpcRequest] AsyncFunction
+    },
+    _eventLoopCache: { detectNetwork: null },
+    _network: { chainId: 31337, name: 'unknown' },
+    _internalBlockNumber: Promise { [Object] },
+    _fastBlockNumber: 11,
+    _fastBlockNumberPromise: Promise { 11 },
+    _poller: null,
+    _bootstrapPoll: null
+  }
+}
+SignerWithAddress {
+  _isSigner: true,
+  address: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8',
+  _signer: JsonRpcSigner {
+    _isSigner: true,
+    provider: EthersProviderWrapper {
+      _isProvider: true,
+      _events: [],
+      _emitted: [Object],
+      disableCcipRead: false,
+      formatter: [Formatter],
+      anyNetwork: false,
+      _networkPromise: [Promise],
+      _maxInternalBlockNumber: 11,
+      _lastBlockNumber: 11,
+      _maxFilterBlockRange: 10,
+      _pollingInterval: 4000,
+      _fastQueryDate: 1657281989454,
+      connection: [Object],
+      _nextId: 42,
+      _hardhatProvider: [BackwardsCompatibilityProviderAdapter],
+      _eventLoopCache: [Object],
+      _network: [Object],
+      _internalBlockNumber: [Promise],
+      _fastBlockNumber: 11,
+      _fastBlockNumberPromise: [Promise],
+      _poller: null,
+      _bootstrapPoll: null
+    },
+    _address: '0x70997970C51812dc3A010C7d01b50e0d17dc79C8',
+    _index: null
+  },
+  provider: EthersProviderWrapper {
+    _isProvider: true,
+    _events: [],
+    _emitted: {
+      block: 11,
+      't:0xc3971d18e0379127ce8056916a5259ee6232bdb1f35da7edc678093ae7309676': 2,
+      't:0x9bef6826cb81f7563a58d3ede5be36386e968ba3b2972989c7596ebca84cf613': 10,
+      'b:0xe7ecb109344b3766f2f4abf105fc66ebfe5c15113d5fc5d9965f840eb353a8f9': 11,
+      't:0xe7e2df4e3e9f2dccaf3396feb0fbb29f353b4e7273da59893292c3276ef83b2e': 11
+    },
+    disableCcipRead: false,
+    formatter: Formatter { formats: [Object] },
+    anyNetwork: false,
+    _networkPromise: Promise { [Object] },
+    _maxInternalBlockNumber: 11,
+    _lastBlockNumber: 11,
+    _maxFilterBlockRange: 10,
+    _pollingInterval: 4000,
+    _fastQueryDate: 1657281989454,
+    connection: { url: 'http://localhost:8545' },
+    _nextId: 42,
+    _hardhatProvider: BackwardsCompatibilityProviderAdapter {
+      _wrapped: [EGRDataCollectionProvider],
+      _provider: [EGRDataCollectionProvider],
+      sendAsync: [Function: bound sendAsync],
+      send: [Function: bound send],
+      _sendJsonRpcRequest: [Function: bound _sendJsonRpcRequest] AsyncFunction
+    },
+    _eventLoopCache: { detectNetwork: null },
+    _network: { chainId: 31337, name: 'unknown' },
+    _internalBlockNumber: Promise { [Object] },
+    _fastBlockNumber: 11,
+    _fastBlockNumberPromise: Promise { 11 },
+    _poller: null,
+    _bootstrapPoll: null
+  }
+}
+SignerWithAddress {
+  _isSigner: true,
+  address: '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC',
+  _signer: JsonRpcSigner {
+    _isSigner: true,
+    provider: EthersProviderWrapper {
+      _isProvider: true,
+      _events: [],
+      _emitted: [Object],
+      disableCcipRead: false,
+      formatter: [Formatter],
+      anyNetwork: false,
+      _networkPromise: [Promise],
+      _maxInternalBlockNumber: 11,
+      _lastBlockNumber: 11,
+      _maxFilterBlockRange: 10,
+      _pollingInterval: 4000,
+      _fastQueryDate: 1657281989454,
+      connection: [Object],
+      _nextId: 42,
+      _hardhatProvider: [BackwardsCompatibilityProviderAdapter],
+      _eventLoopCache: [Object],
+      _network: [Object],
+      _internalBlockNumber: [Promise],
+      _fastBlockNumber: 11,
+      _fastBlockNumberPromise: [Promise],
+      _poller: null,
+      _bootstrapPoll: null
+    },
+    _address: '0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC',
+    _index: null
+  },
+  provider: EthersProviderWrapper {
+    _isProvider: true,
+    _events: [],
+    _emitted: {
+      block: 11,
+      't:0xc3971d18e0379127ce8056916a5259ee6232bdb1f35da7edc678093ae7309676': 2,
+      't:0x9bef6826cb81f7563a58d3ede5be36386e968ba3b2972989c7596ebca84cf613': 10,
+      'b:0xe7ecb109344b3766f2f4abf105fc66ebfe5c15113d5fc5d9965f840eb353a8f9': 11,
+      't:0xe7e2df4e3e9f2dccaf3396feb0fbb29f353b4e7273da59893292c3276ef83b2e': 11
+    },
+    disableCcipRead: false,
+    formatter: Formatter { formats: [Object] },
+    anyNetwork: false,
+    _networkPromise: Promise { [Object] },
+    _maxInternalBlockNumber: 11,
+    _lastBlockNumber: 11,
+    _maxFilterBlockRange: 10,
+    _pollingInterval: 4000,
+    _fastQueryDate: 1657281989454,
+    connection: { url: 'http://localhost:8545' },
+    _nextId: 42,
+    _hardhatProvider: BackwardsCompatibilityProviderAdapter {
+      _wrapped: [EGRDataCollectionProvider],
+      _provider: [EGRDataCollectionProvider],
+      sendAsync: [Function: bound sendAsync],
+      send: [Function: bound send],
+      _sendJsonRpcRequest: [Function: bound _sendJsonRpcRequest] AsyncFunction
+    },
+    _eventLoopCache: { detectNetwork: null },
+    _network: { chainId: 31337, name: 'unknown' },
+    _internalBlockNumber: Promise { [Object] },
+    _fastBlockNumber: 11,
+    _fastBlockNumberPromise: Promise { 11 },
+    _poller: null,
+    _bootstrapPoll: null
+  }
+}
+SignerWithAddress {
+  _isSigner: true,
+  address: '0x90F79bf6EB2c4f870365E785982E1f101E93b906',
+  _signer: JsonRpcSigner {
+    _isSigner: true,
+    provider: EthersProviderWrapper {
+      _isProvider: true,
+      _events: [],
+      _emitted: [Object],
+      disableCcipRead: false,
+      formatter: [Formatter],
+      anyNetwork: false,
+      _networkPromise: [Promise],
+      _maxInternalBlockNumber: 11,
+      _lastBlockNumber: 11,
+      _maxFilterBlockRange: 10,
+      _pollingInterval: 4000,
+      _fastQueryDate: 1657281989454,
+      connection: [Object],
+      _nextId: 42,
+      _hardhatProvider: [BackwardsCompatibilityProviderAdapter],
+      _eventLoopCache: [Object],
+      _network: [Object],
+      _internalBlockNumber: [Promise],
+      _fastBlockNumber: 11,
+      _fastBlockNumberPromise: [Promise],
+      _poller: null,
+      _bootstrapPoll: null
+    },
+    _address: '0x90F79bf6EB2c4f870365E785982E1f101E93b906',
+    _index: null
+  },
+  provider: EthersProviderWrapper {
+    _isProvider: true,
+    _events: [],
+    _emitted: {
+      block: 11,
+      't:0xc3971d18e0379127ce8056916a5259ee6232bdb1f35da7edc678093ae7309676': 2,
+      't:0x9bef6826cb81f7563a58d3ede5be36386e968ba3b2972989c7596ebca84cf613': 10,
+      'b:0xe7ecb109344b3766f2f4abf105fc66ebfe5c15113d5fc5d9965f840eb353a8f9': 11,
+      't:0xe7e2df4e3e9f2dccaf3396feb0fbb29f353b4e7273da59893292c3276ef83b2e': 11
+    },
+    disableCcipRead: false,
+    formatter: Formatter { formats: [Object] },
+    anyNetwork: false,
+    _networkPromise: Promise { [Object] },
+    _maxInternalBlockNumber: 11,
+    _lastBlockNumber: 11,
+    _maxFilterBlockRange: 10,
+    _pollingInterval: 4000,
+    _fastQueryDate: 1657281989454,
+    connection: { url: 'http://localhost:8545' },
+    _nextId: 42,
+    _hardhatProvider: BackwardsCompatibilityProviderAdapter {
+      _wrapped: [EGRDataCollectionProvider],
+      _provider: [EGRDataCollectionProvider],
+      sendAsync: [Function: bound sendAsync],
+      send: [Function: bound send],
+      _sendJsonRpcRequest: [Function: bound _sendJsonRpcRequest] AsyncFunction
+    },
+    _eventLoopCache: { detectNetwork: null },
+    _network: { chainId: 31337, name: 'unknown' },
+    _internalBlockNumber: Promise { [Object] },
+    _fastBlockNumber: 11,
+    _fastBlockNumberPromise: Promise { 11 },
+    _poller: null,
+    _bootstrapPoll: null
+  }
+}
+      √ 우승자를 추첨하고, 복권을 리셋하고, 우승자에게 돈을 보내기
+
+
+  1 passing (5s)
+
+Done in 15.80s.
+
+```
+
+`0x70997970C51812dc3A010C7d01b50e0d17dc79C8`주소를 가지고 있는 `account[1]`이 우승자입니다.
+
+그럼 우승자(account[1])에게 돈이 갔는지 확인하기 위해서 다음과 같이 작성할 수 있습니다.
+
+우선 우승자의 시작할때 자금을 `winnerStartingBalance` 그리고 우승추첨이 끝난 후 자금을 `endingStartingBalance`로 설정합니다. 그리고 각각 `account[1].getBalance()`로 자금에 접근합니다.
+
+```js
+      describe("fulfillRandomWords", function () {
+        beforeEach(async function () {
+          await raffle.enterRaffle({ value: raffleEntranceFee });
+          await network.provider.send("evm_increaseTime", [
+            interval.toNumber() + 1,
+          ]);
+          await network.provider.send("evm_mine", []);
+        });
+        it("반드시 performUpkeep 이후에 호출되어야 함", async function () {
+          await expect(
+            vrfCoordinatorV2Mock.fulfillRandomWords(0, raffle.address)
+          ).to.be.revertedWith("nonexistent request");
+          await expect(
+            vrfCoordinatorV2Mock.fulfillRandomWords(1, raffle.address)
+          ).to.be.revertedWith("nonexistent request");
+        });
+        it("우승자를 추첨하고, 복권을 리셋하고, 우승자에게 돈을 보내기", async function () {
+          const additionalEntrants = 3;
+          const startAccountIndex = 1; // deployer = 0
+          const accounts = await ethers.getSigners();
+          for (
+            i = startAccountIndex;
+            i < startAccountIndex + additionalEntrants;
+            i++
+          ) {
+            const accountConnectedRaffle = raffle.connect(accounts[i]);
+            await accountConnectedRaffle.enterRaffle({
+              value: raffleEntranceFee,
+            });
+          }
+          const startingTimeStamp = await raffle.getLatestTimeStamp();
+
+          // performUpkeep (mock being Chainlink Keepers)
+          // fulfillRandomWords (mock being the Chainlink VRF)
+          // We will have to wait for the fulfillRandomWords to be called
+          await new Promise(async (resolve, reject) => {
+            raffle.once("WinnerPicked", async() => {
+              console.log("이벤트를 감지했습니다!")
+              try {
+                const recentWinner = await raffle.getRecentWinner();
+                console.log(recentWinner);
+                console.log(accounts[0]);
+                console.log(accounts[1]);
+                console.log(accounts[2]);
+                console.log(accounts[3]);
+                const winnerEndingBalance = await accounts[1].getBalance();
+                const raffleState = await raffle.getRaffleState();
+                const endingTimeStamp = await raffle.getLatestTimeStamp();
+                const numberOfPlayers = await raffle.getNumberOfPlayers();
+                assert.equal(numberOfPlayers.toString(), "0")
+                assert.equal(raffleState.toString(), "0");
+                assert(endingTimeStamp > startingTimeStamp);
+
+              } catch (error) {
+                reject(error);
+              }
+              resolve();
+            });
+            // Setting up the listener
+            // below, we will fire the event, and the listener will pick it up, and resolve
+            const tx = await raffle.performUpkeep([]);
+            const txReceipt = await tx.wait(1);
+            const winnerStartingBalance = await accounts[1].getBalance();
+            await vrfCoordinatorV2Mock.fulfillRandomWords(
+              txReceipt.events[1].args.requestId,
+              raffle.address
+            );
+          });
+        });
+```
+
+이제 `WinnerEndingBalance`가 `winnerStartingBalance`에 (계약배포자 제외 참가지 3명)) * (복권참가비) + (계약배포자가 낸 참가비) 를 더한 값과 일치하는지 확인하면 됩니다.
+
+```js
+assert.equal(winnerEndingBalance.toStirng(), winnerStartingBalance.add(raffleEntranceFee.mul(additionalEntrants).add(raffleEntranceFee)).toString() )
+```
+
+```js
+        it("우승자를 추첨하고, 복권을 리셋하고, 우승자에게 돈을 보내기", async function () {
+          const additionalEntrants = 3;
+          const startAccountIndex = 1; // deployer = 0
+          const accounts = await ethers.getSigners();
+          for (
+            i = startAccountIndex;
+            i < startAccountIndex + additionalEntrants;
+            i++
+          ) {
+            const accountConnectedRaffle = raffle.connect(accounts[i]);
+            await accountConnectedRaffle.enterRaffle({
+              value: raffleEntranceFee,
+            });
+          }
+          const startingTimeStamp = await raffle.getLatestTimeStamp();
+
+          // performUpkeep (mock being Chainlink Keepers)
+          // fulfillRandomWords (mock being the Chainlink VRF)
+          // We will have to wait for the fulfillRandomWords to be called
+          await new Promise(async (resolve, reject) => {
+            raffle.once("WinnerPicked", async () => {
+              console.log("이벤트를 감지했습니다!");
+              try {
+                const recentWinner = await raffle.getRecentWinner();
+                console.log(recentWinner);
+                console.log(accounts[0].address);
+                console.log(accounts[1].address);
+                console.log(accounts[2].address);
+                console.log(accounts[3].address);
+                const winnerEndingBalance = await accounts[1].getBalance();
+                const raffleState = await raffle.getRaffleState();
+                const endingTimeStamp = await raffle.getLatestTimeStamp();
+                const numberOfPlayers = await raffle.getNumberOfPlayers();
+                assert.equal(numberOfPlayers.toString(), "0");
+                assert.equal(raffleState.toString(), "0");
+                assert(endingTimeStamp > startingTimeStamp);
+                assert(
+                  winnerEndingBalance.toString(),
+                  winnerStartingBalance.add(
+                    raffleEntranceFee
+                      .mul(additionalEntrants)
+                      .add(raffleEntranceFee)
+                  ).toString
+                );
+              } catch (error) {
+                reject(error);
+              }
+              resolve();
+            });
+            // Setting up the listener
+            // below, we will fire the event, and the listener will pick it up, and resolve
+            const tx = await raffle.performUpkeep([]);
+            const txReceipt = await tx.wait(1);
+            const winnerStartingBalance = await accounts[1].getBalance();
+            await vrfCoordinatorV2Mock.fulfillRandomWords(
+              txReceipt.events[1].args.requestId,
+              raffle.address
+            );
+          });
+        });
+```
+
+
+테스트 해보겠습니다.
+
+```bash
+
+  Raffle
+    fulfillRandomWords
+이벤트를 감지했습니다!
+0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC
+0x90F79bf6EB2c4f870365E785982E1f101E93b906
+      √ 우승자를 추첨하고, 복권을 리셋하고, 우승자에게 돈을 보내기
+
+
+  1 passing (5s)
+
+Done in 9.26s.
+
+```
+
+통과되었습니다.
+
+그런데 스테이징 테스트에서는 어떨까요? 로컬네트워크에선 
+
+```js
+            const tx = await raffle.performUpkeep([]);
+            const txReceipt = await tx.wait(1);
+            const winnerStartingBalance = await accounts[1].getBalance();
+            await vrfCoordinatorV2Mock.fulfillRandomWords(
+              txReceipt.events[1].args.requestId,
+              raffle.address
+            );
+```
+이 부분이 정확히 언제 작동할거란걸 알고 있고 조정할수도 있습니다. 하지만 테스트넷에선 그렇지 않습니다.
+
+그래서 스테이징테스트에서는 listener에 의존해서 chainlinkVRF 와 keepers가 이벤트를 발생시키도록 할 겁니다.
+
+여기서 이렇게 한 이유는 스테이징 테스트에서도 이렇게 흉내내기 위해서입니다.
+
+스테이징 테스트에서는 200초는 너무 짧기 때문에 타임아웃을 30000으로 늘려놓겠습니다.
+
+```js
+//hadrhat.config.js
+  mocha: {
+    timeout: 300000, // 300 second max
+  }
+```
+
+## Raffle.sol Unit Tests -Continued 5
+
+마지막으로 전체테스트를 하고 넘어가겠습니다.
+
+```ps1
+
+  Raffle
+    constructor
+      √ Raffle을 정상적으로 초기화
+    enterRaffle
+      √ 참가비가 충분하지 않을때 revert 시킴
+      √ 플레이어들이 참가했을때 기록함
+      √ 참가했을때 emit event
+      √ Raffle이 'CALCULATING'상태일때 참가를 불허함
+    checkUpkeep
+      √ 참여자가 ETH를 지불하지 않았다면 false를 반환
+      √ Raffle이 OPEN 상태가 아닐때 false를 반환
+      √ 충분한 시간(interval)이 지나지 않았다면 false 반환
+      √ 1.충분한 시간(interval)이 지나고, 2.참가자가 존재하고, 3.eth가 계약 자금에 존재하고, 4.OPEN 상태일때 -> true를 반환
+    perfromUpkeep
+{
+  hash: '0x837baf0cb49f7654b3f41923b0a04f138fc656489406a84d5912d4b38d9c1fae',
+  type: 2,
+  accessList: [],
+  blockHash: '0x447360f6f5323241cd04d6ea8dd62aaf706fd1a866cbd5ad994e265153066fb1',
+  blockNumber: 7,
+  transactionIndex: 0,
+  confirmations: 1,
+  from: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+  gasPrice: BigNumber { _hex: '0x53b993e5', _isBigNumber: true },
+  maxPriorityFeePerGas: BigNumber { _hex: '0x3b9aca00', _isBigNumber: true },
+  maxFeePerGas: BigNumber { _hex: '0x6bd85dca', _isBigNumber: true },
+  gasLimit: BigNumber { _hex: '0x01bad598', _isBigNumber: true },
+  to: '0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9',
+  value: BigNumber { _hex: '0x00', _isBigNumber: true },
+  nonce: 5,
+  data: '0x4585e33b00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000',
+  r: '0x33d5cbe04ad6a25a5379862081e33ed012b5a51ddf0436f0e7821eafe98c65bf',
+  s: '0x0f9abd145f3b89b7ee405786a64a2df089ec3876ccfd9681fd45c6ce99bd46c4',
+  v: 1,
+  creates: null,
+  chainId: 31337,
+  wait: [Function (anonymous)]
+}
+      √ checkUpkeep이 true일때만 작동
+      √ checkUpkeep이 false를 반환했을때 revert
+      √ raffleState, emits, event 를 업데이트 하고 vrfCooridnator를 호출
+    fulfillRandomWords
+      √ 반드시 performUpkeep 이후에 호출되어야 함
+이벤트를 감지했습니다!
+0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
+0x70997970C51812dc3A010C7d01b50e0d17dc79C8
+0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC
+0x90F79bf6EB2c4f870365E785982E1f101E93b906
+      √ 우승자를 추첨하고, 복권을 리셋하고, 우승자에게 돈을 보내기
+
+
+  14 passing (6s)
+
+Done in 10.87s.
+
+```
+
+## Raffle.sol Staging Tests
+
+`test/staging/Raffle.Staging.test.js` 파일을 생성합니다.
+
+일단 unit테스트와 매우 유사하기 때문에 앞부분의 필요한부분만 가져오겠습니다.
+
+```js
+const { assert, expect } = require("chai");
+const { getNamedAccounts, deployments, ethers, network } = require("hardhat");
+const {
+  developmentChains,
+  networkConfig,
+} = require("../../helper-hardhat-config");
+
+!developmentChains.includes(network.name)
+  ? describe.skip
+  : describe("Raffle", function () {
+      let raffle, vrfCoordinatorV2Mock, raffleEntranceFee, deployer, interval;
+      const chainId = network.config.chainId;
+
+      beforeEach(async function () {
+        deployer = (await getNamedAccounts()).deployer;
+        await deployments.fixture(["all"]);
+        raffle = await ethers.getContract("Raffle", deployer);
+        vrfCoordinatorV2Mock = await ethers.getContract(
+          "VRFCoordinatorV2Mock",
+          deployer
+        );
+        raffleEntranceFee = await raffle.getEntranceFee();
+        interval = await raffle.getInterval();
+      });
+    });
+```
+
+그 중에서 우리는 Mock이 더이상 필요하지 않기 때문에 `vrfCoordinatorV2Mock`는 빼주도록 하겠습니다.
+그리고 `interval`과 `chainid`는 나중에 설정하기 위해 일단 지우겠습니다.
+
+그리고 여기는 테스트넷이므로 `!developmentChain`에서 느낌표를 빼고 `developmentChain`으로 바꿔줍니다.
+
+또한 배포 스크립트와 계약이 이미 배포된 상태일것이고, Mock을 더이상 사용하지 않기때문에, `fixture`를 배포할 필요도 없어졌고, 따라서 이 항목도 지우겠습니다.
+
+```js
+const { assert, expect } = require("chai");
+const { getNamedAccounts, deployments, ethers, network } = require("hardhat");
+const {
+  developmentChains,
+  networkConfig,
+} = require("../../helper-hardhat-config");
+
+developmentChains.includes(network.name)
+  ? describe.skip
+  : describe("Raffle", function () {
+      let raffle, raffleEntranceFee, deployer;
+
+      beforeEach(async function () {
+        deployer = (await getNamedAccounts()).deployer;
+        raffle = await ethers.getContract("Raffle", deployer);
+        raffleEntranceFee = await raffle.getEntranceFee();
+      });
+    });
+```
+
+그리고 새 describe 블럭부터 시작하겠습니다. 이 부분은 unit테스트 코드와 비슷하기 때문에 대부분의 것을 unit test코드를 보일러플레이트로 삼아 사용할 것입니다.
+
+fulfillRandomWords 부터 시작해서 테스트넷이나 메인넷 상에 있는 실제 Chainlink Keepers, VRF와 연동되는지 테스트하고 승자 추첨까지 테스트해볼겁니다.
+
+```js
+const { assert, expect } = require("chai");
+const { getNamedAccounts, deployments, ethers, network } = require("hardhat");
+const {
+  developmentChains,
+  networkConfig,
+} = require("../../helper-hardhat-config");
+
+developmentChains.includes(network.name)
+  ? describe.skip
+  : describe("Raffle", function () {
+      let raffle, raffleEntranceFee, deployer;
+
+      beforeEach(async function () {
+        deployer = (await getNamedAccounts()).deployer;
+        raffle = await ethers.getContract("Raffle", deployer);
+        raffleEntranceFee = await raffle.getEntranceFee();
+      });
+
+      describe("fulfillRandomWords", function () {
+        it("실시간으로 Chainlink keepers, Chainlink VRF 와 연동하여, 승자(당첨자) 추첨하기", async function() {
+            // enter the raffle
+            
+        })
+      })      
+    });
+```
+
+여기서 우리가 할것은 enterRaffle외 별도의 작업이 필요 없습니다. 왜냐하면 chainlink keepers와 VRF가 자동으로 이 복권계약을 시작할 것이기 때문입니다.
+
+그래서 우리는 계약시작 전에 `startingTimeStamp`를 할당해서 가지고 가겠습니다. 나중에 이걸 가지고 시간이 확실히 지났는지 테스트할겁니다.
+
+이제 `raffle.enterRaffle()`을 시작할차례입니다만, 지금 바로 호출하지는 않을겁니다.
+
+왜냐하면 uint테스트에서 한것과 같이, 리스너를 먼저 설정해야하기 때문입니다.
+
+그렇기 때문에 라플에 참여하기 전에(before enter the Raffle) 리스너를 설정해야합니다.
+이는 블록체인이 정말 빠르게 움직일 경우를 대비해서입니다.
+
+그리고 나서 `Promise`문을 작성했던것과 똑같이 하면 됩니다.
+
+```js
+const { assert, expect } = require("chai");
+const { getNamedAccounts, deployments, ethers, network } = require("hardhat");
+const {
+  developmentChains,
+  networkConfig,
+} = require("../../helper-hardhat-config");
+
+developmentChains.includes(network.name)
+  ? describe.skip
+  : describe("Raffle", function () {
+      let raffle, raffleEntranceFee, deployer;
+
+      beforeEach(async function () {
+        deployer = (await getNamedAccounts()).deployer;
+        raffle = await ethers.getContract("Raffle", deployer);
+        raffleEntranceFee = await raffle.getEntranceFee();
+      });
+
+      describe("fulfillRandomWords", function () {
+        it("실시간으로 Chainlink keepers, Chainlink VRF 와 연동하여, 승자(당첨자) 추첨하기", async function() {
+            // enter the raffle
+            const startingTimeStamp = await raffle.getLatestTimeStamp();
+            
+            await new Promise(async (resolve, reject) => {
+                
+            })
+
+            // setup listener before we enter the raffle
+                // Just in case the blockchain moves REALLY FAST
+
+            // await raffle.enterRaffle({ value: raffleEntranceFee })
+        })
+      })
+
+    });
+```
+
+그리고 `Promise`문의 `{}`안에 리스너를 세팅하면 됩니다!
+
+`once`부터 시작합니다. 그리고 `WinnerPicked` 이벤트가 발생했을때 무엇을 할건지 작성합니다.
+
+일단 console.log로 이벤트가 발생했음을 알립니다.
+
+그리고 `try...catch` 문으로 `error` 발생시 `reject` 하도록 해줍니다. 그리고 정상적으로 잘된다면 당연히 `resolve`해줍니다.
+
+그리고 `try`블록안에서 `assert`테스트를 할겁니다.
+
+```js
+      describe("fulfillRandomWords", function () {
+        it("실시간으로 Chainlink keepers, Chainlink VRF 와 연동하여, 승자(당첨자) 추첨하기", async function () {
+          // enter the raffle
+          const startingTimeStamp = await raffle.getLatestTimeStamp();
+
+          await new Promise(async (resolve, reject) => {
+            raffle.once("WinnerPicked", async () => {
+              resolve();
+              try {
+                // add our assert here
+              } catch (error) {
+                console.log(error);
+                reject(error);
+              }
+            });
+          });
+
+          // setup listener before we enter the raffle
+          // Just in case the blockchain moves REALLY FAST
+
+          // await raffle.enterRaffle({ value: raffleEntranceFee })
+        });
+      });
+```
+
+이제 리스너가 등록되었으니 `once`문 바깥에서 `Raffle` 안에서 할일을 정해주면 됩니다.
+
+그리고 할일은 당연히 복권에 참여하는것 뿐입니다. `raffle.enterRaffle()`
+
+```js
+      describe("fulfillRandomWords", function () {
+        it("실시간으로 Chainlink keepers, Chainlink VRF 와 연동하여, 승자(당첨자) 추첨하기", async function () {
+          // enter the raffle
+          const startingTimeStamp = await raffle.getLatestTimeStamp();
+
+          await new Promise(async (resolve, reject) => {
+            raffle.once("WinnerPicked", async () => {
+              resolve();
+              try {
+                // add our assert here
+              } catch (error) {
+                console.log(error);
+                reject(error);
+              }
+            });
+            // Then entering the raffle
+            await raffle.enterRaffle({ value: raffleEntranceFee});
+
+            // and This code WONT complete untill our listener has finished listening!
+          });
+
+          // setup listener before we enter the raffle
+          // Just in case the blockchain moves REALLY FAST
+
+          // await raffle.enterRaffle({ value: raffleEntranceFee })
+        });
+      });
+```
+
+이제 try 블록 안의 코드를 작성해보겠습니다.
+
+그리고 `deployer`로만 raffle에 참여하기 때문에, 마지막에 `deployer`의 잔액을 확인해야합니다.
+
+마찬가지로 `getSingners()`를 사용해 signers를 가져옵니다.
+
+그러면 deployer 계정은 signers 배열의 0번째 값이 될것입니다. 
+
+그리고 `once`블록 안의 참여자 잔액 즉, deployer의 우승추첨이 끝난 후 참여자 잔액을 `winnerEndingBalance`로 설정하고
+`once`바깥의 참여자 잔액, 즉 승자추첨 전 잔액을 `winnerStartingBalnace`로 설정합니다.
+
+```js
+      describe("fulfillRandomWords", function () {
+        it("실시간으로 Chainlink keepers, Chainlink VRF 와 연동하여, 승자(당첨자) 추첨하기", async function () {
+          // enter the raffle
+          const startingTimeStamp = await raffle.getLatestTimeStamp();
+          const accounts = await ethers.getSigners();
+
+          await new Promise(async (resolve, reject) => {
+            raffle.once("WinnerPicked", async () => {
+              resolve();
+              try {
+                // add our assert here
+                const recentWinner = await raffle.getRecentWinner();
+                const raffleState = await raffle.getRaffleState();
+                const winnerEndingBalance = await accounts[0].getBalance();
+                const endingTimeStamp = await raffle.getLatestTimeStamp();
+
+              } catch (error) {
+                console.log(error);
+                reject(error);
+              }
+            });
+            // Then entering the raffle
+            await raffle.enterRaffle({ value: raffleEntranceFee});
+            const winnerStartingBalance = await accounts[0].getBalance();
+            // and This code WONT complete untill our listener has finished listening!
+          });
+
+          // setup listener before we enter the raffle
+          // Just in case the blockchain moves REALLY FAST
+
+          // await raffle.enterRaffle({ value: raffleEntranceFee })
+        });
+      });
+```
+
+이제 비교문을 작성해보겠습니다!
+
+먼저 승자추첨 후 참여자배열을 초기화 하는지 확인합니다. 그러니 getPlayer로 0번째 참여자를 호출하면 당연히 revert 되어야 할겁니다.
+
+그 다음은 최근우승자 주소와 0번째 계정의 주소가 동일해야 할 것입니다.
+
+또한 라플상태가 다시 `OPEN`으로 되어있어야 할겁니다. enum으로 `0`번 이겠죠.
+
+그리고 나서 우승자에게 돈이 정상적으로 송금되었는지 확인하면 됩니다.
+
+마지막으로 엔딩타임스탬프가 시작할때 타임스템프보다 큰값을 가지는지 확인합니다.
+
+그리고 최종적으로! `resolve()`로 마무리해주면 됩니다.
+
+```js
+      describe("fulfillRandomWords", function () {
+        it("실시간으로 Chainlink keepers, Chainlink VRF 와 연동하여, 승자(당첨자) 추첨하기", async function () {
+          // enter the raffle
+          const startingTimeStamp = await raffle.getLatestTimeStamp();
+          const accounts = await ethers.getSigners();
+
+          await new Promise(async (resolve, reject) => {
+            raffle.once("WinnerPicked", async () => {
+              try {
+                // add our assert here
+                const recentWinner = await raffle.getRecentWinner();
+                const raffleState = await raffle.getRaffleState();
+                const winnerEndingBalance = await accounts[0].getBalance();
+                const endingTimeStamp = await raffle.getLatestTimeStamp();
+
+                await expect(raffle.getPlayer(0)).to.be.reverted;
+                assert.equal(recentWinner.address, accounts[0].address);
+                assert.equal(raffleState.toString(), "0");
+                assert.equal(winnerEndingBalance.toString(), winnerStartingBalance.add(raffleEntranceFee).tostring());
+                assert(endingTimeStamp > startingTimeStamp);
+                resolve();
+              } catch (error) {
+                console.log(error);
+                reject(error);
+              }
+            });
+            // Then entering the raffle
+            await raffle.enterRaffle({ value: raffleEntranceFee});
+            const winnerStartingBalance = await accounts[0].getBalance();
+            // and This code WONT complete untill our listener has finished listening!
+          });
+
+          // setup listener before we enter the raffle
+          // Just in case the blockchain moves REALLY FAST
+
+          // await raffle.enterRaffle({ value: raffleEntranceFee })
+        });
+      });
+```
+
+## Testing on a Testnet
+
+이제 실제 테스트넷에서 테스트해보겠습니다.
+다음과 같은 단계로 진행됩니다.
+
+1. Get our SubId for Chainlink VRF
+2. Deploy our contract using the subId
+3. Register the contract with Chainlink VRF & it's subId
+4. Register the contract with Chainlink Keepers
+5. Run Staging tests
+
+### 1. Get our SubId for Chainlink VRF 체인링크 SubId 얻어오기
+
+>https://vrf.chain.link/
+
+로 이동합니다.
+
+우리는 완전히 프로그래밍 방식으로 이것을 할 수 있습니다. 왜냐하면 여기 사용자 인터페이스는 완전히 분산되고 체인화된 등록 계약에 대한 통화 계약을 용이하게 하는 데만 도움을 주기 때문입니다.
+
+[click on this link](#introduction-to-chainlink-keepers) 
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-09%20003321.png)
+
+그리고 다시 `helper-hardhat-config.js`에 가서 rinkeby subscriptionId를 설정해줍니다.
+
+```js
+const { ethers } = require("hardhat");
+
+const networkConfig = {
+    4: {
+        name: "rinkeby",
+        vrfCoordinatorV2: "0x6168499c0cFfCaCD319c818142124B7A15E857ab",
+        entranceFee: ethers.utils.parseEther("0.01"),
+        keyHash: "0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc",
+        subscriptionId: "7276",
+        callbackGasLimit: "500000", // 500,000
+        interval: "30",
+    },
+    31337: {
+        name: "hardhat",
+        entranceFee: ethers.utils.parseEther("0.01"),
+        keyHash: "0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc", //모의계약이기때문에 뭐가와도 상관없음(비어있어도 돌아감)
+        callbackGasLimit: "500000", // 500,000
+        interval: "30",
+    }
+}
+
+const developmentChains = ["hardhat","localhost"];
+
+module.exports = {
+    networkConfig,
+    developmentChains,
+}
+```
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-09%20004918.png)
+
+여기서 consumer는 바로 우리가 만든 Raffle 계약이 될것입니다.
+
+그러니 먼저 `Add Funds`버튼을 눌러 LINK를 투입합니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-09%20005349.png)
+
+일단 `2LINK`만 넣겠습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-09%20005416.png)
+
+이 fund에 들어갈 LINK토큰은 네트워크에 따라 달라지니 실제 메인넷에 배포할 때는 Chainlink 문서에 가서 꼭 확인해보시기 바랍니다. https://docs.chain.link/docs/vrf-contracts/
+
+보통 `VRF`는  `2 LINK` 를,
+`Keepers`는 `8 LINK` 를 추천하고 있습니다.
+
+그리고 컨펌을 누르면 우리는 Subscription에 자금(fund)를 대도록 만들었습니다. 오라클가스 값을 지불하여 랜덤넘버를 얻을 수 있는겁니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-09%20010037.png)
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-09%20010103.png)
+
+이제 Balance를 보시게 되면 2 LINK 만큼 늘어난 것을 확인 할 수 있습니다.
+
+### 2. Deploy our contract using the SubId - SubId를 이용해서 계약 배포하기
+
+앞으로 수월하게 진행하려면 지난번 프로젝트에서 사용했던 .env 파일 값을 모두 가지고 있어야합니다.
+그리고 깃허브 리포지토리에서 helper-hardhat-config.js 값을 다시한번 확실히 확인하세요.
+
+이제 계약을 링크비넷에 배포해보겠습니다.
+```bash
+yarn hardhat deploy --network rinkeby
+```
+
+## 01-deploy-raffle.js 의 verify 함수는 const { verify } = require("../utils/verify"); 로 가져와야합니다!!!!
+
+```bash
+reusing "Raffle" at 0x84fF9061C4aE4e317C6F7f884Ae7Ee2f56109cA1
+계약 검증하는중...
+계약 검증중...
+Nothing to compile
+Warning: Unnamed return variable can remain unassigned. Add an explicit return with value to all non-reverting code paths or name the variable.
+   --> contracts/Raffle.sol:107:13:
+    |
+107 |             bytes memory /* performData */
+    |             ^^^^^^^^^^^^
+
+
+Warning: Function state mutability can be restricted to view
+   --> contracts/Raffle.sol:100:5:
+    |
+100 |     function checkUpkeep(
+    |     ^ (Relevant source part starts here and spans across multiple lines).
+
+
+Successfully submitted source code for contract
+contracts/Raffle.sol:Raffle at 0x84fF9061C4aE4e317C6F7f884Ae7Ee2f56109cA1
+for verification on the block explorer. Waiting for verification result...
+
+Successfully verified contract Raffle on Etherscan.
+https://rinkeby.etherscan.io/address/0x84fF9061C4aE4e317C6F7f884Ae7Ee2f56109cA1#code
+----------------------------------
+Done in 23.60s.
+
+```
+
+성공적으로 Raffle 계약을 배포하고 검증까지 완료했습니다.
+
+>https://rinkeby.etherscan.io/address/0x84fF9061C4aE4e317C6F7f884Ae7Ee2f56109cA1#code
+
+이더스캔 링크를 타고 가보면 검증된 코드를 확인할 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-09%20151725.png)
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-09%20151801.png)
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-09%20151814.png)
+ 
+이제 이 계약주소를 Subscription 의 consumer 로 등록해주면 됩니다.
+이러면 VRF에서 이 계약을 사용하겠다고 알려 줄 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-09%20152531.png)
+
+`AddConsumer`버튼을 눌러 컨슈머를 추가해줍니다.
+
+이제 chainlink keepers로 이동해봅시다.
+
+>keepers.chain.link/new
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-09%20153030.png)
+
+`Register new upkeep` 버튼을 눌러 새 upkeep을 등록합니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-09%20153206.png)
+
+
+Contract Name : Raffle upkeep
+
+gaslimit 500000
+
+checkData는 공백으로 남겨놓겠습니다. 왜냐하면 우리 코드에서도 checkData는 주석처리했기때문에 아무값도 넘겨주지 않기 때문입니다.
+
+Starting Balance : 8
+
+`Register Upkeep`을 눌러 진행하겠습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-09%20153637.png)
+
+이제 keepers 메인페이지로 가서 My upkeeps 탭을 눌러보면 Raffle Upkeep 항목이 보이실 겁니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-09%20153805.png)
+
+add funds로 잔액을 충전합니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-09%20154028.png)
+
+3Link 만큼 넣어보겠습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-09%20154146.png)
+
+그럼 아래와 같이 balance 와 minimum balance 가 달라진걸 확인 할 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-09%20154432.png)
+
+History를 보면 2개의 트랜잭션을 확인할 수 있습니다. 
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-09%20154509.png)
+
+하나는 upkeep을 만들때 LINK 토큰을 넣었던 트랜잭션이고, 다른 하나는 방금 fund한 트랜잭션입니다.\
+
+Activiy Type  이 Fund Upkeep이라 되있는걸 볼 수 있습니다. 그리고 만약 이 계약이 시작된다면 perform upkeep 이라는 타입을 새로 볼 수 있을겁니다.
+
+이제 1.~4. 까지 모두 끝났습니다. 남은건 `5. 스테이징 테스트 실행`입니다.
+
+먼저 script 폴더에 `enter.js` 파일을 만들어 Raffle에 참가하는 스크립트를 작성합니다.
+
+```js
+// script/enter.js
+const { ethers } = require("hardhat");
+
+async function enterRaffle() {
+  const raffle = await ethers.getContract("Raffle");
+  const raffleEntranceFee = await raffle.getEntraceFee();
+  const tx = await raffle.enterRaffle({ value: raffleEntranceFee });
+  await tx.wait(1);
+  console.log("tx.hash",tx.hash);
+  console.log("라플 참여!");
+}
+
+enterRaffle()
+  .then(() => process.exit(0))
+  .cach((error) => {
+    console.log(error);
+    process.exit(1);
+  });
+
+```
+
+직접 이더스캔에 가서 write contract로 enterRaffle을 실행시키는 방법도 있고 콘솔로 실행시키는 방법도 있습니다.
+
+하지만 지금은 일단 스테이징 테스트를 실시해보겠습니다.
+
+### 스테이징 테스트 전 버그 수정
+
+실행하기전 스테이징 테스트 코드를 수정하겠습니다.
+
+먼저 recentWinner 자체가 address 값이므로 `recentWinner.address -> recentWinner`로 바꿔줍니다.
+
+```js
+                assert.equal(
+                  winnerEndingBalance.toString(),
+                  winnerStartingBalance.add(raffleEntranceFee).toString()
+                );
+```
+그리고 tostring으로 오타가 났습니다. `toString`으로 고쳐줍니다.
+
+마지막으로
+winnerStartingBalance를 선언할때 enterRaffle을 await하지 않으면 값이 할당되지 않기때문에 
+```ps1
+     ReferenceError: Cannot access 'winnerStartingBalance' before initialization
+      at FragmentRunningEvent.<anonymous> (test\staging\Raffle.staging.test.js:39:19)
+```
+다음과 같은 에러가 발생합니다.
+따라서 아래와 같이 `wait`을 이용해서 블럭이 승인될때까지 기다려줍니다.
+그리고 확인을 위하여 console.log를 단계별로 추가해주겠습니다.
+
+```js
+            });
+            // Then entering the raffle
+            console.log("하우스 임장중(enterRaffle)...");
+            const tx = await raffle.enterRaffle({ value: raffleEntranceFee });
+            await tx.wait(1);
+            console.log("블록 승인 대기중...");
+            const winnerStartingBalance = await accounts[0].getBalance();
+            // and This code WONT complete untill our listener has finished listening!
+          });
+```
+
+
+수정된 스테이징 테스트 전체코드
+```js
+const { assert, expect } = require("chai");
+const { getNamedAccounts, deployments, ethers, network } = require("hardhat");
+const {
+  developmentChains,
+  networkConfig,
+} = require("../../helper-hardhat-config");
+
+developmentChains.includes(network.name)
+  ? describe.skip
+  : describe("Raffle", function () {
+      let raffle, raffleEntranceFee, deployer;
+
+      beforeEach(async function () {
+        deployer = (await getNamedAccounts()).deployer;
+        raffle = await ethers.getContract("Raffle", deployer);
+        raffleEntranceFee = await raffle.getEntranceFee();
+      });
+
+      describe("fulfillRandomWords", function () {
+        it("실시간으로 Chainlink keepers, Chainlink VRF 와 연동하여, 승자(당첨자) 추첨하기", async function () {
+          // enter the raffle
+          const startingTimeStamp = await raffle.getLatestTimeStamp();
+          const accounts = await ethers.getSigners();
+
+          await new Promise(async (resolve, reject) => {
+            raffle.once("WinnerPicked", async () => {
+              try {
+                // add our assert here
+                const recentWinner = await raffle.getRecentWinner();
+                const raffleState = await raffle.getRaffleState();
+                const winnerEndingBalance = await accounts[0].getBalance();
+                const endingTimeStamp = await raffle.getLatestTimeStamp();
+
+                await expect(raffle.getPlayer(0)).to.be.reverted;
+                assert.equal(recentWinner, accounts[0].address);
+                assert.equal(raffleState.toString(), "0");
+                assert.equal(
+                  winnerEndingBalance.toString(),
+                  winnerStartingBalance.add(raffleEntranceFee).toString()
+                );
+                assert(endingTimeStamp > startingTimeStamp);
+                resolve();
+              } catch (error) {
+                console.log(error);
+                reject(error);
+              }
+            });
+            // Then entering the raffle
+            console.log("하우스 임장중(enterRaffle)...");
+            const tx = await raffle.enterRaffle({ value: raffleEntranceFee });
+            await tx.wait(1);
+            console.log("블록 승인 대기중...");
+            const winnerStartingBalance = await accounts[0].getBalance();
+            // and This code WONT complete untill our listener has finished listening!
+          });
+
+          // setup listener before we enter the raffle
+          // Just in case the blockchain moves REALLY FAST
+
+          // await raffle.enterRaffle({ value: raffleEntranceFee })
+        });
+      });
+    });
+
+```
+
+### 스테이징 테스트 실시하기
+
+```bash
+hh test --network rinkeby
+```
+
+그렇게 되면 첫번째로 Raffle 계약에 트랜잭션으로 Enter Raffle 메소드가 찍혀나오게 됩니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-09%20161200.png)
+
+그리고 두번째로 Raffle.sol 안의 checkUpkeep 함수를 통과해 isOpen, timePassed, hasPlayer, hasBalance 등의 조건을 거치게 됩니다. 그리고 이 작업이 바로 Keepers에 의해 시작되게 됩니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-09%20164511.png)
+
+그러니 Keepers로 가보면 새로운 트랜잭션과 더불어 Activity type에 perform Upkeep이라 쓰여있는 걸 확인 할 수 있습니다.
+
+그럼 perform Upkeep은 무슨일을 할까요? 네, 바로 Chainlink VRF를 호출해주는 역할을 합니다.
+
+```solidity
+// Raffle.sol
+    function performUpkeep(
+
+        //...
+
+        uint256 requestId = i_vrfCoordinator.requestRandomWords(
+            i_keyHash, //gasLane
+            i_subscriptionId,
+            REQUEST_CONFIRMATIONS,
+            i_callbackGasLimit,
+            NUM_WORDS
+        );
+
+        //...
+    }
+```
+
+그러니 이제 Chainlink VRF 페이지로 가보면 History에 트랜잭션이 기록된 걸 볼 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-09%20164915.png)
+
+
+```bash
+
+  Raffle
+    fulfillRandomWords
+하우스 임장중(enterRaffle)...
+블록 승인 대기중...
+      √ 실시간으로 Chainlink keepers, Chainlink VRF 와 연동하여, 승자(당첨자) 추첨하기 (96419908 gas)
+
+
+  1 passing (9m)
+
+Done in 530.14s.
+
+```
+이제 다시 터미널로 돌아가보면 테스트가 성공했고 우리는 실제 테스트넷에서 완벽하게 분산화되어 작동하는 복권(Raffle) 만들기를 완료했습니다! 
+
+자 그런데 여기서 Raffle 계약의 이더스캔 트랜잭션 내역을 살펴보면
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-09%20165422.png)
+
+온통 enterRaffle 뿐 체인링크 노드가 performUpkeep이나 fulfillRandomWords를 실행했다는 기록을 찾아볼 수 없습니다.
+
+그것들은 바로 `Internal Txns` 탭에서 찾아볼 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-09%20165622.png)
+
+'fulfillRandomWords'는 실제로 VRF 코디네이터를 통해 호출되며 VRF 코디네이터 계약은 'FulfillRandomness'를 호출합니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-09%20170030.png)
+
+그래서 실제로 이 트랜잭션중에 하나가 바로 우리으 계약을 부르기 위한 VRF 코디네이터의 트랜잭션이 될 것입니다.
+
+performUpkeep에서도 같은 일이 일어납니다. `performUpkeep`은  `registry` 계약을 통해 호출되며 `registry`계약이 `perfomrUpkeep`을 호출합니다.
+
+다음은 트랜잭션을 자세히보기를 눌러 `Logs` 탭을 살펴봅시다.
+
+indexing 된 이벤트 값을 볼 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-09%20170651.png)
+
+토픽 0 에는 이 계약 자체를 나타내는 Hex를 볼수 있습니다.
+토픽 1 에서는 Dec값 `0xc2a354ac356d3c4bc00432a4989c5fd7a6c4e199`은 위에 있는 `RaffleEnter (index_topic_1 address player)`의 `index_topic_1 address player`를 나타냅니다
+
+그리고 Data는 당연히 비어있는 `0x`값입니다. 모두 indexing해서 넣었기 때문이죠.
+
+## Smart Contract Lottery Conculusion
+
+그리고 우리는 블록체인에 배치된 검증 가능한 무작위, 자율, 분산 복권을 성공적으로 만들었습니다.
+
+축하합니다!
+
+`.gitignore` 파일을 작성 후 깃허브에 업로드 해보시기 바랍니다.
+
+## Completed Hardhat Basics! 1:32:27
+
+## TypeScript
+
+Promise<void>
+
+hardhat.config.js export config
+
+typescript dependencies
+
+00-deploy-mocks.ts
+
+uint test typechains types
+
+# Lesson 10 NextJS Smart Contract Lottery Full Stack / Front End
+
+```bash
+yarn create next-app .
+```
+
+테스트 실행 로컬호스트 3000
+```bash
+yarn run dev
+```
+
+`_app.js`는 우리의 시작점(entry point)가 될 것입니다.
+
+`index.js`는 메인페이지라 생각하면 됩니다.
+
+index.js와 같은 페이지 컴포넌트는 _app.js 안의 `<Component {pageProps} />` 안에 들어가게 됩니다.
+
+`_app.js`를 프론트엔드 전체를 뜻한다고 생각하면 됩니다.
+
+
+index.js의 Head 부분만 남겨놓고 다 지우겠습니다.
+
+```js
+import Head from 'next/head'
+import Image from 'next/image'
+import styles from '../styles/Home.module.css'
+
+export default function Home() {
+  return (
+    <div className={styles.container}>
+      <Head>
+        <title>Smart Contract Lottery</title>
+        <meta name="description" content="스마트계약 추첨" />
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
+      안녕하세요
+    </div>
+  )
+}
+```
+
+## Manual Header I
+
+먼저 해야할것은 월렛과 연결하는 버튼을 만드는 것입니다.
+
+저번과는 다르게 월렛을 마음대로 선택할 수 있고, 계정도 마음대로 바꿀 수 있는 기능을 만들것입니다.
+
+`components`폴더를 하나 만들겠습니다.
+해당 폴더에 `Header.jsx` 파일을 생성해줍니다.
+
+```jsx
+export default function Haeder() {
+    return (
+        <div>Hi from Haeder </div>
+    )
+}
+```
+
+`index.js`에서 불러와봅시다.
+
+```jsx
+import Head from 'next/head'
+import Image from 'next/image'
+import Haeder from '../components/Header'
+import styles from '../styles/Home.module.css'
+
+
+export default function Home() {
+  return (
+    <div className={styles.container}>
+      <Head>
+        <title>Smart Contract Lottery</title>
+        <meta name="description" content="스마트계약 추첨" />
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
+      <Haeder />
+      안녕하세요
+    </div>
+  )
+}
+
+```
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-10%20212539.png)
+
+
+어려운 방법
+
+우리가 HTML/JS 환경에서 fundMe 앱을 만들때 바닐라 ethers.js 만을 사용해 만들었습니다.
+
+사실 생 ehters.js 가지고 다 할 수 있었지만, 프론트엔드 개발자의 삶을 지속가능하도록 편안하게 만들어주는 리액트를 위한 패키지가 있습니다.
+ 
+그 전에 6가지 보일러 플레이트를 만드는방법에 대해 알아봅시다.
+
+###
+
+```bash
+yarn create next-app .
+```
+
+```bash
+yarn add browserify
+```
+```bash
+yarn browserify index.js --standalone bundle -o ./dist/bundle/js
+```
+
+### web3-react
+
+```bash
+$ yarn add @web3-react/core
+```
+```bash
+yarn add @web3-react/injected-connector
+```
+
+Web3ReactProvider로 _app 의 Components를 감싸줍니다.
+
+`_app.js`
+```jsx
+import "../styles/globals.css";
+import { Web3ReactProvider } from "@web3-react/core";
+import { Web3Provider } from "@ethersproject/providers";
+
+const getLibrary = (provider) => {
+  return new Web3Provider(provider);
+};
+
+function MyApp({ Component, pageProps }) {
+  return (
+    <Web3ReactProvider getLibrary={getLibrary}>
+      <Component {...pageProps} />
+    </Web3ReactProvider>
+  );
+}
+
+export default MyApp;
+```
+
+
+
+`index.js`
+```jsx
+import Head from "next/head";
+import Image from "next/image";
+import styles from "../styles/Home.module.css";
+import { useWeb3React } from "@web3-react/core";
+import { InjectedConnector } from "@web3-react/injected-connector";
+import { ethers } from "ethers";
+import { abi } from "../constants/abi";
+
+
+const injected = new InjectedConnector();
+
+export default function Home() {
+  const { activate, active, library: provider } = useWeb3React();
+  async function connect() {
+    try {
+      await activate(injected);
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  async function execute() {
+    if(active) {
+      const signer = provider.getSigner();
+      const contractAddress = "0x5fbdb2315678afecb367f032d93f642f64180aa3";
+      const contract = new ethers.Contract(contractAddress, abi, signer);
+      try {
+        await contract.store(42);
+      } catch (error) {
+        console.log(error);
+      }
+    }
+  }
+  return (
+    <div className={styles.container}>
+      {active ? (
+        <>
+          <p>연결되었습니다!</p>
+          <button onClick={() => execute()}>실행하기</button>
+        </>
+      ) : (
+        <button onClick={() => connect()}>연결하기</button>
+      )}
+    </div>
+  );
+}
+
+
+```
+
+이제 이 훅을 어느 페이지에서나 사용할 수 있습니다. active로 활성유무를 결정합니다. 
+```jsx
+const { activate, active, library:provider } = useWeb3React();
+```
+
+### moralis
+```bash
+yarn add moralis react-moralis
+```
+
+모랄리스가 제공하는 서버가 필요없을땐 `initializeOnMount={false}`로 설정해줍니다.
+`_app.js`
+```jsx
+import "../styles/globals.css";
+import { MoralisProvider } from "react-moralis";
+
+function MyApp({ Component, pageProps }) {
+  return (
+    <MoralisProvider initializeOnMount={false}>
+      <Component {...pageProps} />
+    </MoralisProvider>
+  );
+}
+
+export default MyApp;
+```
+
+모랄리스에는 별도의 연결 함수없이 `enabledWeb3`메소드로 월렛에 연결할 수 있습니다.
+또한 계약실행도 `useWeb3Contract`에서 불러온 `runContractFunction` 메소드로 실행할 수 있습니다.
+해당 메소드는 abi, contactAddress, functionName, params 등의 인자들을 받습니다.
+
+`index.js`
+```js
+import Head from 'next/head'
+import Image from 'next/image'
+import styles from '../styles/Home.module.css'
+import {useMoralis, useWeb3Contract} from 'react-moralis'
+import { abi } from '../constants/abi';
+
+export default function Home() {
+  const {enableWeb3, isWeb3Enabled} = useMoralis();
+
+  const { runContractFunction} = useWeb3Contract({
+    abi: abi,
+    contractAddress: "0x5fbdb2315678afecb367f032d93f642f64180aa3",
+    functionName: "store",
+    params: {
+      _favoriteNumber: 42,
+    }
+
+  })
+
+  return (
+    <div className={styles.container}>
+      {isWeb3Enabled ? (
+        <>
+          <p>연결되었습니다!</p>
+          <button onClick={() => runContractFunction()}>실행하기</button>
+        </>
+      ) : (
+        <button onClick={() => enableWeb3()}>연결하기</button>
+      )}
+    </div>
+  )
+}
+
+```
+
+### web3modal
+
+```bash
+yarn add @walletconnect/web3-provider
+```
+```bash
+yarn add web3modal
+```
+
+## Manual Header I continue
+
+이번엔 Moralis를 사용할겁니다. 모랄리스는 오픈소스이며, 당신의 앱에 더 많은 기능과 더 많은 기능을 제공하기 위해 당신의 백엔드에 연결하기 위한 몇 가지 선택적인 기능들과 함께 제공됩니다. 그리고 이것이 모랄리스를 사용하는 이유입니다.
+
+만약 순수 ethers를 사용하고 싶다면 그렇게도 가능합니다!
+
+```bash
+yarn add moralis react-moralis
+```
+
+여기서 우리는 --dev를 사용하여 데브디팬던시에 추가하지 않을건데 그 이유는 프로덕션 빌드를 할때 모랄리스가 필요한 패키지이기 때문입니다.
+
+먼저 아까 만들었던 Header 컴포넌트의 이름을 `ManualHeader`로 변경하겠습니다.
+
+`ManualHeader.jsx`파일로 이동합니다.
+
+모랄리스에서는 ehters에서 사용하는 `ethereum.request({method: "eth_requestAccounts"})`  요청을 다음과 같이 불러와서 사용할 수 있습니다.
+
+>리액트 모랄리스 문서
+https://github.com/MoralisWeb3/react-moralis
+
+```jsx
+//ManualHeader.jsx
+import { useMoralis } from "react-moralis"
+
+export default function ManualHeader() {
+  const { enabledWeb3 } = useMoralis()
+
+  return(
+    <div>커스텀헤더입니다.</div>
+  )
+}
+```
+
+`useMoralis`는 일종의 `hook`입니다. 훅을 사용하면 리액트 상태와 생명주기에 연결할 수 있게 됩니다. 애플리케이션 내의 상태를 계속 추적할 수 있게 만들어주죠.
+
+모랄리스를 이용한 애플리케이션 안에서는 `<MoralisProvider>`라는 `ContrxtProvider` 역할을 하는 컴포넌트로 둘러싸줘야 합니다.
+
+MoralisProvider로 전체 애플리케이션을 감싸주기 위해 `_app.js` 파일로 이동합니다.
+
+```js
+//_app.js
+import "../styles/globals/css"
+import { MoralisProvider } from "react-moralis"
+
+function MyApp ({ Component, pageProps }) {
+  return (
+    <MoralisProvider initializeOnMount={false}>
+      <Componet {...pageProps} />
+    </MoralisProvider>
+  )
+}
+
+export default MyApp
+```
+
+`initializeOnMount`는 웹사이트 서버에대한 훅 기능을 들여올때 사용합니다.
+그러나 우리는 필요없기 때문에 false로 놔두겠습니다.
+
+## React Hooks
+
+자 이제 `useMoralis`는 `Hook`이라 불리는 거라는걸 알았습니다.
+
+그리고 `hook`과 `hooks`는 처음볼때는 조금 이해하기 어려울 수 있지만, 사실상 리액트 프로젝트를 만들 수 있는 경이로운 방법입니다.
+
+react class components를 사용하는 방법도 있지만 우리는 hook을 사용할 겁니다 왜냐하면 훨씬 더 낫기 때문입니다.
+
+훅은 함수형 컴포넌트(functional components)가 리액트 상태나 기타 기능에 대해 접근할 수 있게 만들어줍니다.
+
+현재 우리는 애플리케이션이 메타마스크에 연결되어있는지 여부를 따지고 싶습니다.
+
+예를 들어봅시다. 만약 훅을 사용하지 않는다면
+
+```js
+let isConnected = false
+
+// 버튼을 누르면 isConnected가 true로 바뀌는 동작
+```
+
+이 방식은 분명 isConnected를 버튼을 누르면 true로 바꿔줄것임은 틀림없습니다. 하지만 렌더링이 다시 일어나지 않아 웹페이지 화면은 false인 상태 그대로 일것입니다. 심지어 함수 바깥에서 선언해 버린다면 컴포넌트는 무엇이 일어났는지도 모르겠죠. 그래서 `훅`은 무엇인가 바뀌었을때 자동으로 재 렌더링을(re-rendering)을 해주는 기능을 가지고 있습니다. 이것이 훅이 가지고 있는 기능들중 하나입니다.
+
+`enableWeb3` 는 `useMoralis`훅이 가지고 있는 함수 중 하나입니다.
+
+enableWeb3는 연결해주는 함수입니다. 즉
+```js
+//...
+async function connect() {
+  if (typeof window.ethereum !== "undefined") {
+    try{
+      await ethereum.request({method: "eth_requestAccounts" })
+    } catch(e){
+      console.log(e)
+    }
+  }
+  //...
+}
+  
+```
+
+이것과 등가입니다. enableWeb3는 MetaMask만을 지원하고 있지만 다른 월렛도 지원하게 하는 멋진 방법에 대해 알아볼것입니다.
+
+## Manual Header II
+
+우리는 ebableWeb3 세팅을 끝냈습니다. html-fundME 에서 만든것처럼 연결버튼을 만들어봅시다.
+
+```jsx
+//ManualHeader.jsx
+import { useMoralis } from "react-moralis"
+
+export default function ManualHaeder() {
+
+    const {enableWeb3} = useMoralis()
+
+    return (
+        <div>
+            <button onClick={async () => { await enableWeb3() }}>연결하기</button>
+        </div>
+    )
+}
+```
+
+기존 연결을 끊고 연결해봅시다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-12%20114805.png)
+
+이제 연결여부에 따라 버튼출력 유무를 결정해보겠습니다.
+메타마스크와 연결상태를 추적해주는 `isWeb3Enabled` 변수 를 사용하면 됩니다.
+
+```jsx
+import {useMoralis} from "react-moralis"
+
+export default function ManualHeader() {
+  const {enableWeb3, isWeb3Enabled } = useMoralis();
+  
+  return (
+    <div>
+      <button onClick={ async () => {await enableWeb3()} }></button>
+    </div>
+  )
+}
+```
+
+그러나 좀 더 나은 방법으로 사용해보겠습니다. 바로 `account`를 활용하는겁니다.
+
+계정이 있을경우와 없을경우를 나누어 연결여부를 판별하는 겁니다.
+
+```jsx
+import { useMoralis } from "react-moralis"
+
+export default function ManualHaeder() {
+
+    const {enableWeb3, account} = useMoralis()
+
+    return (
+        <div>
+            {account ? (<p>연결되었습니다!</p>) : (<button onClick={async () => { await enableWeb3() }}>연결하기</button>)}   
+        </div>
+    )
+}
+```
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-12%20115608.png)
+
+account를 사용해서 계정주소를 표시해보겠습니다.
+
+```jsx
+        <div>
+            {account ? (<p>계정 {account} 에 연결되었습니다!</p>) : (<button onClick={async () => { await enableWeb3() }}>연결하기</button>)}   
+        </div>
+```
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-12%20115828.png)
+
+
+그리고 보통 이렇게 slice를 이용해서 줄여서 쓰기도 합니다.
+
+```jsx
+import { useMoralis } from "react-moralis"
+
+export default function ManualHaeder() {
+
+    const {enableWeb3, account} = useMoralis()
+
+    return (
+        <div>
+            {account ? (<p>계정 {account.slice(0,6)}...{account.slice(account.length - 4)} 에 연결되었습니다!</p>) : (<button onClick={async () => { await enableWeb3() }}>연결하기</button>)}   
+        </div>
+    )
+}
+```
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-12%20120553.png)
+
+
+그리고 이 훅 덕분에 우리가 메타마스크에서 계정을 바꿔도 자동으로 리렌더링시켜줍니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-12%20120733.png)
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-12%20120720.png)
+
+## useEffect Hook
+
+그런데 여기서 문제점이 한가지 있습니다.
+
+새로고침을 누르게 되면 메타마스크에 연결되있는 상태인데도 `연결하기`버튼이 나타나있는 상태입니다.
+
+왜 이런 일이 발생할까요?
+
+새로고침을 누르게 되면 우리의 웹사이트는 enableWeb3 버튼을 눌렀단 사실을 알지 못합니다.
+왜나하면 새로고침하면 빈 값으로 돌아가기 때문입니다. 
+
+그래서 우리는 자동으로 연결여부를 판별해주는 함수를 작성할겁니다.
+
+이를 위해서 `useEffect`라는 훅을 사용할 겁니다. 이것은 리액트의 핵심 훅입니다.
+
+```jsx
+// ManualHeader.jsx
+
+```
+
+`useEffect`훅은 두가지 인자를 받습니다.
+
+```jsx
+useEffect(()=>{},[]);
+```
+첫번째는 콜백함수, 그리고 두번째는 디펜던시 배열입니다.
+
+그리고 `useEffect`가 하는 일은 디펜던시 배열`[]` 안에 있는 값을 계속 체크해서, 이 디펜던시 배열 안의 어떤것이 바뀐다면, 앞에 있는 콜백함수`()=>{}`를 호출하여 프론트엔드에 리랜더링합니다.
+
+예를 들어보겠습니다.
+
+`useMoralis`에서 `isWeb3Enalbed`를 들여와서 `isWeb3Enabled`값이 변할때 다음과 같은 콘솔명령어를 출력하도록 합니다.
+
+```jsx
+import { useEffect } from "react"
+import { useMoralis } from "react-moralis"
+
+export default function ManualHaeder() {
+    const {enableWeb3, account, isWeb3Enabled} = useMoralis()
+
+    useEffect(()=>{
+        console.log("isWeb3Enabled?")
+        console.log(isWeb3Enabled)
+    },[isWeb3Enabled]);
+
+    return (
+        <div>
+            {account ? (<p>계정 {account.slice(0,6)}...{account.slice(account.length - 4)} 에 연결되었습니다!</p>) : (<button onClick={async () => { await enableWeb3() }}>연결하기</button>)}   
+        </div>
+    )
+}
+```
+
+현재 useEffect는 항상 `isWeb3Enabled`이 바뀌는 걸 리스닝하고 있습니다. 그리고 `enableWeb3`가 실행되면 `isWebEnalbed`가 `true`가 될것입니다.
+
+이제 브라우저로 가서 새로고침을 눌러보겠습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-12%20125658.png)
+
+`'Hi'`,`false`가 두번씩 나오게 되었습니다. 왜 두번씩 나타났을까요?
+
+`isWeb3enalbed`이 한번만 바뀌어야 하는거 아닌가요? 
+
+이유는 바로 react가 strict mode로 작동하고 있기때문입니다.
+
+디펜던시 배열을 추가하지 않았다면, 리렌더링이 이루어질때 항상 콜백함수를 호출하게 됩니다.
+
+```jsx
+    useEffect(()=>{
+        console.log("isWeb3Enabled?")
+        console.log(isWeb3Enabled)
+    });
+```
+
+그러므로 무한루프에 빠지지 않도록 주의해야합니다.
+
+추가로 디펜던시 배열에 빈값`[]`으로 놔두면 처음 로드되었을때(onload) 단 한번 실행됩니다.
+
+```jsx
+    useEffect(()=>{
+        console.log("isWeb3Enabled?")
+        console.log(isWeb3Enabled)
+    },[]);
+```
+
+확인해볼까요
+
+디펜던시 배열에 isWeb3Enabled를 넣었을때 연결하기 버튼을 누르면 true라는 콘솔로그가 출력됩니다.
+
+```jsx
+    useEffect(()=>{
+        console.log("isWeb3Enabled?")
+        console.log(isWeb3Enabled)
+    },[isWeb3Enabled]);
+```
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-12%20140759.png)
+
+다음은 빈값으로 놔두었을때 입니다. 연결하기 버튼을 눌러도 콘솔로그를 출력하지 않습니다.
+
+```jsx
+    useEffect(()=>{
+        console.log("isWeb3Enabled?")
+        console.log(isWeb3Enabled)
+    },[]);
+```
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-12%20141008.png)
+
+
+## Local Storage
+
+이제 브라우저를 새로고침해도 연결되어있다는 사실을 기억해두도록 만들어볼겁니다.
+
+첫번째로 isWeb3Enabled가 true일때 아무것도 하지 않고 코드를 종료하는 것입니다.
+
+```jsx
+import { useEffect } from "react"
+import { useMoralis } from "react-moralis"
+
+export default function ManualHaeder() {
+    const {enableWeb3, account, isWeb3Enabled} = useMoralis()
+
+    useEffect(()=>{
+        if(isWeb3Enabled) return
+        console.log("isWeb3Enabled?")
+        console.log(isWeb3Enabled)
+    },[isWeb3Enabled]);
+
+    return (
+        <div>
+            {account ? (<p>계정 {account.slice(0,6)}...{account.slice(account.length - 4)} 에 연결되었습니다!</p>) : (<button onClick={async () => { await enableWeb3() }}>연결하기</button>)}   
+        </div>
+    )
+}
+```
+
+그리고 web3Enabled가 false 일경우 즉 연결되지 않았을경우에는 그대로 `enableWeb3`를 실행하도록 합니다.
+
+```jsx
+import { useEffect } from "react"
+import { useMoralis } from "react-moralis"
+
+export default function ManualHaeder() {
+    const {enableWeb3, account, isWeb3Enabled} = useMoralis()
+
+    useEffect(()=>{
+        if(isWeb3Enabled) return
+        enableWeb3();
+    },[isWeb3Enabled]);
+
+    return (
+        <div>
+            {account ? (<p>계정 {account.slice(0,6)}...{account.slice(account.length - 4)} 에 연결되었습니다!</p>) : (<button onClick={async () => { await enableWeb3() }}>연결하기</button>)}   
+        </div>
+    )
+}
+```
+
+자 이렇게 고치고 다시 브라우저로 가보면 제대로 작동하는것 같지만, 새로고침하거나 메타마스크에서 계정을 바꿀때마다 `enableWeb3`를 호출하기 때문에 메타마스크 팝업창이 계속 뜨게됩니다.
+
+이를 `Local Storage`를 활용해 고쳐보겠습니다.
+
+로컬스토리지에 connect 버튼을 누를때마다 연결됬다는 상태값을 저장할겁니다.
+
+```jsx
+import { useEffect } from "react";
+import { useMoralis } from "react-moralis";
+
+export default function ManualHaeder() {
+  const { enableWeb3, account, isWeb3Enabled } = useMoralis();
+
+  useEffect(() => {
+    if (isWeb3Enabled) return;
+  }, [isWeb3Enabled]);
+
+  return (
+    <div>
+      {account ? (
+        <p>
+          계정 {account.slice(0, 6)}...{account.slice(account.length - 4)} 에
+          연결되었습니다!
+        </p>
+      ) : (
+        <button
+          onClick={async () => {
+            await enableWeb3();
+
+            window.localStorage.setItem("connected","injected");
+          }}
+        >
+          연결하기
+        </button>
+      )}
+    </div>
+  );
+}
+
+```
+
+이는 나중에 사용월렛에 따라 다른 값을 줄 수 도 있습니다. ex) "wallet-connected",  "coinbase-wallet"
+
+그러나 지금은 `"injected"`라 칭하겠습니다.
+
+그리고 nextjs 버전에 따라서는 window 객체를 찾기 힘들어하는 일이 있기때문에 다음과 같이 작성해줍니다.
+
+```js
+import { useEffect } from "react";
+import { useMoralis } from "react-moralis";
+
+export default function ManualHaeder() {
+  const { enableWeb3, account, isWeb3Enabled } = useMoralis();
+
+  useEffect(() => {
+    if (isWeb3Enabled) return;
+  }, [isWeb3Enabled]);
+
+  return (
+    <div>
+      {account ? (
+        <p>
+          계정 {account.slice(0, 6)}...{account.slice(account.length - 4)} 에
+          연결되었습니다!
+        </p>
+      ) : (
+        <button
+          onClick={async () => {
+            await enableWeb3();
+            if(typeof window !== "undefined") {
+              window.localStorage.setItem("connected","injected");
+            }
+          }}
+        >
+          연결하기
+        </button>
+      )}
+    </div>
+  );
+}
+
+```
+
+개발자도구의 Application 탭의 lcoalSorage 란을 살펴보면 다음과 같이 값이 저장되어 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-12%20142601.png)
+
+다시 useEffect를 작성해보겠습니다.
+
+```jsx
+  useEffect(() => {
+    console.log("isWebEnalbed onload",isWeb3Enabled);
+    if (isWeb3Enabled) return;
+    if (typeof window !== "undefined") {
+        if(window.localStorage.getItem("connected")) {
+            enableWeb3();
+        };
+    }
+  }, [isWeb3Enabled]);
+```
+
+`isWeb3Enabled`가 `false`이면, `window`객체가 존재하는지 체크하고, 윈도우객체가 있다면, 로컬스토리지에서 `"connected"`키를 가지고 있는 아이템이 존재하는지, 즉, "이미 연결되있는 상태"를 체크합니다. 이미 연결된(로컬스토리지에 "connected"키를 가진 오브젝트가 존재한다면)상태라면 `enabledWeb3()` 메소드를 실행하여 web3에 연결하고 `isWeb3Enabled`를 `true`값으로 바꿉니다.
+
+이제 새로고침해도 메타마스크 팝업이 뜨지 않고, 연결버튼을 한번 더 눌러야 하는일도 없습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-12%20144430.png)
+
+하지만, 여전히 다른 계정으로 바꾸거나 연결을 끊은상태에서 새로고침을 하면 메타마스크 팝업이 뜨게 됩니다.
+이는 우리가 어플리케이션에게 "연결되지 않은 상태"를 알려주지 않았기 때문입니다.
+
+이를 위해 연결되지 않은 상태 (disconnected)를 알려주는 `useEffect`문을 하나 더 작성해보겠습니다.
+
+`useMoralis` 훅에서 새로운 함수 `Moralis`를 불러옵니다.
+
+그리고 `Moralis.onAccountChanged`로 계정이 바뀌었을 경우를 감지하여 행동을 지정해줍니다.
+
+```jsx
+const {enableWeb3, isWeb3Enabled, account, Moralis } = useMoralis();
+
+  useEffect(() => {
+    Moralis.onAccountChanged((account) => {
+      console.log(`계정이 ${account} 로 변경되었습니다.`)
+    })
+  })
+```
+
+그런다음 `account`가 `null`일 경우의 조건문을 작성해줍니다.
+
+그리고 account가 빈값이라는 사실을 이용해 연결이 끊겼다는 상황을 상정할 수 있습니다.
+
+로컬 스토리지에서 "connected" 값을 지워주는 겁니다.
+
+또한 `useMoralis`에서 `deactivateWeb3` 함수를 불러와 연결을 끊어줄 수 있습니다.
+
+```jsx
+const { enableWeb3, isWeb3Enabled, account, Moralis, deactivateWeb3 } = useMoralis();
+
+  useEffect(() => {
+    Moralis.onAccountChanged((account) => {
+      console.log(`계정이 ${account} 로 변경되었습니다.`)
+      if(account == null) {
+        window.localStorage.removeItem("connected");
+        deactivateWeb3();
+        console.log("비어있는 계정(null account)이 감지되어 연결을 해제했습니다.")
+      }
+    })
+  })
+```
+
+이제 계정을 변경해도 해당 계정이 연결되어있다면, 연결을 유지된 상태로 화면을 렌더링하는걸 볼 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-12%20151925.png)
+
+그리고 로컬스토리탭을 켜놓은 채로 메타메스크에서 계정을 하나씩 연결해제 시켜보면 모든 계정이 연결해제 될시 다음과 같이 콘솔로그에 출력되면서 연결해제 화면이 랜더링 되는걸 볼 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-12%20152236.png)
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-12%20152302.png)
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-12%20152311.png)
+
+
+## isWeb3Enabled Loading
+
+하나 더 추가해야될 것은 우리가 메타마스크 연결을 하고 있는 도중(loading)에 connect버튼이 또 눌리지 않도록 비활성화 시키는 것입니다.
+
+이를위해 useMoralis의 `isWeb3EnableLoading` 변수를 이용할 수 있습니다.
+
+버튼요소에 disabled 속성을 추가해주고 `isWeb3EnableLoading`값을 넣어줍니다.
+
+```jsx
+        <button
+          onClick={async () => {
+            await enableWeb3();
+            if(typeof window !== "undefined") {
+                window.localStorage.setItem("connected","injected");
+            }
+          }}
+          disabled={isWeb3EnableLoading}
+        >
+          연결하기
+        </button>
+```
+
+다음과 같이 `연결하기` 버튼을 눌러 메타마스크 팝업이 떠있을때 버튼이 비활성화됩니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-12%20155302.png)
+
+## web3uikit
+
+이제 어려운방법을 배웠으니 쉬운 방법을 배워보겠습니다.
+
+components 폴더에 `Header.jsx` 파일을 생성합니다.
+
+```bash
+yarn add web3uikit
+```
+
+```jsx
+import { ConnectButton } from "web3uikit";
+
+export default function Header () {
+    return (
+        <div>
+            <ConnectButton moralisAuth={false} />
+        </div>
+    )
+}
+```
+
+`moralisAuth={false}`는 서버에 연결하지 않겠다는 뜻입니다.
+
+그리고 이 헤더는 우리가 전에 만든 `ManualHeader`안에 들어있는 내용이 모두 구현되어있습니다.
+
+그럼 `<ManualHeader>` 대신 `<Header>`를 `index`에 넣어봅시다.
+
+```js
+// index.js
+import Head from 'next/head'
+import Image from 'next/image'
+import Header from '../components/Header'
+// import ManualHaeder from '../components/ManualHeader'
+import styles from '../styles/Home.module.css'
+
+
+export default function Home() {
+  return (
+    <div className={styles.container}>
+      <Head>
+        <title>Smart Contract Lottery</title>
+        <meta name="description" content="스마트계약 추첨" />
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
+      {/* <ManualHaeder /> */}
+      <Header />
+      안녕하세요
+    </div>
+  )
+}
+
+
+```
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-12%20224325.png)
+
+보시는바와 같이 스타일링 된 `Connect Wallet` 버튼이 생성된걸 볼 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-12%20224741.png)
+
+또한 `Connect Wallet` 버튼을 누르게 되면 월렛을 선택할 수 있는 팝업이 뜨는데요,
+이는 우리가 로컬스토리지에 저장한 `connect` 오브젝트의 값을 이 팝업창과 같이 `Wallet Connect`,`Trust Wallet`,`MathWallet` 등으로 저장한것과 동일하다 보면 됩니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-12%20224827.png)
+
+연결해보면 월렛 주소 뿐만 아니라 월렛 자산도 보여줍니다.
+
+개발자도구의 어플리케이션 탭을 살펴볼까요 
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-12%20225022.png)
+
+로컬스토리지에 `provider` 라는 키로 `metamask` 값을 갖고 있는걸 확인 할 수 있습니다.
+
+## Introduction to Calling Functions in Next.js
+
+이제 복권에 참가할 수 있는 버튼을 만들어보겠습니다.
+
+`components` 폴더에 `LotteryEntrance.jsx` 파일을 만듭니다.
+
+```jsx
+// components/LotteryEntrance.jsx
+export default function LotteryEntrance() {
+
+
+    return (
+        <div>
+            복권 참가컴포넌트
+        </div>
+    )
+}
+
+```
+
+해당 컴포넌트를 `index.js`의 헤더 아랫부분에 불러오겠습니다.
+```jsx
+//index.js
+import Head from 'next/head'
+import Image from 'next/image'
+import Header from '../components/Header'
+import LotteryEntrance from '../components/LotteryEntrance'
+// import ManualHaeder from '../components/ManualHeader'
+import styles from '../styles/Home.module.css'
+
+
+export default function Home() {
+  return (
+    <div className={styles.container}>
+      <Head>
+        <title>Smart Contract Lottery</title>
+        <meta name="description" content="스마트계약 추첨" />
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
+      {/* <ManualHaeder /> */}
+      <Header />
+      <LotteryEntrance />
+      안녕하세요
+    </div>
+  )
+}
+
+```
+
+다시 `LotteryEntrance.jsx`파일로 돌아오겠습니다.
+
+제일 먼저 복권에 참가하는 함수를 만들어야겠죠?
+
+그 전에 우리가 계약 함수를 어떻게 불러왔는지 생각해봅시다.
+
+html smartcontract lottery를 만들때 작성했던 fund 함수를 떠올려봅시다.
+
+```js
+
+async function fund (ethAmount) {
+  if(typeof window.ethereum !== "undefined") {
+    const provider = new etheres.providers.Web3Provider(window.ethereum);
+    const signer = provider.getStinger();
+    const contract = new ethers.Contract(contractAddress, abi, signer);
+    try{
+      const transactionResponse = await contract.fund({value: ethers.utils.parseEther(ethAmount)});
+      await listenForTransactionMine(transactionResponse, provider);
+    } catch(error) {
+      console.log(error);
+    }
+  } else {
+    document.getElementById("executeButton").innerText = "메타마스크를 설치해주세요"
+  }
+}
+
+function listenForTransactionMine (txResponse, provider) {
+  console.log(`${txResponse.hash} 채굴중 ...`)
+  return new Promise((resolve,reject) => {
+    provider.once(txResponse.hash, (transactionReceipt) => {
+      console.log(`${transactionReceipt.blockConfirmations} 단계 승인을 통해 완료됨`)
+      resolve()
+    })
+  })
+}
+
+```
+
+이번에는 이렇게 사용하지 않고 Moralis를 이용해 호출해볼겁니다.
+
+모랄리스에는 다양한 hook들이 존재하고 있는데요,
+
+이중에 우리가 사용할 건 `useWeb3Contract()` 훅입니다.
+
+>https://github.com/MoralisWeb3/react-moralis#useweb3contract
+
+You can use the useWeb3Contract hook to execute on-chain functions. You need to provide the correct abi of the contract, the corresponding contractAddress, the functionName that you would like to execute, and any parameters (params) thet you need to send with the function.
+
+Options:
+
+address : The contract address (i.e. 0x1a2b3x...).
+functionName : The name of the contract's function that you want to call.
+abi : The contract's abi.
+params (optional): Any parameter you want to send with the function.
+
+```jsx
+const ShowUniswapObserveValues = () => {
+  const { data, error, runContractFunction, isFetching, isLoading } =
+    useWeb3Contract({
+      abi: usdcEthPoolAbi,
+      contractAddress: usdcEthPoolAddress,
+      functionName: "observe",
+      params: {
+        secondsAgos: [0, 10],
+      },
+    });
+
+  return (
+    <div>
+      {error && <ErrorMessage error={error} />}
+      <button onClick={() => runContractFunction()} disabled={isFetching}>
+        Fetch data
+      </button>
+      {data && <pre>{JSON.stringify(data)}</pre>}
+    </div>
+  );
+};
+```
+Example with executing by fetch:
+```jsx
+const ShowUniswapObserveValues = () => {
+  const { data, error, runContractFunction, isFetching, isLoading } =
+    useWeb3Contract();
+
+  const options = {
+    abi: usdcEthPoolAbi,
+    contractAddress: usdcEthPoolAddress,
+    functionName: "observe",
+    params: {
+      secondsAgos: [0, 10],
+    },
+  };
+
+  return (
+    <div>
+      {error && <ErrorMessage error={error} />}
+      <button
+        onClick={() => runContractFunction({ params: options })}
+        disabled={isFetching}
+      >
+        Fetch data
+      </button>
+      {data && <pre>{JSON.stringify(data)}</pre>}
+    </div>
+  );
+};
+```
+
+다시 LotteryEntrance로 돌아와서 작성해보겠습니다.
+
+먼저 `useWeb3Contract`를 불러옵니다.
+
+그런다음 `runContractFunction`을 `enterRaffle`로 명명합니다.
+
+`runContractFunction`이 실질적으로 우리가 불러올 함수(enterRaffle)가 될것입니다.
+
+그리고 useWeb3Contract()안에 파라미터들을 채워주도록 합니다.
+
+abi, contractAddress, functionName, params:{}, 그리고 마지막으로 `msg.value`가 오게되는데,
+이는 우리의 `Raffle.sol` 계약의 `enterRaffle`함수가 파라미터를 가지고 있지 않고 조건문으로 `msg.value`를 사용해서 revert 하고 있기 때문입니다.
+
+```jsx
+//Function Enter the Lottery 
+import { useWeb3Contract } from "react-moralis"
+
+export default function LotteryEntrance() {
+
+    const { runContractFunction: enterRaffle } = useWeb3Contract({
+        abi: //,
+        contractAddress: //,
+        functionName: //,
+        params: {},
+        msgValue: //
+    });
+
+    return (
+        <div>
+            복권 참가컴포넌트
+        </div>
+    )
+}
+```
+
+## Automatic Constant Value UI Updater
+
+그럼 이 파라미터 값들을 어떻게 가지고 오면 될까요?
+
+`abi` 를 가져오는건 쉬울겁니다. `abi`값은 바뀔 이유도 없고, 어떤 네트워크상에 존재하더라도 언제나 똑같습니다.
+
+자, 만약 스마트 계약을 이미 배포한 상태라면, 이미 `address` 값이 무엇인지 알고 있을 겁니다. 배포된 계약주소이죠.
+
+테스트넷이든 메인넷이든 이 파라미터들의 값들은 변하지 않을겁니다.
+
+물론 여기에 하드코딩 할 수도 있겠지만 많은 사람들은 이렇게 `constants` 폴더를 만들어 사용합니다.
+
+루트디렉토리에 `constants` 폴더를 만듭니다.
+
+그리고 나서 폴더 안에 `contract.json`, `abi.json` 이런식으로 파일이 들어 갈 수 있을겁니다.
+
+우리는 이제 Hardhat Network에 계약을 배포해본뒤 실제 테스트넷에 배포한 것과 비교를 해볼겁니다.
+
+network는 현재 정하지는 않을 것입니다. 왜냐하면 프론트엔드는 어떤 네트워크에서든지 똑같이 작동할 것이기 때문입니다.
+
+그리고 터미널에서 `hardhat-smartcontract-lottery` 폴더로 이동해봅시다.
+
+그리고 hardhat node 를 돌립니다.
+
+```bash
+hh node
+```
+
+지금 하려는 것은 스마트 계약안의 어떤것을 바꾸더라도, 예를들어 어떤 함수명을 바꾸거나 생성하면 이것이 프론트엔드에도 반영되도록 만드려 하는것입니다.
+
+우리는 백엔드(스마트계약)와 프론트엔드 모두를 다룰 줄 압니다. 그래서 지금 하고싶은 것은 바로 update frontend deploy 스크립트를 만드는 것입니다.
+
+
+```jsx
+//Function Enter the Lottery 
+import { useWeb3Contract } from "react-moralis"
+
+export default function LotteryEntrance() {
+
+
+
+    // const { runContractFunction: enterRaffle } = useWeb3Contract({
+    //     abi: //,
+    //     contractAddress: //,
+    //     functionName: //,
+    //     params: {},
+    //     msgValue: //
+    // });
+
+    return (
+        <div>
+            복권 참가컴포넌트
+        </div>
+    )
+}
+```
+
+우리가 배포하면 `contants` 폴더에 `abi.json`, `contract.json` 등의 파일을 자동 생성하고 그것을 바로 업데이트 해줄 수 있도록 할 겁니다.,
+
+그러기 위해서 우리의 원본 백엔드의 배포코드를 수정할 필요가 있습니다.
+
+hardhat-smartcontract-lottery 프로젝트로 이동해서 `deploy`폴더에 `99-update-front-end.js`파일을 생성합니다.
+
+99의 숫자를 준 이유는 이 스크립트가 모든 배포스크립트 중에 가장 나중에 작동해야 하기 때문입니다.
+
+우리가 어떤 체인에 계약을 배포하든 `contract` 폴더를 새 계약 정보로 업데이트 할 것입니다.
+
+```js
+// 99-update-frond-end.js
+module.exports = async function () {}
+```
+
+우리는 지금 어떤 스크립트도 배포할 필요없이 업데이트만 해주면 되는 상황입니다.
+그러니 파라미터는 아무것도 주지 않아도 됩니다.
+
+그리고 우리는 프론트엔드에 상관없이 작업해야할 경우도 있기 때문에, 업데이트 여부를 `.env` 파일에 특정한 환경변수에 따라 결정할 것입니다.
+
+```env
+// .env
+//...
+UPDATE_FRONT_END=true
+```
+
+그리고 나서 환경변수가 true일 경우 다음과 같이 콘솔로그를 띄우도록 작성합니다.
+
+```js
+module.exports = async function () {
+    if(process.env.UPDATE_FRONT_END) {
+        console.log("프론트엔드 업데이트 중")
+    }
+}
+```
+
+시험삼아 배포를 해보겠습니다.
+
+```bash
+hh deploy
+```
+```bash
+로컬 네트워크 감지됨! 모의계약 배포중...
+deploying "VRFCoordinatorV2Mock" (tx: 0x11b9dfa83e5a81e783d8d818bd6499fa1504a937113eca5f07b8cfafe70751ea)...: 
+deployed at 0x5FbDB2315678afecb367f032d93F642f64180aa3 with 1797707 gas
+모의계약 배포완료!
+-------------------------------------
+deploying "Raffle" (tx: 0xf6504ce6c5b613d8aa9b141c306af668db661790775f6d9733a88a127cf721fa)...: deployed at 0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9 with 1210364 gas
+----------------------------------
+프론트엔드 업데이트 중
+Done in 3.33s.
+```
+
+그럼 본격적으로 작성해봅시다.
+
+`UpdateContractAddresses()` 함수를 호출할 겁니다. 그리고 이것이 계약주소를 업데이트 할 때 사용하는 함수가 될 것입니다.
+
+그리고 나서는 ABI를 업데이트하는 함수를 만들 것입니다.
+
+먼저 해야할 일은 계약주소를 얻기 위해 raffle 계약을 가져오는 겁니다.
+
+`ethers.getContract("Raffle")`을 이용해 가장 최근에 배포한 계약을 `signer` 없이 가져올 수 있습니다.
+
+```js
+const { ethers } = require("hardhat")
+
+module.exports = async function () {
+  if(process.env.UPDATE_FRONT_END) {
+    console.log("프론트엔드 업데이트 중")
+    updateContractAddresses()
+  }
+}
+
+async function updateContractAddresses() {
+  const raffle = await ethers.getContract("Raffle");
+}
+```
+
+그리고 가져온 계약 `raffle`을 프론트엔드로 넘겨줄 겁니다.
+
+그리고 이 스크립트가 생성하는 json파일의 경로와 파일명을 정해줄 겁니다. 
+
+계속 가지고 사용할 것이기 때문에 const 로 파일주소를 선언해놓겠습니다.
+
+마찬가지로 ABI 파일도 다음과 같이 경로와 파일명을 지정해줍니다.
+
+```js
+const {ethers} = require("hardhat");
+
+const FRONT_END_ADDRESSES_FILE = "../nextjs-smartcontract-lottery/constants/contractAddresses.json"
+const FRONT_END_ABI_FILE = "../nextjs-smartcontract-lottery/constants/abi.json"
+
+module.exports = async function () {
+  if(process.env.UPDATE_FRONT_END) {
+    console.log("프론트엔드 업데이트 중")
+    updateContractAddresses()
+  }
+}
+
+async function updateContractAddresses() {
+  const raffle = await ethers.getContract("Raffle");
+}
+```
+
+다음은 `updateContractAddresses`함수에서 기존 `constansts` 폴더에 있는 `json`파일들을 읽어오도록 할 것입니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-13%20231350.png)
+
+해당 파일은 현재 비어있으므로 json 파일로 읽어오도록 하기 위해서 `{}`빈 중괄호를 작성해줍니다.
+
+```json
+// abi.json
+{}
+```
+```json
+// contractAddresses.json
+{}
+```
+
+그리고 다음과 같이 파일시스템(fs) 모듈과 `JSON.parse()`메소드를 사용해 읽어오도록 합니다.
+
+```js
+const { ethers } = require("hardhat");
+const fs = require("fs");
+
+module.exports = aysnc function () {
+  if(process.env.UPDATE_FRONT_END) {
+    console.log("프론트엔드 업데이트 중");
+    updateContractAddresses()
+  }
+}
+
+async function updateContractAddresses() {
+  const raffle = ethers.getContarct("Raffle");
+  const currentAddresses = JSON.parse(fs.readFileSync(FRONT_END_ADDRESSES_FILE),"utf8");
+}
+```
+
+그리고 `currentAddresses`는 이제 현재 계약 주소를 나타내는 변수가 될 것이고 이를 새로운 주소로 업데이트 해줄겁니다.
+
+왜냐하면 우리의 계약 주소들은 체인이 정해저 있지 않은 상태로 놔둘것이기 때문에 , 예를 들어 아래 코드와 같은 형태로 자동으로 만들어져 계속 네트워크를 추적 할 수 있도록 만들겁니다.
+
+```json
+// contractAddresses.json
+{
+  4: [0x2341aba323awef4r], 31337: [0xbaksd230rfi2wia9fj9jfaowfifja], //...
+}
+```
+
+네트워크를 판별해주는 조건문을 작성합니다.
+
+```js
+const { ethers } = require("hardhat");
+const fs = require("fs");
+
+module.exports = aysnc function () {
+  if(process.env.UPDATE_FRONT_END) {
+    console.log("프론트엔드 업데이트 중");
+    updateContractAddresses()
+  }
+}
+
+async function updateContractAddresses() {
+  const raffle = ethers.getContarct("Raffle");
+  const currentAddresses = JSON.parse(fs.readFileSync(FRONT_END_ADDRESSES_FILE),"utf8");
+  const chainId = network.config.chainId.toStirng();
+  if(chainId in currentAddresses) {
+    if(!currentAddresses[chainId].includes(raffle.address)) {
+      currentAddresses[chainId].push(raffle.address);
+    }
+  } else {
+    currentAddresses[chainId] = [raffle.address];
+  }
+
+  
+}
+```
+
+만약 현재 프론트엔드 주소파일(`currentAddresses.json` === `currentAddresses`) 안의 주소들 중에 현재 속해있는 네트워크의 `chainId` key를 가진 프로퍼티가 있다면,
+
+그리고 만약 현재 프론트엔드 주소파일 안의 현재 배포된 네트워크상에 존재하는 주소들 중(`currentAddresses[chainId]`) 현재 계약의 주소(`raffle.address`)가 없다면,
+
+현재계약파일 안에 체인아이디를 key로 갖는 프로퍼티 안에 현재, 즉 새 계약 주소(`raffle.address`)를 추가하도록(업데이트) 합니다.
+
+그리고 만약 chainId가 currentAddresses 객체안에 존재하지 않는다면 현재 네트워크(`currentAddress[chainId]`)를 키로 갖고 `[raffle.address]` 라는 배열을 값으로 가지는 프로퍼티를 생성합니다.
+
+
+그리고 마지막으로 이 업데이트 된 값들을 가지고 FRONT_END_ADDRESSES_FILE을 새로 작성하도록 명령할 겁니다.
+
+`fs.writeFileSync` 메소드에 첫번째 인자로 생성할 파일경로, 두번째 인자로 업데이트 할 내용인 `currentAddresses`를 `JSON.stringify()`로 JSON 형식으로 변환하여 파일을 쓰도록 만듭니다.
+
+```js
+const { ethers } = require("hardhat");
+const fs = require("fs");
+
+module.exports = aysnc function () {
+  if(process.env.UPDATE_FRONT_END) {
+    console.log("프론트엔드 업데이트 중");
+    updateContractAddresses()
+  }
+}
+
+async function updateContractAddresses() {
+  const raffle = ethers.getContarct("Raffle");
+  const currentAddresses = JSON.parse(fs.readFileSync(FRONT_END_ADDRESSES_FILE),"utf8");
+  const chainId = network.config.chainId.toStirng();
+  if(chainId in currentAddresses) {
+    if(!currentAddresses[chainId].includes(raffle.address)) {
+      currentAddresses[chainId].push(raffle.address);
+    }
+  } else {
+    currentAddresses[chainId] = [raffle.address];
+  }
+  fs.writeFileSync(FRONT_END_ADDRESSES_FILE, JSON.stringify(currentAddresses));
+
+}
+
+module.exports.tags = ["all", "frontend"];
+```
+
+그리고 마무리로 `module.exports.tags`로 실행 태그 `["all", "frontend"]`를 설정해줍니다.
+
+이제 address를 업데이트 하는 작업이 끝났습니다.
+
+나머지는 abi를 업데이트 하는 작업입니다. 이것도 똑같습니다.
+
+다른점이라면 abi를 계약에서 바로 읽어와 wirteFileSync로 바로 넘겨버리는 것입니다.
+
+다음과 같은 메소드를 사용합니다.
+
+>https://docs.ethers.io/v5/api/contract/contract/#Contract--properties
+
+먼저 `raffle.interface`로 `abi`에 접근합니다. 
+
+
+>https://docs.ethers.io/v5/api/utils/abi/interface/#Interface--formatting
+```js
+const FormatTypes = ethers.utils.FormatTypes;
+interface.format(FormatTypes.json);
+```
+
+그리고 `format` 메소드를 사용해여 json으로 변환시킬 겁니다.
+
+
+```js
+raffle.interface
+```
+```js
+interface.format(ethers.utils.FormatTypes.json)
+```
+```js
+fs.wrieFileSync(FRONT_END_ABI_FILE, raffle.interface.format(ethers.utils.FormatTypes.json));
+```
+
+`99-update-front-end.js`완성 코드
+```js
+const { ethers, network } = require("hardhat");
+const fs = require("fs");
+
+const FRONT_END_ADDRESSES_FILE = "../contractAddresses.json"
+const FRONT_END_ABI_FILE = "../abi.json"
+
+module.exports = async function () {
+  if(process.env.UPDATE_FRONT_END) {
+    console.log("프론트엔드 업데이트 중");
+    updateContractAddresses()
+    updateAbi()
+  }
+}
+
+async function updateContractAddresses() {
+  const raffle = ethers.getContract("Raffle");
+  const currentAddresses = JSON.parse(fs.readFileSync(FRONT_END_ADDRESSES_FILE, "utf8"));
+  const chainId = network.config.chainId.toStirng();
+  if(chainId in currentAddresses) {
+    if(!currentAddresses[chainId].includes(raffle.address)) {
+      currentAddresses[chainId].push(raffle.address);
+    }
+  } else {
+    currentAddresses[chainId] = [raffle.address];
+  }
+  fs.writeFileSync(FRONT_END_ADDRESSES_FILE, JSON.stringify(currentAddresses));
+}
+
+async function updateAbi() {
+  const raffle = ethers.getContract("Raffle");
+  fs.writeFileSync(FRONT_END_ABI_FILE, JSON.stirngify(raffle.interface.format(ethers.utils.FormatTypes.json)))
+}
+
+module.exports.tags = ["all", "frontend"];
+```
+
+이제 하드햇 노드를 돌려 자동 업데이트가 되는지 확인해보겠습니다.
+
+```bash
+hh node
+```
+
+노드를 돌리기 전에 이미 돌리는 노드가 있다면 주소가 중복되지 않도록 꺼두어야 합니다.
+```bash
+Error: listen EADDRINUSE: address already in use 127.0.0.1:8545
+```
+
+```bash
+로컬 네트워크 감지됨! 모의계약 배포중...
+deploying "VRFCoordinatorV2Mock" (tx: 0x11b9dfa83e5a81e783d8d818bd6499fa1504a937113eca5f07b8cfafe70751ea)...: 
+deployed at 0x5FbDB2315678afecb367f032d93F642f64180aa3 with 1797707 gas
+모의계약 배포완료!
+-------------------------------------
+deploying "Raffle" (tx: 0xf6504ce6c5b613d8aa9b141c306af668db661790775f6d9733a88a127cf721fa)...: deployed at 0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9 with 1210364 gas
+----------------------------------
+프론트엔드 업데이트 중
+Started HTTP and WebSocket JSON-RPC server at http://127.0.0.1:8545/
+
+Accounts
+========
+
+WARNING: These accounts, and their private keys, are publicly known.
+Any funds sent to them on Mainnet or any other live network WILL BE LOST.
+
+Account #0: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 (10000 ETH)
+Private Key: 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+
+Account #1: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8 (10000 ETH)
+Private Key: 0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
+
+Account #2: 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC (10000 ETH)
+Private Key: 0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a
+
+Account #3: 0x90F79bf6EB2c4f870365E785982E1f101E93b906 (10000 ETH)
+Private Key: 0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6
+
+Account #4: 0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65 (10000 ETH)
+Private Key: 0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a
+
+Account #5: 0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc (10000 ETH)
+Private Key: 0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba
+
+Account #6: 0x976EA74026E726554dB657fA54763abd0C3a0aa9 (10000 ETH)
+Private Key: 0x92db14e403b83dfe3df233f83dfa3a0d7096f21ca9b0d6d6b8d88b2b4ec1564e
+
+Account #7: 0x14dC79964da2C08b23698B3D3cc7Ca32193d9955 (10000 ETH)
+Private Key: 0x4bbbf85ce3377467afe5d46f804f221813b2bb87f24d81f60f1fcdbf7cbf4356
+
+Account #8: 0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f (10000 ETH)
+Private Key: 0xdbda1821b80551c9d65939329250298aa3472ba22feea921c0cf5d620ea67b97
+
+Account #9: 0xa0Ee7A142d267C1f36714E4a8F75612F20a79720 (10000 ETH)
+Private Key: 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6
+
+Account #10: 0xBcd4042DE499D14e55001CcbB24a551F3b954096 (10000 ETH)
+Private Key: 0xf214f2b2cd398c806f84e317254e0f0b801d0643303237d97a22a48e01628897
+
+Account #11: 0x71bE63f3384f5fb98995898A86B02Fb2426c5788 (10000 ETH)
+Private Key: 0x701b615bbdfb9de65240bc28bd21bbc0d996645a3dd57e7b12bc2bdf6f192c82
+
+Account #12: 0xFABB0ac9d68B0B445fB7357272Ff202C5651694a (10000 ETH)
+Private Key: 0xa267530f49f8280200edf313ee7af6b827f2a8bce2897751d06a843f644967b1
+
+Account #13: 0x1CBd3b2770909D4e10f157cABC84C7264073C9Ec (10000 ETH)
+Private Key: 0x47c99abed3324a2707c28affff1267e45918ec8c3f20b8aa892e8b065d2942dd
+
+Account #14: 0xdF3e18d64BC6A983f673Ab319CCaE4f1a57C7097 (10000 ETH)
+Private Key: 0xc526ee95bf44d8fc405a158bb884d9d1238d99f0612e9f33d006bb0789009aaa
+
+Account #15: 0xcd3B766CCDd6AE721141F452C550Ca635964ce71 (10000 ETH)
+Private Key: 0x8166f546bab6da521a8369cab06c5d2b9e46670292d85c875ee9ec20e84ffb61
+
+Account #16: 0x2546BcD3c84621e976D8185a91A922aE77ECEc30 (10000 ETH)
+Private Key: 0xea6c44ac03bff858b476bba40716402b03e41b8e97e276d1baec7c37d42484a0
+
+Account #17: 0xbDA5747bFD65F08deb54cb465eB87D40e51B197E (10000 ETH)
+Private Key: 0x689af8efa8c651a91ad287602527f3af2fe9f6501a7ac4b061667b5a93e037fd
+
+Account #18: 0xdD2FD4581271e230360230F9337D5c0430Bf44C0 (10000 ETH)
+Private Key: 0xde9be858da4a475276426320d5e9262ecfc3ba460bfac56360bfa6c4c28b4ee0
+
+Account #19: 0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199 (10000 ETH)
+Private Key: 0xdf57089febbacf7ba0bc227dafbffa9fc08a93fdc68e1e42411a14efcf23656e
+
+WARNING: These accounts, and their private keys, are publicly known.
+Any funds sent to them on Mainnet or any other live network WILL BE LOST.
+
+eth_blockNumber
+  Contract deployment: VRFCoordinatorV2Mock
+  Contract address:    0x5fbdb2315678afecb367f032d93f642f64180aa3
+  Transaction:         0x11b9dfa83e5a81e783d8d818bd6499fa1504a937113eca5f07b8cfafe70751ea
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  Value:               0 ETH
+  Gas used:            1797707 of 1797707
+  Block #1:            0xae9253f7fb82c0fdeb3738b6eaf17d8bfa6b81962d5f6e3623277b8a55f28c3b
+  Contract call:       VRFCoordinatorV2Mock#createSubscription
+  Transaction:         0xc3971d18e0379127ce8056916a5259ee6232bdb1f35da7edc678093ae7309676
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0x5fbdb2315678afecb367f032d93f642f64180aa3
+  Value:               0 ETH
+  Gas used:            68632 of 29021272
+  Block #2:            0xe20160fda20ffb6dc713baeeb851e88e755fd2b9ef7d5778bb93feb6159657f5
+  Contract call:       VRFCoordinatorV2Mock#fundSubscription
+  Transaction:         0x4809b720104af1aa75a5f87f3610dbe03b5b3c2bb54d790cd6aedb169d3ab9a0
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0x5fbdb2315678afecb367f032d93f642f64180aa3
+  Value:               0 ETH
+  Gas used:            30477 of 29021976
+  Block #3:            0xf40019883cae55eb6e02ac6fea7b1498d44abd16e5958bb29661574c8aec720b
+  Contract deployment: Raffle
+  Contract address:    0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9
+  Transaction:         0xf6504ce6c5b613d8aa9b141c306af668db661790775f6d9733a88a127cf721fa
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  Value:               0 ETH
+  Gas used:            1210364 of 1210364
+  Block #4:            0x6c1527dea19494d2a4faa30b26f7248c6322c39476cb8e9ffede1aef718ea5a9
+
+eth_getBlockByNumber
+eth_getBalance (3)
+eth_blockNumber
+```
+
+그리고 프론트엔드 프로젝트폴더로 와서 `constants` 폴더를 살펴보겠습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-14%20004704.png)
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-14%20004714.png)
+
+자동으로 `contractAddresses` 파일과 `abi` 파일이 업데이트 되었습니다!
+
+만약 다른 체인에 배포하게 되었따면 contractAddress안에 새 프로퍼티로 해당 체인아이디와 계약주소가 새로 포함될 것입니다.
+
+이렇게 되면 훨씬 유지보수가 용이해집니다.
+
+자 이제 백엔드 프로젝트 창을 닫고 프론트엔드 프로젝트 창에서 다시 하드햇 node를 돌리겠습니다.
+
+
+이제 `LotteryEntrance.jsx`파일로 되돌아 오겠습니다.
+
+이제 자동으로 계약주소와 ABI를 업데이트 할 수 있게 되었습니다.
+
+그리고 파일로 불러오기도 가능해졌습니다.
+
+```js
+import abi from "../constants/abi.json"
+import contractAddress from "../constants/contractAddresses.json"
+```
+
+물론 위와 같이 불러와서 사용할 수 도 있겠지만 좀 더 똑똑한 방식으로 사용해보겠습니다.
+
+이 파일들을 하나의 파일에서 `import`로 모아 `export` 하는겁니다.
+
+`constants`폴더에 `index.js`파일을 생성합니다.
+
+```js
+// contants/index.js
+const contractAddresses = require("./contractAddresses.json");
+const abi = require("./abi.json");
+
+module.exports = {
+  abi,
+  contractAddresses,
+};
+```
+
+이제 `RaffleEntrance.jsx`파일로 돌아와 한줄로 불러올 수 있습니다.
+
+여기서 `"../constants`로 폴더만 지정해서 불러올 수 있는 이유는 파일명 `index.js`가 그 폴더를 대표하기 때문입니다.
+
+```jsx
+//Function Enter the Lottery 
+import { useWeb3Contract } from "react-moralis"
+import { abi, contractAddresses } from "../constants"
+
+export default function LotteryEntrance() {
+
+    // const { runContractFunction: enterRaffle } = useWeb3Contract({
+    //     abi: //,
+    //     contractAddress: //,
+    //     functionName: //,
+    //     params: {},
+    //     msgValue: //
+    // });
+
+    return (
+        <div>
+            복권 참가컴포넌트
+        </div>
+    )
+}
+```
+
+## runContractFunction
