@@ -24192,3 +24192,4845 @@ export default function LotteryEntrance() {
 ```
 
 ## runContractFunction
+
+다시 `LotteryEntrance.jsx` 파일로 돌아와서 가지고 온 요소를 넣어봅시다.
+
+```jsx
+//Function Enter the Lottery 
+import { useWeb3Contract } from "react-moralis"
+import { abi, contractAddresses } from "../constants"
+
+export default function LotteryEntrance() {
+
+    const { runContractFunction: enterRaffle } = useWeb3Contract({
+        abi: abi,
+        contractAddress: contractAddresses[???], // specify the networkId
+        functionName: "enterRaffle",
+        params: {},
+        msgValue: //
+    });
+
+    return (
+        <div>
+            복권 참가컴포넌트
+        </div>
+    )
+}
+```
+
+이제 contractAddresses에서 체인아이디를 명시해줘야하고, msgValue에 참가비를 넣기만 하면 됩니다.
+
+체인아이디는 `useMoralis` 훅을 통해 쉽게 가져올 수 있습니다.
+
+```jsx
+//Function Enter the Lottery 
+import { useWeb3Contract } from "react-moralis"
+import { abi, contractAddresses } from "../constants"
+import { useMoralis } from "react-moralis";
+
+export default function LotteryEntrance() {
+    const { chainId } = useMoralis();
+    console.log(chainId);
+
+    // const { runContractFunction: enterRaffle } = useWeb3Contract({
+    //     abi: abi,
+    //     contractAddress: contractAddresses, // specify the networkId
+    //     functionName: "enterRaffle",
+    //     params: {},
+    //     msgValue:, //
+    // });
+
+    return (
+        <div>
+            복권 참가컴포넌트
+        </div>
+    )
+}
+
+```
+
+이처럼 ChainId를 알 수 있는 이유는 `Header` 컴포넌트에서 메타마스크 안의 모든 정보를 MoralisProvider에 넘겨주기 때문입니다. 
+
+```jsx
+import '../styles/globals.css'
+import { MoralisProvider } from "react-moralis";
+
+function MyApp({ Component, pageProps }) {
+  return (
+    <MoralisProvider initializeOnMount={false}>
+      <Component {...pageProps} />
+    </MoralisProvider>
+  )
+}
+
+export default MyApp
+
+```
+
+그리고 MoralisProvider는 정보들을 모두 MoralisProvider에 감싸져있는 하위 컴포넌트들에게 전달해줍니다.
+
+
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-14%20123036.png)
+
+브라우저 콘솔을 확인해보면 `0x7a69`라는 체인아이디값이 보입니다. 바로 31773의 16진수`hex` 값입니다.
+
+자바스크립트의 `parseInt` 메소드를 활용해서 정수로 변환가능합니다.
+
+```jsx
+import { useMoralis, useWeb3Contract } from "react-moralis"
+import { abi, contractAddresses } from "../constants"
+
+
+export default function LotteryEntrace() {
+  const { chainId: hexChainId } = useMoralis()
+  console.log(hexChainId);
+  console.log(parseInt(hexChainId));
+  const { runContractFunction: enterRaffle } = useWeb3Contract({
+    abi: abi,
+    contract: contractAddresses,
+    functionName: "enterRaffle",
+    params: {},
+    msgValue: "",
+  })
+}
+```
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-14%20124137.png)
+
+그리고 raffle 주소(raffleAddress)는 앞으로도 많이 사용할 것이기 때문에 const로 상단에 선언해놓겠습니다.
+그리고 우리는 raffleAddress를 바꾸지 않을것이기 때문에 hook에 넣을 필요가 없습니다.
+우리는 기술적으로 네트워크를 바꿀때만 raffleAddress를 바꿔줘야 하는데, 우리의 Header 앱(컴포넌트)이 그것을 처리해주고, 리렌더링 해줄겁니다. 
+
+먼저 chainId가 contractAddresses 안에 존재유무에 따라 행동을 결정해줍니다.
+
+```jsx
+const raffleAddress = chainId in contractAddresses ? contractAddresses[chainId][0] : null;
+```
+
+contractAddresses 안에 chainId가 있다면 아래의 31337 체인의 0번째 인덱스에 있는 주소를 가지고 갈것입니다.
+
+```json
+//constants/contractAddresses.json
+{"31337":["0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9"]}
+```
+
+없다면 그냥 `null`입니다.
+
+이제 raffleAddress를 얻을 수 있게 되었습니다. contractAddress 파라미터에 넣어보겠습니다.
+
+```jsx
+//Function Enter the Lottery 
+import { useWeb3Contract, useMoralis } from "react-moralis"
+import { abi, contractAddresses } from "../constants"
+
+export default function LotteryEntrance() {
+    const { chainId: hexChainId } = useMoralis();
+    console.log(hexChainId);
+    console.log(parseInt(hexChainId));
+    const chainId = parseInt(hexChainId);
+    const raffleAddress = chainId in contractAddresses ? contractAddresses[chainId][0] : null;
+
+    const { runContractFunction: enterRaffle } = useWeb3Contract({
+        abi: abi,
+        contractAddress: raffleAddress, // specify the networkId
+        functionName: "enterRaffle",
+        params: {},
+        msgValue:, //
+    });
+
+    return (
+        <div>
+            복권 참가컴포넌트
+        </div>
+    )
+}
+
+```
+
+이제 남은건 `msgValue` 값입니다.
+
+잠시 `Raffle.sol`로 돌아가서 살펴보면 우리는 entranceFee(참가비)를 동적으로 지정되도록 만들었습니다.
+
+```solidity
+//...
+    constructor(
+        address vrfCoordinatorV2,
+        uint256 entranceFee,
+        bytes32 keyHash,
+        uint64 subscriptionId,
+        uint32 callbackGasLimit,
+        uint256 interval
+    ) VRFConsumerBaseV2(vrfCoordinatorV2) {
+        i_entranceFee = entranceFee;
+        i_vrfCoordinator = VRFCoordinatorV2Interface(vrfCoordinatorV2);
+        i_keyHash = keyHash;
+        i_subscriptionId = subscriptionId;
+        i_callbackGasLimit = callbackGasLimit;
+        s_raffleState = RaffleState.OPEN; //RaffleState(0);
+        s_lastTimeStamp = block.timestamp;
+        i_interval = interval;
+    }
+
+//...
+```
+
+그래서 우리는 getEntraceFee 함수를 불러 entranceFee 값을 가져올 겁니다.
+
+>`runContractFunction` 은 상태를 읽을수도 있고 트랜잭션을 보낼수도 있습니다.
+
+```jsx
+    const { runContractFunction: enterRaffle } = useWeb3Contract({
+      abi: abi,
+        contractAddress: raffleAddress, // specify the networkId
+        functionName: "enterRaffle",
+        params: {},
+        msgValue:, //
+    });
+```
+그리고 이 방법은 트랜잭션을 보낼수도 있고, 함수를 보낼 수 있는 방법입니다.
+
+그래서 우리가 이제 하려고 하는것은
+
+LotteryEntrance 가 로드되면 우리는 entraceFee를 읽어올 수 있는 함수를 실행시킬 겁니다.
+
+어떻게 할까요?
+
+먼저 `useEffect`훅을 사용해 web3가 사용가능할때만 (isWeb3Enabled) raffle.getEntraceFee를 실행할겁니다.
+
+그리고 isWebEnabled 가 true일때 getEntranceFee를 불러오기 위해 enterRaffle을 불러오는 방식과 동일하게 이번에는 `enterRaffle` 대신 `getEntraceFee`를 불러옵니다.
+
+
+```jsx
+//Function Enter the Lottery 
+import { useEffect } from "react";
+import { useWeb3Contract, useMoralis } from "react-moralis"
+import { abi, contractAddresses } from "../constants"
+
+export default function LotteryEntrance() {
+    const { chainId: hexChainId, isWeb3Enabled } = useMoralis();
+    const chainId = parseInt(hexChainId);
+    const raffleAddress = chainId in contractAddresses ? contractAddresses[chainId][0] : null;
+
+    const { runContractFunction: enterRaffle } = useWeb3Contract({
+        abi: abi,
+        contractAddress: raffleAddress, // specify the networkId
+        functionName: "enterRaffle",
+        params: {},
+        msgValue: //
+    });
+
+    const { runContractFunction: getEntranceFee } = useWeb3Contract({
+        abi: abi,
+        contractAddress: raffleAddress, // specify the networkId
+        functionName: "getEntraceFee",
+        params: {},
+    });
+
+    useEffect(() => {
+        if(isWeb3Enabled) {
+            // try to read raffle entrace fee
+        }
+    }, [])
+
+    return (
+        <div>
+            복권 참가컴포넌트
+        </div>
+    )
+}
+```
+
+그리고 나서 `getEntranceFee`를 다음과 같이 호출하면 어떻게 될까요?
+
+```jsx
+    useEffect(() => {
+        if(isWeb3Enabled) {
+            // try to read raffle entrace fee
+            const something = getEntranceFee()
+            console.log(something);
+        }
+    }, [])
+```
+
+당연히 비동기로 작동되는 작업이기 때문에 something에 아무것도 받지 못합니다. 
+
+그러므로 await을 사용해주어야 합니다.
+
+다음과 같이 useEffect안에서 async 함수를 만들어서 그 안에 entraceFee를 넣어줍니다.\
+그런다음 바로 호출하도록 합니다.
+
+```js
+useEffect(() => {
+  if(web3Enabled) {
+    async function updateUI() {
+      const something = await getEntraceFee();
+      console.log(something);
+    }
+    updateUI()
+  }
+}. [])
+```
+
+자 그럼다음 다시 브라우저를 확인해보면, 여전히 아무것도 얻지 못하고 있습니다.
+
+사실 web3Enabled 값은 true로 바뀌었을겁니다. 그러나 맨 처음 로딩될때 web3Enabled 값은 `false`일 겁니다.
+
+그러므로 디펜던시 배열에 web3Enabled를 넣어줘서 web3Enalbed 값이 `true`로 바뀔시 useEffect를 한번 더 실행하도록 만들어야합니다.
+
+```js
+useEffect(() => {
+  if(web3Enabled) {
+    async function updateUI() {
+      const something = await getEntraceFee();
+      console.log(something);
+    }
+    updateUI()
+  }
+}. [web3Enabled])
+```
+
+왜 false 부터 시작할까요? 우리가 전에 작성한 `ManualHeader`를 살펴봅시다.
+
+`isWeb3Enabled`가 false일때 로컬스토리지를 확인해서 `enalbedWeb3()`로 `isWeb3Enabled`를 `ture`로 바꿔주고 있기 때문입니다.
+
+```jsx
+import { useEffect } from "react";
+import { useMoralis } from "react-moralis";
+
+export default function ManualHaeder() {
+  const { enableWeb3, account, isWeb3Enabled, Moralis, deactivateWeb3, isWeb3EnableLoading } = useMoralis();
+
+  useEffect(() => {
+    console.log("isWebEnalbed onload",isWeb3Enabled);
+    console.log(window.localStorage.getItem("connected") == true);
+    if (isWeb3Enabled) return;
+    if (typeof window !== "undefined") {
+        if(window.localStorage.getItem("connected")) {
+            enableWeb3();
+        };
+    }
+  }, [isWeb3Enabled]);
+
+  useEffect(()=>{
+    Moralis.onAccountChanged((account) => {
+        console.log(`계정이 ${account} 로 변경되었습니다.`)
+        if(account == null) {
+            window.localStorage.removeItem("connected");
+            deactivateWeb3();
+            console.log("비어있는 계정이(null account) 발견되어 Web3 연결을 해제합니다.")
+        }
+    })
+  },[])
+
+  return (
+    <div>
+      {account ? (
+        <p>
+          계정 {account.slice(0, 6)}...{account.slice(account.length - 4)} 에
+          연결되었습니다!
+        </p>
+      ) : (
+        <button
+          onClick={async () => {
+            await enableWeb3();
+            if(typeof window !== "undefined") {
+                console.log("setItem 실행됨");
+                window.localStorage.setItem("connected","injected");
+            }
+          }}
+          disabled={isWeb3EnableLoading}
+        >
+          연결하기
+        </button>
+      )}
+    </div>
+  );
+}
+
+```
+
+따라서 여기에서도 False로 시잫서 로컬스토리지를 확인해서 true값이 나올 경우 isWeb3Enabled가 ture로 바뀔것입니다.
+
+```jsx
+//Function Enter the Lottery
+import { useEffect } from "react";
+import { useWeb3Contract, useMoralis } from "react-moralis";
+import { abi, contractAddresses } from "../constants";
+
+export default function LotteryEntrance() {
+  const { chainId: hexChainId, isWeb3Enabled } = useMoralis();
+  const chainId = parseInt(hexChainId);
+  const raffleAddress =
+    chainId in contractAddresses ? contractAddresses[chainId][0] : null;
+
+  // const { runContractFunction: enterRaffle } = useWeb3Contract({
+  //     abi: abi,
+  //     contractAddress: raffleAddress, // specify the networkId
+  //     functionName: "enterRaffle",
+  //     params: {},
+  //     msgValue: //
+  // });
+
+  const { runContractFunction: getEntranceFee } = useWeb3Contract({
+    abi: abi,
+    contractAddress: raffleAddress, // specify the networkId
+    functionName: "getEntranceFee",
+    params: {},
+  });
+
+  useEffect(() => {
+    if (isWeb3Enabled) {
+      // try to read raffle entrace fee
+      async function updateUI() {
+        const entranceFeeFromContarct = (await getEntranceFee()).toString();
+        console.log(entranceFeeFromContarct);
+      }
+      updateUI();
+    }
+  }, [isWeb3Enabled]);
+
+  return <div>복권 참가컴포넌트</div>;
+}
+
+```
+
+자 그럼 다음과 같이 entraceFee를 toStirng으로 bigNumber에서 알아볼 수 있느 문자열로 바꿔주고 작성을 마친뒤, 다시 브라우저를 확인해 봅시다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-14%20132601.png)
+
+이제 entranceFee를 확인 할 수 있습니다!
+
+## useState
+
+그리고 또 우리는 이 입장료 혹은 참가비를 UI에 나타내고 싶습니다.
+
+그래서 입장료값을 따로 빼내기 위해 이렇게 작성했다고 가정해봅시다.
+
+```jsx
+let entraceFee
+
+//...
+
+useEffect(() => {
+  if(isWeb3Enalbed) {
+    async function updateUI() {
+      const entranceFeeFromContract = (await getEntraceFee()).toString();
+      entranceFee = entranceFeeFromContract;
+      console.log(entranceFee);
+    }
+  }
+}, [isWeb3Enalbed])
+
+return (
+  <div>로터리 입장 <p>입장료는 {entraceFee} 입니다.</p></div>
+)
+
+```
+다음과 같이 콘솔에는 정상적으로 값이 업데이트 되었지만
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-14%20135656.png)
+
+리렌더링이 일어나지 않아 UI는 그대로 공백인 상태입니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-14%20140101.png)
+
+isWeb3Enabled 값이 변경되었을때 우리의 브라우저가 useEffect를 통해 리렌더링 되기를 바랬습니다.
+
+그러나, 우리가 막 entranceFee 값을 막 얻었을때
+
+```jsx
+      const entranceFeeFromContract = (await getEntraceFee()).toString();
+      entranceFee = entranceFeeFromContract;
+```
+브라우저가 리렌더링을 하나요?
+
+아닙니다. 왜냐하면 entraceFee는 그냥 평범한 변수중 하나이기 때문입니다.
+
+entranceFee가 업데이트 되어도 rerender를 triggering 하지 않습니다.
+
+그래서 우리는 이것을 `useState`훅을 이용해 바꿀 것입니다.
+
+```jsx
+const [entranceFee, setEntranceFee] = useState("0");
+```
+
+```jsx
+//Function Enter the Lottery
+import { useEffect, useState } from "react";
+import { useWeb3Contract, useMoralis } from "react-moralis";
+import { abi, contractAddresses } from "../constants";
+
+export default function LotteryEntrance() {
+  const { chainId: hexChainId, isWeb3Enabled } = useMoralis();
+  const chainId = parseInt(hexChainId);
+  const raffleAddress =
+    chainId in contractAddresses ? contractAddresses[chainId][0] : null;
+  const [entranceFee, setEntranceFee] = useState("0");
+
+  // const { runContractFunction: enterRaffle } = useWeb3Contract({
+  //     abi: abi,
+  //     contractAddress: raffleAddress, // specify the networkId
+  //     functionName: "enterRaffle",
+  //     params: {},
+  //     msgValue: //
+  // });
+
+  const { runContractFunction: getEntranceFee } = useWeb3Contract({
+    abi: abi,
+    contractAddress: raffleAddress, // specify the networkId
+    functionName: "getEntranceFee",
+    params: {},
+  });
+
+  useEffect(() => {
+    if (isWeb3Enabled) {
+      // try to read raffle entrace fee
+      async function updateUI() {
+        const entranceFeeFromContarct = (await getEntranceFee()).toString();
+        console.log(entranceFeeFromContarct);
+        setEntranceFee(entranceFeeFromContarct);
+        console.log("입장료", entranceFee);
+      }
+      updateUI();
+    }
+  }, [isWeb3Enabled]);
+
+  return (
+    <div>
+      복권 참가컴포넌트<p>입장료는 {entranceFee} 입니다.</p>
+    </div>
+  );
+}
+```
+
+브라우저 콘솔을 살펴보면 이번엔 콘솔에 입장료가 0으로 뜨네요.
+왜냐하면 setEntranceFee가 완벽하게 끝나지 않았기 때문입니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-14%20150126.png)
+
+지금 입장료가 너무 gwei라 보기불편하니 ethers를 불러와 변환해줍시다.
+
+```jsx
+setEntranceFee(ethers.utils.formatUnits(entranceFeeFromContarct,"ether"));
+```
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-14%20161231.png)
+
+```jsx
+//Function Enter the Lottery
+import { useEffect, useState } from "react";
+import { useWeb3Contract, useMoralis } from "react-moralis";
+import { abi, contractAddresses } from "../constants";
+import { ethers } from "ethers";
+
+export default function LotteryEntrance() {
+  const { chainId: hexChainId, isWeb3Enabled } = useMoralis();
+  const chainId = parseInt(hexChainId);
+  const raffleAddress =
+    chainId in contractAddresses ? contractAddresses[chainId][0] : null;
+  const [entranceFee, setEntranceFee] = useState("0");
+
+  // const { runContractFunction: enterRaffle } = useWeb3Contract({
+  //     abi: abi,
+  //     contractAddress: raffleAddress, // specify the networkId
+  //     functionName: "enterRaffle",
+  //     params: {},
+  //     msgValue: //
+  // });
+
+  const { runContractFunction: getEntranceFee } = useWeb3Contract({
+    abi: abi,
+    contractAddress: raffleAddress, // specify the networkId
+    functionName: "getEntranceFee",
+    params: {},
+  });
+
+  useEffect(() => {
+    if (isWeb3Enabled) {
+      // try to read raffle entrace fee
+      async function updateUI() {
+        const entranceFeeFromContarct = (await getEntranceFee()).toString();
+        console.log(entranceFeeFromContarct);
+        setEntranceFee(ethers.utils.formatUnits(entranceFeeFromContarct,"ether"));
+        console.log("입장료", entranceFee);
+      }
+      updateUI();
+    }
+  }, [isWeb3Enabled]);
+
+  return (
+    <div>
+      복권 참가컴포넌트<p>입장료는 {entranceFee} ETH 입니다.</p>
+    </div>
+  );
+}
+
+```
+
+## Calling Functions in Next.js
+
+이제 `msgValue` 파라미터에 `entranceFee`를 추가하면 됩니다.
+
+그렇게 하기위해 여기서는 다시 UI에서만 gwei를 eth로 파싱해서 보여주고 상태값은 백엔드에서 받은 그대로 놔두겠습니다.
+
+```jsx
+//Function Enter the Lottery
+import { useEffect, useState } from "react";
+import { useWeb3Contract, useMoralis } from "react-moralis";
+import { abi, contractAddresses } from "../constants";
+import { ethers } from "ethers";
+
+export default function LotteryEntrance() {
+  const { chainId: hexChainId, isWeb3Enabled } = useMoralis();
+  const chainId = parseInt(hexChainId);
+  const raffleAddress =
+    chainId in contractAddresses ? contractAddresses[chainId][0] : null;
+  const [entranceFee, setEntranceFee] = useState("0");
+
+  const { runContractFunction: enterRaffle } = useWeb3Contract({
+      abi: abi,
+      contractAddress: raffleAddress, // specify the networkId
+      functionName: "enterRaffle",
+      params: {},
+      msgValue: entranceFee,
+  });
+
+  const { runContractFunction: getEntranceFee } = useWeb3Contract({
+    abi: abi,
+    contractAddress: raffleAddress, // specify the networkId
+    functionName: "getEntranceFee",
+    params: {},
+  });
+
+  useEffect(() => {
+    if (isWeb3Enabled) {
+      // try to read raffle entrace fee
+      async function updateUI() {
+        const entranceFeeFromContarct = (await getEntranceFee()).toString();
+        console.log(entranceFeeFromContarct);
+        setEntranceFee(entranceFeeFromContarct);
+        console.log("입장료", entranceFee);
+      }
+      updateUI();
+    }
+  }, [isWeb3Enabled]);
+
+  return (
+    <div>
+      복권 참가컴포넌트<p>입장료는 {ethers.utils.formatUnits(entranceFee,"ether")} ETH 입니다.</p>
+    </div>
+  );
+}
+
+```
+
+자 이제 입장함수가 완성되었습니다.
+
+그런데 여기서 메타마스크의 네트워크를 메인넷으로 바꾸고 브라우저를 실행하면 어떻게 될까요?
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-14%20161916.png)
+
+그럼 다음과 같이 값을 읽을 수 없다는 에러가 나옵니다. 왜냐하면 메인넷에 배포된 라플 주소가 존재하지 않기 때문입니다.(현재 하드햇 노드에 배포했기때문에)
+
+무엇이 일어나고 있는지 굉장히 헷갈립니다.
+
+그러니 여기 enterRaffle 버튼을 하나 만들어보겠습니다.
+
+그리고 버튼을 누르기 전에 raffle 주소가 존재하는지 여부를 따지도록 작성하겠습니다.
+
+```jsx
+// LotteryEntrance.jsx
+  return (
+    <div>
+      {raffleAddress ? (
+        <p>
+          입장료는 {ethers.utils.formatUnits(entranceFee, "ether")} ETH 입니다.
+        </p>
+      ) : (
+        <p>라플 주소가 발견되지 않았습니다.</p>
+      )}
+      복권 참가컴포넌트
+    </div>
+  );
+```
+
+그리고 버튼을 하나 만들고 클릭시 runContractFunction 즉, enterRaffle()함수를 호출하도록 하겠습니다.
+
+```jsx
+  return (
+    <div>
+      {raffleAddress ? (
+        <div>
+          <button
+            onClick={async function () {
+              await enterRaffle();
+            }}
+          >
+            복권추첨에 등록하기
+          </button>
+          <p>
+            입장료는 {ethers.utils.formatUnits(entranceFee, "ether")} ETH
+            입니다.
+          </p>
+        </div>
+      ) : (
+        <p>라플 주소가 발견되지 않았습니다.</p>
+      )}
+      복권 참가컴포넌트
+    </div>
+  );
+```
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-14%20163113.png)
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-14%20163124.png)
+
+자 이제 버튼을 누르면 보시는 바와 같이 복권에 참여(enterRaffle())할 수 있게 되었습니다!
+
+## useNotification
+
+사용자가 우리의 애플리케이션을 사용할때 어떤 동작이 수행되고 완료되었는지 알려주는 기능을 추가해보겠습니다.
+
+여기서는 `web3uikit`의 `useNotification`을 사용해보겠습니다.
+
+>https://web3ui.github.io/web3uikit/?path=/story/5-popup-notification--hook-demo
+
+`_app.js` 파일에서 `NotificationProvider`를 불러옵니다.
+
+```js
+import '../styles/globals.css'
+import { MoralisProvider } from "react-moralis";
+import { NotificationProvider } from "web3uikit";
+
+function MyApp({ Component, pageProps }) {
+  return (
+    <MoralisProvider initializeOnMount={false}>
+      <NotificationProvider>
+        <Component {...pageProps} />
+      </NotificationProvider>
+    </MoralisProvider>
+  )
+}
+
+export default MyApp
+```
+
+그리고 다시 `LotteryEntrance.jsx`파일로 돌아와서 `useNotification`을 불러옵니다.
+```jsx
+import { useNotification } from "web3uikit";
+```
+
+
+`useNotification`은 `dsipatch`로 사용할 수 있는데 useNotification을 실행하면 팝업이 뜨게됩니다.
+```jsx
+const dispatch = useNotification();
+```
+
+그리고 연결하기버튼 요소로 가서 onClick 이벤트 안의 `enterRaffle`에 파라미터를 추가해줄겁니다.
+
+Moralis의 기능 중 하나인데 `useResolveAsync`의 `ResolveCallOptions`에 들어있는 상태파라미터를 넘겨줄 수 있습니다.
+이거들은 모두 `useWeb3Contract`훅에서 파생된 기능입니다.
+
+```ts
+//node_modules\react-moralis\lib\hooks\internal\_useResolveAsyncCall\_useResolveAsyncCall.d.ts
+//...
+export interface ResolveCallOptions<Result, Params extends ResolveCallParams> {
+    onError?: (error: Error) => void;
+    onSuccess?: (results: Result) => void;
+    onComplete?: () => void;
+    throwOnError?: boolean;
+    params?: Params;
+}
+```
+`onError, onSuccess, onComplete, thorwOnError, params` 등을 넣을 수 있습니다.
+
+여기서는 성공했을때를 의미하는 `onSuccess` 파라미터를 이용해보겠습니다.
+
+이 `enterRaffle()`함수가 성공적으로 실행되었다면 `handleSuccess` 라는 작업을 할겁니다.
+```jsx
+<button 
+  onclick={async function(){
+    enterRaffle({
+      onSuccess: handleSuccess,
+      onError: (error) => console.log(error),
+    })
+  }}
+>
+  복권 참가하기
+</button>
+```
+또한 `onError` 를 사용하면 계약쪽 함수를 디버깅하는데 있어서 굉장히 편리해집니다.
+
+이제 성공시 수행할 행동을 제어하는 `handleSuccess`라는 함수를 만들어야합니다.
+
+트랜잭션을 인수로 받고 블록이 승인될때까지 기다립니다.
+
+그리고 `handleNewNotification`함수를 만들어 인자로 트랜잭션을 넣어 호출할겁니다.
+
+```jsx
+  const handleSuccess = async function (tx) {
+    tx.wait(1);
+    handleNewNotification(tx);
+  }
+```
+
+`handleNewNotification` 에서 우리는 위에서 만든 `dispatch`를 호출해 팝업창을 띄울 겁니다.
+
+```jsx
+  const handleNewNotification = function () {
+    dispatch({
+      type:"info",
+      message: "Transaction Complete!",
+      title: "Tx Notification",
+      position: "TopR",
+      icon:"bell"
+    })
+  }
+```
+
+이 모든 코드들은 `web3uikit` 문서에서 확인 할 수 있습니다.
+>https://web3ui.github.io/web3uikit/?path=/docs/5-popup-notification--hook-demo
+
+`web3uikit샘플코드`
+```jsx
+() => {
+    const dispatch = useNotification();
+
+    const handleNewNotification = (
+        type: notifyType,
+        icon?: TIconType,
+        position?: IPosition,
+    ) => {
+        dispatch({
+            type,
+            message: 'Somebody messaged you',
+            title: 'New Notification',
+            icon,
+            position: position || 'topR',
+        });
+    };
+
+    return (
+        <>
+            <h3>Types:</h3>
+            <div
+                style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    gap: '10px',
+                    maxWidth: '700px',
+                }}
+            >
+                <Button
+                    text="Error"
+                    onClick={() => handleNewNotification('error')}
+                    theme="colored"
+                    color="red"
+                    isFullWidth={true}
+                />
+                <Button
+                    text="Info"
+                    onClick={() => handleNewNotification('info')}
+                    isFullWidth={true}
+                />
+                <Button
+                    text="Success"
+                    onClick={() => handleNewNotification('success')}
+                    isFullWidth={true}
+                    theme="primary"
+                />
+                <Button
+                    text="Warning"
+                    onClick={() => handleNewNotification('warning')}
+                    isFullWidth={true}
+                    theme="colored"
+                    color="yellow"
+                />
+                <Button
+                    text="Custom Icon"
+                    onClick={() =>
+                        handleNewNotification('info', iconTypes.bell)
+                    }
+                    isFullWidth={true}
+                />
+            </div>
+            <h3>Position:</h3>
+            <div
+                style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    gap: '10px',
+                    maxWidth: '700px',
+                }}
+            >
+                <Button
+                    text="bottomL"
+                    onClick={() =>
+                        handleNewNotification('success', undefined, 'bottomL')
+                    }
+                    isFullWidth={true}
+                    theme="primary"
+                />
+                <Button
+                    text="bottomR"
+                    onClick={() =>
+                        handleNewNotification('success', undefined, 'bottomR')
+                    }
+                    isFullWidth={true}
+                    theme="primary"
+                />
+                <Button
+                    text="topL"
+                    onClick={() =>
+                        handleNewNotification('success', undefined, 'topL')
+                    }
+                    isFullWidth={true}
+                    theme="primary"
+                />
+            </div>
+        </>
+    );
+}
+```
+
+
+`완성코드`
+```jsx
+//Function Enter the Lottery
+import { useEffect, useState } from "react";
+import { useWeb3Contract, useMoralis } from "react-moralis";
+import { abi, contractAddresses } from "../constants";
+import { ethers } from "ethers";
+import { useNotification } from "web3uikit";
+
+export default function LotteryEntrance() {
+  const { chainId: hexChainId, isWeb3Enabled } = useMoralis();
+  const chainId = parseInt(hexChainId);
+  const raffleAddress =
+    chainId in contractAddresses ? contractAddresses[chainId][0] : null;
+  const [entranceFee, setEntranceFee] = useState("0");
+
+  const dispatch = useNotification();
+
+  const { runContractFunction: enterRaffle } = useWeb3Contract({
+    abi: abi,
+    contractAddress: raffleAddress, // specify the networkId
+    functionName: "enterRaffle",
+    params: {},
+    msgValue: entranceFee,
+  });
+
+  const { runContractFunction: getEntranceFee } = useWeb3Contract({
+    abi: abi,
+    contractAddress: raffleAddress, // specify the networkId
+    functionName: "getEntranceFee",
+    params: {},
+  });
+
+  useEffect(() => {
+    if (isWeb3Enabled) {
+      // try to read raffle entrace fee
+      async function updateUI() {
+        const entranceFeeFromContarct = (await getEntranceFee()).toString();
+        console.log(entranceFeeFromContarct);
+        setEntranceFee(entranceFeeFromContarct);
+        console.log("입장료", entranceFee);
+      }
+      updateUI();
+    }
+  }, [isWeb3Enabled]);
+
+  const handleSuccess = async function (tx) {
+    tx.wait(1);
+    handleNewNotification(tx);
+  }
+
+  const handleNewNotification = function () {
+    dispatch({
+        type: "info",
+        message: "트랜잭션 완료!",
+        title: "트랜잭션 알림",
+        icon: "bell",
+        position: "topR",
+    })
+  }
+
+  return (
+    <div>
+      {raffleAddress ? (
+        <div>
+          <button
+            onClick={async function () {
+              await enterRaffle({
+                onSuccess: handleSuccess,
+                onError: (error) => console.log(error),
+              });
+            }}
+          >
+            복권 참가하기
+          </button>
+          <p>
+            입장료는 {ethers.utils.formatUnits(entranceFee, "ether")} ETH
+            입니다.
+          </p>
+        </div>
+      ) : (
+        <p>라플 주소가 발견되지 않았습니다.</p>
+      )}
+      복권 참가컴포넌트
+    </div>
+  );
+}
+
+```
+
+작성을 완료해다면 브라우저에서 복권 참가하기 버튼을 눌러 트랜잭션을 보내고 팝업이 뜨는지 확인해봅시다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-14%20235050.png)
+
+이제 배포된 계약으로 트랜잭션을 전송할 수 있게 되었고, 트랜잭션 성공시 멋진 팝업도 띄울 수 있게 되었습니다.
+
+## Reading & Displaying Contract Data
+
+이제 웹페이지 화면에 더 많은 정보를 나타내보겠습니다.
+
+첫번째로 몇명이 이 복권추첨에 참여했는지 나타내보겠습니다.
+
+`Raffle.sol`의 `getNumberOfPlayers` 함수를 사용하면 될겁니다.
+
+그러면 `runContractFunction` 훅을 하나 복사하여 시작해봅시다.
+
+```jsx
+
+const { runContractFunction: getNumberOfPlayers } = useWeb3Contract({
+  abi: abi,
+  contractAddress: raffleAddress,
+  functionName: "getNumberOfPlayers",
+  params: {},
+})
+
+```
+
+그리고 플레이어 수를 보관하기 위한 state도 하나 만들겠습니다.
+추가로 최근 우승자를 나타내는 state도 선언하겠습니다.
+```jsx
+const [numberOfPlayers,setNumberOfPlayers] = useState("0");
+const [recentWinner, setRecentWinner] = useState("")
+```
+
+최근 우승자를 불러오는 `getRecentWinner` 함수도 만들어줍니다.
+```jsx
+const { runContractFunction: getRecentWinner } = useWeb3Contract({
+  abi: abi,
+  contractAddress: raffleAddress,
+  functionName:"getRecentWinner",
+  params: {},
+})
+
+```
+
+이제 useEffect에서 더 많은 일을 해보도록 합시다.
+
+```jsx
+  useEffect(() => {
+    if (isWeb3Enabled) {
+      // try to read raffle entrace fee
+      async function updateUI() {
+        const entranceFeeFromCall = (await getEntranceFee()).toString();
+        const numberOfPlayersFromCall = (await getNumberOfPlayers()).toString();
+        const recentWinnerFromCall = await getRecentWinner()
+        setEntranceFee(entranceFeeFromCall);
+        setNumberOfPlayers(numberOfPlayersFromCall);
+        setRecentWinner(recentWinnerFromCall);
+      }
+      updateUI();
+    }
+  }, [isWeb3Enabled]);
+```
+
+그리고 받아온 값을 이용해 화면에 출력해봅시다.
+
+```jsx
+          <p>
+            입장료는 {ethers.utils.formatUnits(entranceFee, "ether")} ETH
+            입니다.
+          </p>
+          <p>총 {numberOfPlayers} 명이 추첨에 참여했습니다.</p>
+          <p>최근 우승자는 {recentWinner} 입니다.</p>
+```
+
+`완성코드`
+```jsx
+//Function Enter the Lottery
+import { useEffect, useState } from "react";
+import { useWeb3Contract, useMoralis } from "react-moralis";
+import { abi, contractAddresses } from "../constants";
+import { ethers } from "ethers";
+import { useNotification } from "web3uikit";
+
+export default function LotteryEntrance() {
+  const { chainId: hexChainId, isWeb3Enabled } = useMoralis();
+  const chainId = parseInt(hexChainId);
+  const raffleAddress =
+    chainId in contractAddresses ? contractAddresses[chainId][0] : null;
+  const [entranceFee, setEntranceFee] = useState("0");
+  const [numberOfPlayers, setNumberOfPlayers] = useState("0");
+  const [recentWinner, setRecentWinner] = useState("");
+
+  const dispatch = useNotification();
+
+  const { runContractFunction: enterRaffle } = useWeb3Contract({
+    abi: abi,
+    contractAddress: raffleAddress, // specify the networkId
+    functionName: "enterRaffle",
+    params: {},
+    msgValue: entranceFee,
+  });
+
+  const { runContractFunction: getEntranceFee } = useWeb3Contract({
+    abi: abi,
+    contractAddress: raffleAddress, // specify the networkId
+    functionName: "getEntranceFee",
+    params: {},
+  });
+
+  const { runContractFunction: getNumberOfPlayers } = useWeb3Contract({
+    abi: abi,
+    contractAddress: raffleAddress,
+    functionName: "getNumberOfPlayers",
+    params: {},
+  })
+
+  const { runContractFunction: getRecentWinner } = useWeb3Contract({
+    abi: abi,
+    contractAddress: raffleAddress,
+    functionName: "getRecentWinner",
+    params: {},
+  })
+
+  useEffect(() => {
+    if (isWeb3Enabled) {
+      // try to read raffle entrace fee
+      async function updateUI() {
+        const entranceFeeFromCall = (await getEntranceFee()).toString();
+        const numberOfPlayersFromCall = (await getNumberOfPlayers()).toString();
+        const recentWinnerFromCall = await getRecentWinner()
+        setEntranceFee(entranceFeeFromCall);
+        setNumberOfPlayers(numberOfPlayersFromCall);
+        setRecentWinner(recentWinnerFromCall);
+      }
+      updateUI();
+    }
+  }, [isWeb3Enabled]);
+
+  const handleSuccess = async function (tx) {
+    tx.wait(1);
+    handleNewNotification(tx);
+  }
+
+  const handleNewNotification = function () {
+    dispatch({
+        type: "info",
+        message: "트랜잭션 완료!",
+        title: "트랜잭션 알림",
+        icon: "bell",
+        position: "topR",
+    })
+  }
+
+  return (
+    <div>
+      {raffleAddress ? (
+        <div>
+          <button
+            onClick={async function () {
+              await enterRaffle({
+                onSuccess: handleSuccess,
+                onError: (error) => console.log(error),
+              });
+            }}
+          >
+            복권 참여하기
+          </button>
+          <p>
+            입장료는 {ethers.utils.formatUnits(entranceFee, "ether")} ETH
+            입니다.
+          </p>
+          <p>총 {numberOfPlayers} 명이 추첨에 참여했습니다.</p>
+          <p>최근 우승자는 {recentWinner} 입니다.</p>
+        </div>
+      ) : (
+        <p>라플 주소가 발견되지 않았습니다.</p>
+      )}
+      복권 참가컴포넌트
+    </div>
+  );
+}
+
+```
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-15%20002708.png)
+
+참여자 수는 3명 (우리가 세번 참여했기 때문에), 우승자는 아무도 없는 (0x000..000) 값입니다.
+
+`복권 참여하기` 버튼으로 enterRaffle을 호출해 트랜잭션을 해보겠습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-15%20002856.png)
+
+그리고 새로고침을 하면, 총 3명이 참여했다고 나오게 됩니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-15%20002911.png)
+
+
+그리고 현재 이 참여자 명수 상태값이 자동으로 리렌더링되지 않고 있습니다.
+
+이것을 리렌더링 되게 만들어보겠습니다.
+
+리렌더링을 위해 handleSuccess 를 활용해보겠습니다.
+
+```jsx
+      async function updateUI() {
+        const entranceFeeFromCall = (await getEntranceFee()).toString();
+        const numberOfPlayersFromCall = (await getNumberOfPlayers()).toString();
+        const recentWinnerFromCall = await getRecentWinner()
+        setEntranceFee(entranceFeeFromCall);
+        setNumberOfPlayers(numberOfPlayersFromCall);
+        setRecentWinner(recentWinnerFromCall);
+      }
+      updateUI();
+```
+
+UI 업데이트에 관련된 함수를 useEffect로 바깥으로 내보낼겁니다.
+
+먼저 updateUI 함수를 바깥으로 빼내겠습니다.
+
+```jsx
+//Function Enter the Lottery
+import { useEffect, useState } from "react";
+import { useWeb3Contract, useMoralis } from "react-moralis";
+import { abi, contractAddresses } from "../constants";
+import { ethers } from "ethers";
+import { useNotification } from "web3uikit";
+
+export default function LotteryEntrance() {
+  const { chainId: hexChainId, isWeb3Enabled } = useMoralis();
+  const chainId = parseInt(hexChainId);
+  const raffleAddress =
+    chainId in contractAddresses ? contractAddresses[chainId][0] : null;
+  const [entranceFee, setEntranceFee] = useState("0");
+  const [numberOfPlayers, setNumberOfPlayers] = useState("0");
+  const [recentWinner, setRecentWinner] = useState("");
+  const [playerInputIndex,setPlayerInputIndex] = useState(0);
+  const [currentPlayer,setCurrentPlayer] = useState("");
+
+  const dispatch = useNotification();
+  
+  const handleInput = function (e) {
+    setPlayerInputIndex(e.target.value);
+  }
+
+  const { runContractFunction: enterRaffle } = useWeb3Contract({
+    abi: abi,
+    contractAddress: raffleAddress, // specify the networkId
+    functionName: "enterRaffle",
+    params: {},
+    msgValue: entranceFee,
+  });
+
+  const { runContractFunction: getEntranceFee } = useWeb3Contract({
+    abi: abi,
+    contractAddress: raffleAddress, // specify the networkId
+    functionName: "getEntranceFee",
+    params: {},
+  });
+
+  const { runContractFunction: getNumberOfPlayers } = useWeb3Contract({
+    abi: abi,
+    contractAddress: raffleAddress,
+    functionName: "getNumberOfPlayers",
+    params: {},
+  })
+
+  const { runContractFunction: getRecentWinner } = useWeb3Contract({
+    abi: abi,
+    contractAddress: raffleAddress,
+    functionName: "getRecentWinner",
+    params: {},
+  })
+
+  const { runContractFunction: getPlayer } = useWeb3Contract({
+    abi: abi,
+    contractAddress: raffleAddress,
+    functionName: "getPlayer",
+    params: {index:playerInputIndex},
+  })
+
+  async function updateUI() {
+    const entranceFeeFromCall = (await getEntranceFee()).toString();
+    const numberOfPlayersFromCall = (await getNumberOfPlayers()).toString();
+    const recentWinnerFromCall = await getRecentWinner()
+    setEntranceFee(entranceFeeFromCall);
+    setNumberOfPlayers(numberOfPlayersFromCall);
+    setRecentWinner(recentWinnerFromCall);
+  }
+
+
+  useEffect(() => {
+    if (isWeb3Enabled) {
+      // try to read raffle entrace fee
+      updateUI();
+    }
+  }, [isWeb3Enabled]);
+
+  const handleSuccess = async function (tx) {
+    tx.wait(1);
+    handleNewNotification(tx);
+  }
+
+  const handleNewNotification = function () {
+    dispatch({
+        type: "info",
+        message: "트랜잭션 완료!",
+        title: "트랜잭션 알림",
+        icon: "bell",
+        position: "topR",
+    })
+  }
+
+  return (
+    <div>
+      {raffleAddress ? (
+        <div>
+          <button
+            onClick={async function () {
+              await enterRaffle({
+                onSuccess: handleSuccess,
+                onError: (error) => console.log(error),
+              });
+            }}
+          >
+            복권 참여하기
+          </button>
+          <p>
+            입장료는 {ethers.utils.formatUnits(entranceFee, "ether")} ETH
+            입니다.
+          </p>
+          <p>총 {numberOfPlayers} 명이 추첨에 참여했습니다.</p>
+          <p>최근 우승자는 {recentWinner} 입니다.</p>
+          <input type="number" max={numberOfPlayers} onChange={handleInput}/>
+          <button type="button" onClick={async function(){
+             const player = await getPlayer({
+                onError: (error) => console.log(error),
+                params: playerInputIndex,
+             })
+             console.log(player);
+             setCurrentPlayer(player) ;
+             }}>참여자 보기</button>
+          <p>{playerInputIndex}번 참여자 주소: {currentPlayer} </p>
+        </div>
+      ) : (
+        <p>라플 주소가 발견되지 않았습니다.</p>
+      )}
+      복권 참가컴포넌트
+    </div>
+  );
+}
+
+```
+
+그리고 트랜잭션이 성공해서 handleSuccess 가 호출되었을 경우 우리는 UpdateUI 함수를 호출할겁니다.
+
+handleSuccess 안에서 updateUI가 호출되도록 합니다.
+
+```jsx
+//Function Enter the Lottery
+import { useEffect, useState } from "react";
+import { useWeb3Contract, useMoralis } from "react-moralis";
+import { abi, contractAddresses } from "../constants";
+import { ethers } from "ethers";
+import { useNotification } from "web3uikit";
+
+export default function LotteryEntrance() {
+  const { chainId: hexChainId, isWeb3Enabled } = useMoralis();
+  const chainId = parseInt(hexChainId);
+  const raffleAddress =
+    chainId in contractAddresses ? contractAddresses[chainId][0] : null;
+  const [entranceFee, setEntranceFee] = useState("0");
+  const [numberOfPlayers, setNumberOfPlayers] = useState("0");
+  const [recentWinner, setRecentWinner] = useState("");
+  const [playerInputIndex,setPlayerInputIndex] = useState(0);
+  const [currentPlayer,setCurrentPlayer] = useState("");
+
+  const dispatch = useNotification();
+  
+  const handleInput = function (e) {
+    setPlayerInputIndex(e.target.value);
+  }
+
+  const { runContractFunction: enterRaffle } = useWeb3Contract({
+    abi: abi,
+    contractAddress: raffleAddress, // specify the networkId
+    functionName: "enterRaffle",
+    params: {},
+    msgValue: entranceFee,
+  });
+
+  const { runContractFunction: getEntranceFee } = useWeb3Contract({
+    abi: abi,
+    contractAddress: raffleAddress, // specify the networkId
+    functionName: "getEntranceFee",
+    params: {},
+  });
+
+  const { runContractFunction: getNumberOfPlayers } = useWeb3Contract({
+    abi: abi,
+    contractAddress: raffleAddress,
+    functionName: "getNumberOfPlayers",
+    params: {},
+  })
+
+  const { runContractFunction: getRecentWinner } = useWeb3Contract({
+    abi: abi,
+    contractAddress: raffleAddress,
+    functionName: "getRecentWinner",
+    params: {},
+  })
+
+  const { runContractFunction: getPlayer } = useWeb3Contract({
+    abi: abi,
+    contractAddress: raffleAddress,
+    functionName: "getPlayer",
+    params: {index:playerInputIndex},
+  })
+
+  async function updateUI() {
+    const entranceFeeFromCall = (await getEntranceFee()).toString();
+    const numberOfPlayersFromCall = (await getNumberOfPlayers()).toString();
+    const recentWinnerFromCall = await getRecentWinner()
+    setEntranceFee(entranceFeeFromCall);
+    setNumberOfPlayers(numberOfPlayersFromCall);
+    setRecentWinner(recentWinnerFromCall);
+  }
+
+
+  useEffect(() => {
+    if (isWeb3Enabled) {
+      // try to read raffle entrace fee
+      updateUI();
+    }
+  }, [isWeb3Enabled]);
+
+  const handleSuccess = async function (tx) {
+    tx.wait(1);
+    handleNewNotification(tx);
+    updateUI();
+  }
+
+  const handleNewNotification = function () {
+    dispatch({
+        type: "info",
+        message: "트랜잭션 완료!",
+        title: "트랜잭션 알림",
+        icon: "bell",
+        position: "topR",
+    })
+  }
+
+  return (
+    <div>
+      {raffleAddress ? (
+        <div>
+          <button
+            onClick={async function () {
+              await enterRaffle({
+                onSuccess: handleSuccess,
+                onError: (error) => console.log(error),
+              });
+            }}
+          >
+            복권 참여하기
+          </button>
+          <p>
+            입장료는 {ethers.utils.formatUnits(entranceFee, "ether")} ETH
+            입니다.
+          </p>
+          <p>총 {numberOfPlayers} 명이 추첨에 참여했습니다.</p>
+          <p>최근 우승자는 {recentWinner} 입니다.</p>
+          <input type="number" max={numberOfPlayers} onChange={handleInput}/>
+          <button type="button" onClick={async function(){
+             const player = await getPlayer({
+                onError: (error) => console.log(error),
+                params: playerInputIndex,
+             })
+             console.log(player);
+             setCurrentPlayer(player) ;
+             }}>참여자 보기</button>
+          <p>{playerInputIndex}번 참여자 주소: {currentPlayer} </p>
+        </div>
+      ) : (
+        <p>라플 주소가 발견되지 않았습니다.</p>
+      )}
+      복권 참가컴포넌트
+    </div>
+  );
+}
+
+```
+
+이제 `복권 참여하기`버튼을 눌러 트랜잭션이 성공할 경우 UI가 업데이트 됩니다.
+
+그리고 이제 recentWinner를 테스트 할겁니다.
+
+하드햇 프로젝트로 되돌아가봅시다.
+
+`scripts/mockOffchain.js` 파일을 생성하고 다음과 같이 작성합니다.
+
+```js
+// scripts/mockOffchain.js
+const { ethers, network } = require("hardhat");
+
+async function mockKeepers() {
+  const raffle = await ethers.getContract("Raffle");
+  const checkData = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(""));
+  const { upkeepNeeded } = await raffle.callStatic.checkUpkeep(checkData);
+  if (upkeepNeeded) {
+    const tx = await raffle.performUpkeep(checkData);
+    const txReceipt = await tx.wait(1);
+    const requestId = txReceipt.events[1].args.requestId;
+    console.log(`Performed Upkeep with RequestId: ${requestId}`);
+    if (network.config.chainId == 31337) {
+      await mockVrf(requestId, raffle);
+    }
+  } else {
+    console.log("No upkeep needed!");
+  }
+}
+
+async function mockVrf(requestId, raffle) {
+  console.log("현재 위치가 로컬네트워크라면 위장합니다.");
+  const vrfCoordinatorV2Mock = await ethers.getContract("VRFCoordinatorV2Mock");
+  await vrfCoordinatorV2Mock.fulfillRandomWords(requestId, raffle.address);
+  console.log("응답받음!");
+  const recentWinner = await raffle.getRecentWinner();
+  console.log(`우승자는 ${recentWinner} 입니다.`);
+}
+
+mockKeepers()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.log(error);
+    process.exit(1);
+  });
+
+```
+
+우리가 테스트에서 작성했던 스크립트와 비슷합니다.
+
+노드가 실행된 상태에서 로컬네트워크로 해당 스크립트를 실행해보겠습니다.
+
+참고로 여기서 hardhat.config.js와 helper-hardhat-config.js 파일의 network이름중 31337 체인값을 갖는 네트워크이름을 hardhat에서 localhost로 바꿔줬습니다.
+
+```bash
+yarn hardhat run scripts/mockOffChain.js --network localhost
+```
+
+```bash
+0
+3
+upkeepNeeded val true
+Performed Upkeep with RequestId: 4
+chainID 31337
+현재 위치가 로컬네트워크라면 VRF로 위장합니다.
+응답받음!
+우승자는 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 입니다.
+Done in 3.53s.
+
+```
+
+그리고 다시 브라우저를 새로고침하면 최근우승자가 업데이트 된걸 확인 할 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-20%20222746.png)
+
+이제 UI를 정리할건데, 그전에 얘기해야할 것이 있습니다.
+
+## A note about, onSuccess
+
+`onSuccess`는 `트랜잭션`의  `블록승인`(`block confirmation`)을 체크하지 않습니다.
+
+Metamask에 트랜잭션이 성공적으로 전송되었는지만 확인할 뿐입니다.
+
+onSuccess가 메타마스크에 트랜잭션 전송 성공여부만 따지기 때문에, 위에서 실제로 거래가 확인되는 부분인 `tx.wait(1)`을 사용한겁니다.
+
+## A Challenge to You
+
+현재 모킹스크립트가 실행되면 새로고침을 눌러야 승리자를 볼 수 있습니다.
+이것은 이상적이지 못한 방법이죠. 이상적으로는 어떤 이벤트가 발생하면 자동으로 업데이트되게 만들고 싶습니다
+
+Raffle.sol 계약에 우리는 emit된 이벤트를 가지고 있습니다. 
+
+await ~ onSuccess 같은걸 이용하는대신, emit 되는 이벤트를 listen하는것에 따라서 프론트엔드를 업데이트하게 만드려면 어떻게 해야할까요. 이 논리대로라면 우승자 이벤트가 발생될(emitted)때도 이것을 들을(listen) 수 있을겁니다. 그리고 새로고침하지 않고 프론트엔드를 업데이트하는거죠.
+
+## Tailwind & Styling
+
+>https://tailwindcss.com/docs/installation
+
+>https://tailwindcss.com/docs/guides/nextjs
+
+```bash
+yarn add --dev tailwindcss postcss autoprefixer
+```
+
+```bash
+yarn tailwindcss init -p
+```
+
+tailwind.config.js 파일의 내용을 다음으로 덮어씌웁니다.
+```js
+//tailwind.config.js
+module.exports = {
+  content: [
+    "./pages/**/*.{js,ts,jsx,tsx}",
+    "./components/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+}
+```
+
+styles/global.css 의 내용을 바꿔줍니다.
+```css
+/* styles/global.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+```
+
+`@tailwind`에 룰셋을 찾을 수 없다는 에러가 나옵니다. `PostCSS Language Support` 확장프로그램을 설치해야합니다.
+
+테일윈드 문법을 인텔리센슿주는 `tailwind CSS` 확장프로그램도 설치합시다.
+
+이제 우리의 `Header` 컴포넌트에 적용시켜보겠습니다.
+
+```jsx
+import { ConnectButton } from "web3uikit";
+
+export default function Header () {
+    return (
+        <div className=>
+            <ConnectButton moralisAuth={false} />
+        </div>
+    )
+}
+```
+
+
+다시 raffleEntrance로 와서 isLoading과 isFetching을 enterRaffle 안에서 불러와줍니다.
+```jsx
+  const { runContractFunction: enterRaffle, isLoading, isFetching } = useWeb3Contract({
+    abi: abi,
+    contractAddress: raffleAddress, // specify the networkId
+    functionName: "enterRaffle",
+    params: {},
+    msgValue: entranceFee,
+  });
+```
+
+버튼에 disabled 속성을 추가하여 `isLoading` 혹은 `isFetching`일때 비활성화 되도록 만들겠습니다.
+```jsx
+          <button
+            className="my-2 bg-blue-500 p-3 rounded-lg text-white hover:bg-blue-700"
+            onClick={async function () {
+              await enterRaffle({
+                onSuccess: handleSuccess,
+                onError: (error) => console.log(error),
+              });
+            }}
+            disabled={isLoading || isFetching}
+          >
+            복권 참여하기
+          </button>
+```
+
+이제 로딩하거나 패칭중일때 간단한 스핀애니메이션이 버튼을 대체하도록 만들어보겠습니다.
+
+```jsx
+          <button
+            className="my-2 bg-blue-500 p-3 rounded-lg text-white hover:bg-blue-700"
+            onClick={async function () {
+              await enterRaffle({
+                onSuccess: handleSuccess,
+                onError: (error) => console.log(error),
+              });
+            }}
+            disabled={isLoading || isFetching}
+          >
+            {isLoading || isFetching ? (
+              <div className="animate-spin spinner-border h-8 w-8 border-b-2 rounded-full"></div>
+            ) : (
+              <div>참여하기</div>
+            )}
+          </button>
+```
+
+
+## Introduction to Hosting your Site
+
+Vercel, AWS, netlify 많은 호스팅 사이트들이 있습니다.
+
+하지만 문제는 모두 중앙화된 사이트라는 겁니다,
+
+이더스캔을 예로들어봅시다. 이더스캔은 현재 결과적으로 중앙화된 어플리케이션입니다.
+
+그러나 우리가 많이 사용하죠.
+
+아무튼 우리가 분산화된 프론트엔드를 가지려면, 글쎄요, 좀 어렵게 접근해봅시다.
+
+우리에게 더 중요한 것은 우리의 백엔드 즉, 스마트 계약이 탈중앙화되어 있어야 한다는 겁니다.
+
+맞죠? 그게 제일 중요한 겁니다. 사용자에게 우리가 만든 로직과 소통하는 분산화된 방법을 제공하기 때문이죠.
+
+하지만 어쩌면 우리는 프론트엔드도 분산화시키고 싶을지도 모릅니다.
+
+어떤때에는 우리는 아직 어플리케이션을 배포하기 위해 vercel같은 중앙화된 서비스를 이용할 겁니다.
+
+왜 그런지 보여드리겠습니다.
+
+여기에는 견고한 중앙집권형 백엔드 없이는 작동하기 힘든 기능들이 있습니다.
+
+계속 염두해둬야 할것은 우리의 백엔드 즉, 계약 로직은 분산화된 블록체인상에 존재한다는 점입니다.
+
+그렇기 때문에 우리가 중앙화된 호스팅 제공자를 이용하여 호스팅하더라도, 프론트엔드가 원활하게 작동하도록 중앙화된 타입의 데이터베이스를 사용하더라도, 어플리케이션의 로직은 분산화되어있고, 그것이 제일 중요한 점입니다.
+
+그래서 나중에 어떤 툴을 제공해드리겠습니다. 이러한 기능들을 더 풍부하게 소개해드리기 위해서요.
+
+이 기능을 선택하게 되면 중앙화된 컴포넌트를 여러분의 프론트엔드에 들여오게 될겁니다. 그리고 항상 염두해야할 점은 여려분이 어떤 설계(architecture)를 하고싶은가에 달려있다는걸 명심하십시오.
+
+그래서 이렇게 한다면 백엔드의 스마트계약은 확실히 분산화된 블록체인에 배포됩니다.
+
+나중에 이 중앙화 프론트엔드를 배포하는 방법에 대해 더 알아볼 겁니다.
+
+그러나 지금은 더 분산화된 방법으로 배포하는 방법에 대해 알아봅시다.
+
+## IPFS
+
+>https://ipfs.io/
+
+그래서 우리가 사용할 툴은 `IPFS`라는 툴입니다.
+
+IPFS가 어떻게 작동하는지 설명해드리겠습니다.
+
+이 `Distributed Decentralized Data Structure(분산형 자료구조)` 라는것은 정확히 블록체인은 아니지만 블록체인과 유사한 것입니다.
+
+`mining(마이닝)`도 없지만 대신 `pinning data`라는 것이 있습니다.
+
+`[Our Code / FIle]`
+
+우리가 코드나 파일 즉, 데이터조각을 가지고 있다고 생각해봅시다.
+
+그리고 알다시피 이것을 해싱할 수 있다는 것도 아실겁니다.
+```jsx
+`[Our Code / File]` -------> `ipfs://QmPsdDRX3QQ...../`
+                    Hash it!
+```
+그러면 다음과 같은 유니크 값을 얻을 수 있습니다.
+
+이것이 `IPFS`가 하는 일 중 첫번째입니다.
+
+데이터를 해시하여 해당 데이터만 가리키는 고유한 해시를 가져옵니다.
+
+맞습니다. 엄청난 양의 코드파일입니다. 그리고 이 모든 것을 단일 해시 함수로 인코딩할 수 있습니다.
+
+`IPFS` 노드가 이 해싱을 처리해줍니다. 그리고 지구상의 모든 `IPFS` 노드들은 정확히 같은 해시함수를 가지고 잇습니다. 블록체인처럼요.
+
+그렇습니다. 모두 같은 스펙(spec)을 가지고 실행되고 있습니다.
+
+따라서 데이터를 IPFS 노드에서 해시하여 고유값을 얻을 수 있습니다.
+
+그리고 다음에 할 수 있는것은 우리가 그 데이터 혹은 코드, 파일을 `pin(고정)` 하는 것입니다. 
+어쨌거나, 우리의 노드에는 고유 해시를 가진 데이터를 가지게 되었습니다.
+
+이 데이터를 호스트하고 해시를 하는 것뿐입니다. 즉, 노드가 다른 IPFS 노드의 네트워크에 연결되어 있는 것입니다.
+```jsx
+[Our Code / File] -------> [`ipfs://QmPsdDRX3QQ...../` IPFS (OurNode)]
+                  Hash it!                                  /     \
+                                                          IPFS     IPFS
+                                                          /  \        \
+                                                       IPFS  IPFS     IPFS
+```
+즉, 노드가 다른 IPFS 노드의 네트워크에 연결되어 있는 것입니다.
+
+그래서 거기엔 IPFS 노드를 운영하는 사람들이의 거대한 네트워크가 있습니다.
+
+그들은 믿을 수 없을 정도로 가볍습니다. 그 어떤 블록체인 노드보다도요.
+그리고 모두 서로간에 소통을 합니다. 그래서 만약 네트워크에 `이 해시를 가지고 싶어` 라고 물어보면,
+이 모든 노드들이 서로에게 알려줄것입니다. 그리고 결과적으로 우리 노드에게 이렇게 말할겁니다. `이 해시를 가지고 있는 노드를 찾았어. 여기에 그것과 관련된 파일이 있단다.`
+아마 이렇게 생각하실수도 있습니다. `이것도 일종의 중앙화네요, 결국에 하나의 노드가 데이터를 가지고 있잖아요?`라구요.
+네, 맞습니다. 그러나 여기에 핵심이 있습니다.
+
+다른 노드가 할 수 있는 일은 "아, 그 데이터는 정말 멋져 보이고, 나는 그것을 지속하고 싶다."라고 말할 수 있다는 것입니다. 그들이 할 수 있는 것은 당신의 해시를 고정하고, 당신의 데이터를 고정하고, 그들의 노드에 당신의 데이터의 복사본을 얻을 수 있다는 것입니다.
+
+그리고 이것을 계속 할 수 있습니다. 따라서 전체 네트워크가 코드나 데이터를 분산형 방식으로 쉽게 복제할 수 있습니다. 그리고 그것들은 놀라울 정도로 쉽게 회전합니다. 그리고 IPFS와 관련하여 작업하는 것은 매우 쉽습니다.
+그래서 블록체인과 가장 큰 차이점은, 스마트컨계약을 할 수 없고, 실행(execution)도 없고, 오직 저장(store)만 하는 역할인 겁니다. 분산화된 스토리지, 그것이 바로 IPFS가 할 수 있는 일입니다.
+
+자 문제는 우리의 데이터를 정말 분산화시키려면 다른 노드가 이것을 `pin`해야 되겠죠?
+왜냐하면 우리가 IPFS 노드중 유일하게 이 데이터를 가졌다면, 우리의 노드를 중앙화시키는 꼴이 됩니다.
+
+만약 우리 노드가 작동중지된다면 그 데이터는 사라지겠죠 그리고 네트워크는 그 데이터에 대해 더이상 접근할 수 없게 될 겁니다.
+
+그래서 우린 다른사람들이 여러분의 데이터를 pin할 수 있도록 하는 전략에 대해서 앞으로 논의해볼겁니다.
+
+그러나 지금은 이것이 우리가 데이터를 호스트할 수 있는 방법이고 우리는 코드를 전송하여 분산화된 문맥에 포함되도록 만들 수 있습니다.
+
+블록체인과는 다르게, 블록체인이 모든 노드의 전체 복사본을 가진다면, IPFS 노드는 원하는 데이터를 옵션선택하여 고정(pin)할 수 있습니다. 그리고 그들은 어떤 `실행(execution)`도 할 수 없습니다.  
+
+여러분은 0.5메가바이트의 IPFS 노드를 가질 수 도 있고, 여러 테라바이트의 IPFS 노드를 가질 수 도 이습니다. 
+노드 운영자가 얼마나 많은 데이터를, 어떤 데이터를 핀으로 고정할지는 노드 운영자에게 달려있습니다.
+이제 IPFS 가 무엇인지 알게되었습니다.
+
+## Hosting on IPFS
+
+이제 실제로 우리의 멋진 어플리케이션을 IPFS에 배포해봅시다.
+
+우리 노드가 활성화되어있는 동안은 모든 사람들이 사용할 수 있고 연결할 수 있습니다.
+
+첫번째로 할일은 Manual Wait 하는 겁니다.
+
+먼저 IPFS 설치를 할겁니다.
+
+>https://ipfs.io/#install
+
+데스크탑 애플리케이션으로 설치할수도 있고 커맨드라인 버전, 그리고 심지어 브라우저에 추가`(Add Companion)`할 수 도 있습니다.
+
+Brave 나 Firefox 같은 브라우저들은 빌트인으로 이 IPFS 라우터가 설치되어있습니다.
+하지만 Chrome 같은 브라우저라면 `Add Companion`을 이용해 Companion을 추가해야할지도 모릅니다.
+
+왜냐하면 위에서 본 해싱된 url을 우리의 주소로 사용할 것이기 때문입니다. 브라우저에 그 ipfs://... 주소를 넣고 그 노드나 코드조각에 연결하는겁니다.
+
+그래서 우리가 할 것은 `IPFS Desktop`을 설치하는 겁니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-22%20203311.png)
+
+File로 들어가봅시다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-22%20203334.png)
+
+아무 파일이나 import 해보겠습니다. (setting에서 한글판으로 바꿀수도 있습니다.)
+여기선 우리 프로젝트 아의 next.config.js 파일을 import 해보겠습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-22%20203840.png)
+
+여기서 올려둔 파일을 클릭하고 `Copy CID`눌러봅시다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-22%20204000.png)
+
+그리고 웹 브라우저에 `IPFS://복사된CID주소`를 입력해봅시다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-22%20204811.png)
+
+다음과 같은 화면이 나옵니다.
+
+we can give our browser access to actually rendering IPFS URLs.
+엔터를 누르면 브라우저에서 IPFS URL을 실제로 렌더링할 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-22%20205141.png)
+
+아니면 IPFS Companion을 설치해도 됩니다.
+>https://docs.ipfs.io/install/ipfs-companion/
+
+또 하나의 방법은 IPFS 게이트웨이를 이용하는 방법입니다.
+IPFS 를 통해 직접 데이터에 요청하는것이 아니라 IPFS에 요청을 보내는 다른 서버를 통해 연결하는 것입니다.,
+
+`http://ipfs.io/ipfs/해시주소`로 접근하면 가능합니다.
+
+이렇게 접근하면 ipfs companion도 필요없습니다.
+
+우리는 IPFS에 웹사이트를 배포할겁니다. 그래서 누구나 이 pin할 수 있게 만들것이고, 
+우리는 이제 변조되지 않고, 항상 켜둘 수 있는 웹사이트를 가질 수 있는 능력을 갖게 될 것입니다.
+
+우리는 아무것도 사용하지 않고 이것을 하는 방법을 배웠고, 이번에는 이 과정을 쉽게 해주는 툴을 이용해볼겁니다.
+
+다시 프론트엔드 프로젝트로 돌아오겠습니다.
+ 링크비에 배포하고 싶다면 그래도 됩니다. 다만 반드시 `contractAddresses.json`파일에 
+ ```json
+ {"31337":"0x....} 
+ ``` 
+로 컨트렉트 주소가 올바른 체인아이디로 포함되어있는지 확인해주시기 바랍니다.
+
+NextJS는 static 웹사이트를 생성하는 능력을 가지고 있습니다. 앞으로 정적(static) 웹사이트를 만들테니 중요한 점입니다.
+
+현재로서는 저희 웹사이트가 서버 관련 자료와 뒤엉키는 것을 원치 않습니다.
+
+정적사이트를 만드는 이유는 IPFS에게는 아무런 실행기능이 없기때문입니다. 그냥 host만 담당할 뿐입니다.
+
+만약 프론트엔드에서 서버관련코드가 있다면 아무것도 작동하지 않을겁니다.
+
+IPFS가 우리의 프로젝트에 들어오면 yarn run dev 같은 명령어를 할 줄 모릅니다.
+
+그렇기 때문에 이런것들을 모두 정적 코드에 담아내야합니다.
+
+```bash
+yarn build
+```
+
+`build` 명령어를 실행하면 프로덕션 빌드를 생성하게 됩니다.
+
+그리고 빌드하면 이렇게 나올겁니다.
+```ps1
+yarn run v1.22.15
+$ next build
+info  - SWC minify release candidate enabled. https://nextjs.link/swcmin
+
+./components/LotteryEntrance.jsx
+100:6  Warning: React Hook useEffect has a missing dependency: 'updateUI'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/ManualHeader.jsx
+16:6  Warning: React Hook useEffect has a missing dependency: 'enableWeb3'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+27:5  Warning: React Hook useEffect has missing dependencies: 'Moralis' and 'deactivateWeb3'. Either include them or remove the dependency array.  react-hooks/exhaustive-deps
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/basic-features/eslint#disabling-rules
+info  - Linting and checking validity of types
+info  - Creating an optimized production build  
+warn  - Compiled with warnings
+
+./node_modules/moralis/lib/browser/Web3Connector/MagicWeb3Connector.js
+Module not found: Can't resolve 'magic-sdk' in 'C:\Users\ESO\Desktop\Dev\web3\nextjs-smartcontract-lottery\node_modules\moralis\lib\browser\Web3Connector'
+
+Import trace for requested module:
+./node_modules/moralis/lib/browser/MoralisWeb3.js
+./node_modules/moralis/lib/browser/Parse.js
+./node_modules/moralis/index.js
+./node_modules/react-moralis/lib/index.esm.js
+./pages/_app.js
+
+info  - Collecting page data  
+info  - Generating static pages (3/3)
+info  - Finalizing page optimization
+
+Page                                       Size     First Load JS
+┌ ○ / (1370 ms)                            7.49 kB        1.25 MB
+├   └ css/39f4d8aba4b66723.css             653 B
+├   /_app                                  0 B            1.24 MB
+├ ○ /404                                   188 B          1.24 MB
+└ λ /api/hello                             0 B            1.24 MB
++ First Load JS shared by all              1.24 MB
+  ├ chunks/framework-3b7283d6a8166ac6.js   45.7 kB
+  ├ chunks/main-e30ba8f4087d3abf.js        31.3 kB
+  ├ chunks/pages/_app-f419557cd4f63aaa.js  1.17 MB
+  ├ chunks/webpack-7fda8bbf118cde75.js     2.01 kB
+  └ css/d99a8e2aa08f84e5.css               1.81 kB
+
+λ  (Server)  server-side renders at runtime (uses getInitialProps or getServerSideProps)
+○  (Static)  automatically rendered as static HTML (uses no initial props)
+
+Done in 31.00s.
+```
+
+Static, automatically rendered as static HTML (uses no initial props).
+이 부분은 NextJS에서 온 서버 기반의 어플리케이션이 있는데 만약 우리가 이걸 사용하면 우리의 정적 빌드는 작동하지 않습니다. 
+
+그리고 nextJS의
+
+```bash
+yarn next export 
+```
+이 명령은 실패할 것입니다. 만약 static이 아닌 것을 가지고 있지 않다면 말이죠.
+
+한번 시도해봅시다.
+
+** 그전에 **\
+`next.config.js`의 `module.exports 에 images 세팅을 추가해줍니다. image api 세팅을 추가하지 않으면 export시 에러를 발생시킵니다.
+```js
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  reactStrictMode: true,
+  swcMinify: true,
+};
+
+module.exports = {
+  nextConfig,
+  images: {
+    loader: "imgix",
+    path: "",
+  },
+};
+```
+
+실행해보면 실패하지 않고 성공합니다.
+
+그리고 다음과 같은 폴더가 생성됩니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-23%20000819.png)
+
+이곳엔 순수 정적 코드만 담겨있어서 IPFS에서 사용할 수 있는 코드들입니다.
+
+나중에 이러한 정적 요소들을 사용하지 않는다면 어떻게 보이는지 보여드리겠습니다.
+
+모랄레스와 Nextjs 둘다 정적 코드를 가지지 않도록 하는 옵션을 가지고 있습니다. 이점을 기억해두시기 바랍니다.
+
+이제다시 IPFS로 돌아가봅시다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-23%20001317.png)
+
+그리고 FILE 탭에서 import를 하는데 이번엔 folder로 아까 생성된 `out`폴더를 import 해봅시다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-23%20001347.png)
+
+그리고 `pinning`을 선택합니다. `local node` 를 체크합니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-23%20001449.png)
+
+그리고 `out`폴더의 CID를 복사하여 브라우저에서 다시 열어봅시다.
+
+`ipfs://해시주소`
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-23%20001707.png)
+
+우리의 페이지가 보입니다!
+
+지갑을 연결해보도록 하겠습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-23%20001756.png)
+
+라플에도 참여할수있고 트랜잭션 성공알림도 정상적으로 출력됩니다.
+경이롭습니다!
+
+## Hosting on IPFS & Filecoin using Fleek
+
+지금까지 배운 방식은 수동(manual)으로 IPFS에 코드를 추가하는 방법이였습니다.
+
+이제 쉬운방법을 보여드리겠습니다.
+
+>fleek.co
+플릭이라는 사이트로 이동할겁니다.
+
+메인페이지의 설명을 읽어보시면 알겠지만 배포자동화를 도와주는 서비스입니다.
+
+일단 가입해봅시다. 깃허브 아이디로 가능합니다. 또 깃허브 아이디로 가입하시는것이 좋습니다. 깃허브에 연결해서 배포를 자동화할 것이기 때문이죠.
+
+그전에 ipfs 컴페니언을 잠시 꺼놓도록 하겠습니다. 사이트 기능을 이용하는데 가끔 에러가 발생하기 때문입니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-23%20003109.png)
+
+가입하고 나서 add new site를 눌러줍시다.
+
+깃허브에서 새 레포지토리를 생성합니다.
+
+프론트엔드 프로젝트로 돌아와서 터미널에서 모든 코드를 push해 줍시다.
+
+일단 깃을 초기화하고 main 브렌치에 맞춰줍니다.
+
+```bash
+git init -b main
+```
+
+그다음 add - commit - push를 해줍니다.
+
+```bash
+git add .
+git commit -m  "init repo"
+git remote add origin 깃주소.git
+git push -u origin "main"
+```
+
+그리고 fleek사이트로 돌아와서 `Connect with github` 버튼을 눌러 레포지토리를 연결해줍니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-23%20003109.png)
+
+그리고 정보를 열어 호스팅 어플리케이션 IPFS를 선택해줍니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-23%20005013.png)
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-23%20005622.png)
+
+- framework : Next.js (아래 명령어를 수정하면 다시 other로 자동으로 바뀌니 걱정하지 마세요.)
+
+- Build command :
+yarn && yarn run build && yarn next export
+
+`Deploy Site`를 눌러서 배포해봅시다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-23%20005755.png)
+
+배포가 완료되면 OVERVIEW 탭을 봅시다. 
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-23%20125511.png)
+
+Filecoin Deal ID가 무엇일까요
+
+전에 말했듯이 다른사람들이 우리노드를 호스트해주는것이 필요합니다.
+
+파일코인은 여러분의 데이터나 분산화 스토리지를 사용할 수 있게 도와주는 사실상 블록체인입니다.
+
+그리고 fleek이 이러한 거래(deal)를 생성하고 여러분의 데이터를 핀(pin)하는 것을 파일코인 블록체인을 통해 도와줍니다.
+
+파일코인은 분명히 살펴봐야할 요소입니다.
+
+그리고 조금 기다리면 배포가 완료되는데 , 배포된 노멀(해시가아닌) URL을 얻을 수 있고 이쪽으로 이동하면 배포된 static 사이트에 접속할 수 있습니다.
+
+>![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-23%20130247.png)
+브라우저 주소창 상단에 뜨는 IPFS 는 이 사이트를 IPFS 노드에 연결해서 열어보겠다는 뜻입니다.
+
+또 OVERVIEW에는 IPFS 해시가 있는데 이것으 똑같이 ipfs:// 에 붙여넣으면 마찬가지로 해당 사이트로 접속할 수 있습니다.
+
+그리고 프로젝트 폴더로 가서 내용을 약간 수정해보고 다시 깃으로 푸쉬해보면 자동으로 업데이트 되어 배포되는것을 확인 할 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-23%20130552.png)
+
+그리고 이 주소는 IPFS 라우터입니다.
+
+## Filecoin Overview 18:30:00
+
+IPFS에는 한계가 있습니다. 바로 데이터 지속성이 없다는 점입니다. 다른 사람들이 데이터를 핀 해줘야 하고, 계속 나눠(분산시켜)줄 수 있도록 해야합니다. 
+
+파일 코인은 이러한 데이터를 분산형 및 지속형으로 유지하는 데 전념하는 블록체인입니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-23%20132604.png)
+
+why aren't we designing the web for the autonomy and resilience we need in the first place? And how do we store data in a way that aligns with both the original vision of the internet as an open place for knowledge sharing and collaboration
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-23%20132546.png)
+
+우리는 왜 처음부터 우리가 필요로 하는 자율성과 복원력을 위해 웹을 설계하지 않는가?
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-23%20132659.png)
+
+
+먼저 IPFS는 파일, 폴더, 웹사이트, 어플리케이션을 저장하고 접근하기 위한 분산 시스템입니다.
+그리고 지구 어느곳에서도 네트워크안에 있다면 작동하도록 설계되었습니다.
+
+그래서 설계상으로 분산되어 있고 중앙 권한 서버가 없으며 복원력(resilience)을 위해 오프라인 퍼스트 상태로 설계되었습니다.
+
+더욱이 IPFS는 P2P를 일컫는 화려한 이름같은게 아닙니다.
+IPFS 프로토콜의 좋은 점은 네트워크에서 콘텐츠를 주소 지정하기 위해 사용하는 표준이기 때문입니다.
+
+IPFS는 독특합니다. IPFS는 웹에서 익숙한 전통적인 방법을 사용하는 대신 콘텐츠를 사용할 수 있거나 저장할 수 없는 특정 HTTP 주소를 가리키는 위치 부분이기 때문입니다. IPFS는 콘텐츠 주소 지정(content addressing)을 사용하기 때문에 콘텐츠 주소 지정은 각 데이터 조각, 각 밈 또는 전체 파일 시스템에 고유한 암호학적으로 검증 가능한 지문이 있음을 의미합니다.
+
+그래서 예를 들어 당신이 가진 주요이미지의 한 픽셀만 바꾸어도, 콘텐츠 ID와 CID는 변경사항에 따라 변화합니다.
+그래서 중요합니다, 이 해시 함수는 심지어 업그레이드가 가능합니다.
+
+예를 들어 양자 컴퓨팅이 우리의 최신 보안 알고리즘을 뜷었다고 가정한다면, 우리가 표준으로 사용하던걸 업그레이드 할 수 있습니다. 즉, IPFS CID에서 반환되는 콘텐츠는 항상 예상과 동일합니다.
+
+따라서 데이터가 어디에서 왔는지 상관할 필요가 없을 때 웹에서 대규모로 분산된 스토리지 시스템을 개방할 수 있기 때문에 이는 근본적으로 중요합니다. Hello decentralization!
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-24%20114619.png)
+
+이제 우리는 규모에 맞게 분배할 수 있는 정말 중요하고 가치 있는 프로토콜을 가지게 되었습니다.
+
+이것은 웹에서 콘텐츠를 제공하고 검색할 수 있는 데이터의 검증 가능성을 제공합니다. 웹 3뿐만 아니라 모든 웹 또는 기술 사용 사례도 마찬가지입니다.
+
+문제는 초기 인터넷도 직면했던 문제처럼 누가 네트워크상의 모든 데이터의 지속성과 영속성을 보장할 것인가 하는 것입니다.
+
+따라서 연중무휴로 자체 노드를 실행하거나, 컨텐츠가 매우 인기가 있거나, 내가 중요하다고 생각되는 데이터라는 이유로 다른 노드가 데이터를 이타적으로 저장하기로 결정하지 않는 한, 이러한 데이터는 더 이상 네트워크상의 어떤 노드에서도 활발하게 호스팅되지 않기 때문에 신뢰성이 떨어질 수 있습니다.
+
+이러한 문제를 피하기 위해 컨텐츠의 복사본을 보관하기 위해 지불하는 `고정 서비스(pinning service)`로 전환할 수도 있습니다.
+
+불행하게도, 이것의 문제는, 우리가 다시 데이터의 중앙집중화를 향해 가고 있다는 것입니다.
+또한 이 솔루션을 통해 새로운 데이터 사일로를 생성하고 원하는 신뢰성과 복원력을 잃고 있습니다. 그리고 이것은 파일코인 이전의 나쁜 해결책입니다. 그리고 이것이 그들이 처음에 생겨난 이유입니다. 하지만 우리는 더 나은 해결책을 원합니다.
+
+그래서 파일 코인이 필요한 것입니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-24%20125919.png)
+
+지금까지의 코인 아키텍처는 데이터의 지속적이고, 매우 안정적이며, 검증할 수 있는 방식으로 저장하도록 보장하기 위한 암호화 증명을 포함하여 암호(crypto) 경제 인센티브 모델을 활용하도록 설계되었습니다.
+
+그것은 또한 이러한 암호화 증명을 사용하여 스마트 계약 기반 영구성을 가능하게 합니다. 즉, 데이터 소유자가 원하는 대로 영구적으로 사용할 수 있도록 설계되었습니다. 나의 데이터이며, 그러므로 영구성을 선택할 권리가 있다는 거죠.
+
+또한 인터넷 용량을 확장할 수 있도록 설계되었습니다. 현재 사용 가능한 용량이 1,800만 테라바이트가 넘는 세계에서 가장 큰 분산 스토리지 네트워크입니다. 이는 유럽 연합의 핵심 프로그램인 CERN 데이터의 약 135개 사본에 해당하는 것으로 재미있는 사실입니다.
+
+또한 시장 경제성으로 인해 가격 경쟁력이 매우 높은 파일 코인으로 설계되었습니다. 결국 스토리지 거래로 귀결됩니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-24%20154257.png)
+
+그래서 이 네트워크를 실현하기 위해, 파일코인은 스토리지 거래를 사용합니다. 그리고 이것들은 시스템에서 좋은 행동에 대한 보상과 나쁜 행동에 대한 벌칙을 보장하는 두 가지 주요 합의 메커니즘을 포함합니다.
+
+따라서 중요한 데이터를 저장하기 위해 하나 이상의 스토리지 공급자와 계약을 체결하면 공급자는 복제 증명서를 생성합니다. 따라서 이는 스토리지 공급자가 데이터가 지속되도록 하기 위해 원본 데이터의 고유한 복사본을 시간이 지남에 따라 저장한다는 것을 증명합니다.
+
+1. Fleek
+2. NFT.Storage
+3. Web3.Storage
+4. Textile Powergate
+5. Estuary.tech
+6. OrbitDB
+
+~~ 이하 생략
+
+## Lesson 10 Recap
+
+1.  NextJS에 대해 배웠습니다. 레이아웃과 컴포넌트 모듈러라이즈에 배웠고 out폴더에 static 페이지를 내보낼수 있다는걸 알았습니다.
+
+2. _app.js 는 모랄리스 프로바이더와 노티피케이션프로바이더(Web3Uikit)으로 둘러쌓습니다.
+
+3. 메뉴얼 헤더로 헤더가 어떻게 이루어지는지 알았습니다,
+
+4. useEffect 훅에 대해 배웠습니다. 
+
+5. useState 훅 에 대해 배웠습니다.
+
+7. runContractFunction 으로 계약 함수를 호출한는 방법을 배웠습니다.
+
+8.  onSuccess 등으로 트랜잭션 후 행동을 제어하는 방법을 알았습니다.
+
+9. fleek으로 배포하는 방법을 알았습니다.
+
+10.  IPFS 에 대해 배웠습니다.
+
+왜 이더리움이나 폴리곤 아발란체같은 곳에 웹사이트를  배포하지 않은 이유는 무엇일까요?
+
+바로 데이터를 저장하는 값이 매우매우 비싸기 때문입니다. 블록체인에 많은 양의 데이터를 저장하기 위해선 정말 많은 양의 가스가 필요합니다. 반면에 IPFS는 훨씬 저렴한 대안입니다.
+
+이더리움, 아발란체 그리고 스마트 계약 플랫폼은 실제로 데이터 스토리지 계층(data storage layer)이 아니라 논리 계층(logic layer)이 되어야 합니다. 그렇죠? 분산화된 로직, 분산화된 스마트 계약 말이죠. 네, 물론 가끔씩은 데이터를 그곳에 저장할지도 모릅니다. 그러나 그것이 많은 양의 데이터일때는 더 나은 방법이 있습니다. 우리의 데이터를 저장할 수 있는 대안인  IPFS 그리고 filecoin 처럼요.
+
+# Lesson 11 Hardhat Starter Kit
+
+github repo의 smartcontractkit/hardhat-starter-kit 을 사용해보겠습니다.
+
+이외에도 많은 보일러플레이트들이 해당 리포에 있습니다.
+
+`Use this templete`을 눌러 사용할 수 있습니다. 그렇게 하면 해당 리포로 내 소유의 새 리포가 만들어집니다.
+
+vscode로 깃클론하여 들여오면 contract부터 test까지 모든 세팅이 완료되어있는걸 볼 수 있습니다. 확인해보세요.
+
+그리고 의존성 설치를 위해 `yarn`을 터미널에서 실행해줍니다.
+
+```bash
+yarn
+```
+
+hh console -- network localhost
+const priceConsumerV3 = await ethers.getContract("PriceConsumerV3")
+(await priceConsumerV3.getLatestPrice()).toString()
+
+테스트넷에 배포하고 싶다면 환경변수에 테스트넷의 RPC_URL을 추가한 뒤
+
+예를 들어 프라이스컨슈머를 배포할시
+yarn hardhat deploy -tags feed --network rinkeby
+
+# Lesson 12 Hardhat ERC20s
+
+What is an ERC?
+What is an EIP?
+
+이제 우리는 나만의 ERC20 혹은 EIP 20 혹은 BEP 20 혹은 AEP 20 같은 토큰을 블록체인에 만들어볼겁니다.
+
+우리가 ERC 20이 무엇인지, 이 토큰들이 무엇인지 이해하기 전에, 우리는 먼저 ERC가 무엇인지 이해할 필요가 있습니다.
+
+그리고 이더리움, 아발렌체, 파이난스, 그리고 폴리곤에서는 EIP라는 것도 존재합니다.
+
+All these blockchains have what's called improvement proposals.
+이 모든 블록체인들은 `improvement proposals`(`개선안`) 이라는것을 갖고있습니다.
+
+그리고 이더리움에는 `Ethereum Improvement Proposals` 즉 `EIP` 라 부르는것이 있습니다.
+
+사람들은 이더리움을 개선하거나 폴리곤 , 메틱, 아발렌체 등과 같은 레이어 원(layer one)을 개선하기 위해 이런 아이디어를 생각해냅니다. 깃허브 같은 오픈 소스 저장소에서 새로운 EIP를 추가하며, 즉, 이러한 프로토콜을 개선하기 위한 새로운 개선 아이디어를 추가합니다.  
+
+이제, 이러한 개선 사항들은 정말 무엇이든 될 수 있습니다. 핵심 블록체인 업데이트부터 표준까지 모든 것이 될 수 있습니다. 이는 전체 커뮤니티가 채택해야 할 모범 사례입니다.
+
+일단 EIP가 충분한 인사이트를 얻으면, 그들은 또한 ERC를 생성하는데, ERC는 의견(comments)을 위한 이더리움 요청(request)(`Ethereume request for comments`)을 의미합니다. 이는 BEP,PEP로도 불립니다.
+
+EIP 와 ERC 둘다 모두 이러 tag를 가지고 있습니다.
+
+이것들은 시간에 따라 넘버링 됩니다.
+
+ERC 20 같은 것이 ERC/EIP의 20번째가 될 것입니다. ERC와 EFP는 동일한 번호를 공유합니다.
+
+그리고 eip.ethereum.org 같은 사이트에서 계속 이러한 모든 새로운 개선안(Imporvement proposals)들을 계쏙 기록하고 있고, 커뮤니티에 의해 추가된 것들을 보며 실시간으로 진행 상황을 확인 할 수 있습니다.
+
+그리고 이 EIP 혹은 ERC 중 하나가 스마트 계약을 위한 `ERC20 - Token standard(토큰 표준)`이 될 수 있습니다.
+
+이것은 어떻게 실제로 토큰을 만들고, 스마트 계약을 만드는지에 대해 이야기한 개선안 입니다.
+
+## What is an ERC 20?
+
+먼저 ERC20이 무엇인지 정의해봅시다.
+ERC20은 체인에 배포된 ERC 20 token standard 라 불리는 토큰입니다. 
+
+>https://eips.ethereum.org
+ERC20 에 대해서 여기에서 더 알아볼 수 있습니다.
+
+기본적으로 이것은 토큰을 나타내는 스마트 계약입니다. 
+
+그래서 이것은 토큰이기도 하고 스마트 계약이기도 합니다.
+
+테더(tether) 체인링크, 유니콘토큰, 다이 가 ERC-20의 예시 입니다.
+
+기술적으로, 체인링크는 ERC-677 인데, ERC-20으로 업그레이드 할 수 있는 역호환 기능을 가진 토큰들이 있기 때문입니다. 
+그래서 그냥 기능을 좀 더 추가한 ERC-20 토큰이라고 생각하시면 됩니다. 
+
+왜 ERC-20 토큰을 만드는것에 신경써야 할까요?
+
+그것을 가지고 멋진 것을 해낼 수 있기 때문입니다.
+
+`거버넌스 토큰(governance token)`을 만들 수 있고, 기본(underliying) 네트워크의 보안을 지킬 수 있고, 문법적 에셋(syntheic asset)의 일종을 만들고, 그 밖의 다른 것들도 만들 수 있습니다. 
+
+어쨌든, 어떻게 이런 ERC를 만들 수 있을까요? 이 토큰들 중 하나를 어떻게 만들까요?
+
+Well, all we have to do is build a smart contract that follows the token standard, all we have to do is build a smart contract that has these functions that has a name function, symbol function, decimals function, etc.
+
+
+>https://eips.ethereum.org/EIPS/eip-20
+
+자, 우리가 해야 할 일은 토큰 표준을 따르는 스마트 계약을 구축하는 것이고, 우리가 해야 할 일은 이름 함수, 심볼 함수, 소수점 함수 등을 가진 이러한 함수들을 가진 스마트 계약을 구축하는 것입니다.
+
+```solidity
+function name() public view returns (string)
+
+function symbol() public view returns (string)
+
+function decimals() public view returns (uint8)
+
+//...
+
+//...
+
+```
+
+All these functions we need to be able to transfer it, we need to be able to get the balance of it etc.
+이 모든 함수들은 transfer(전송) 할 수 있어야 하고, balance(자금)를 가져올 수 있는 기능 등이 있어야 합니다.
+
+또한 ERC-677 또는 ERC-777과 같이 ERC-20과 여전히 호환되는 개선 사항을 확인하고 싶다면, 꼭 가서 확인해보고 대신 저것들 중 하나를 만들어 보세요.
+
+## Manually Creating an ERC20 Token
+
+좋습니다. 이제 ERC-20의 한 부분을 알았습니다. 일단 깃허브에 가서 새 레포지토리를 만들어봅시다.
+
+```bash
+yarn add --dev hardhat
+
+yarn hardhat
+
+>Create an empty hardhat.config.js
+```
+
+자 그럼 빈 hardhat.config.js 파일이 생성되었습니다.
+
+이제 이전 프로젝트에서 설정을 갖고오고, .env 파일도 가져옵시다.
+
+>>https://eips.ethereum.org/EIPS/eip-20
+
+우리가 이 EIP 20이나 ERC-20을 들었던 것처럼, 토큰 스탠다드에 이런 함수들이 있어야 토큰을 전송할 수 있고, ERC-20 계약서(contract) 자체에서 모든 것을 할 수 있습니다. 이것은 단지 사람들이 각각의 토큰을 얼마나 가지고 있는지 추적하는 것입니다. 그래서 스마트 계약은 희안한 방식으로 스스로를 추적합니다.
+
+시작하기 앞서서, 우리는 먼저 손수 토큰을 만들어 볼 겁니다. 아주 단순한 방식으로 말이죠.
+
+`contracts` 폴더를 만들어 줍니다. 그리고 `ManualToken.sol`파일을 만들어 줍니다.
+
+네 먼저 어려운 방법으로 토큰을 만들어 본 뒤 쉬운 방법을 배워보겠습니다.
+
+이 토큰 스마트 계약이 작동 핵심은 자금(balance) 매핑이 있기 때문입니다.
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.7;
+
+contract ManualToken {
+  mapping(address => uint256) public balanceOf;
+}
+```
+
+이 매핑의 키는 각각의 단일 주소가 될 것이고, 해당 주소가 자금을 얼마나 가졌는지 나타낼 것입니다.
+
+그리고 가본적으로, 우리가 토큰을 전송(transfer)할때 우리는 기본적으로 주소(address), 금액 량(amount) 에서 빼서 그리고 보내는 주소(to address)에 더하는 것입니다.
+
+이런 방식의 전송함수를 만드는 것이 이것을 구현하는 제일 단순한 방법일겁니다.
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.7;
+
+contract ManualToken {
+    mapping (address => uint256) public balanceOf;
+
+    // transfer tokens
+    // substract from address and amount and add to 'to' address
+
+    function _transfer(address from, address to, uint256 amount) public {
+        balanceOf[from] -= amount;
+        balanceOf[to] += amount;
+    }
+}
+```
+
+주소로부터 주소로 uint256 amount 를 전송하는 함수가 될겁니다.
+
+그리고 끝에서 `balance[from]` 값을 `balance[from]`에서 `amount`값을 뺀 것으로 설정할 겁니다.
+그리고 보낸사람주소의 금액에 `amount`를 더해줍니다.
+
+** 참고로 이 코드들은 모두 수도코드(의사코드)이며 완전한 'transfer' 함수가 아닙니다. **
+
+물론 유효성을 위해 우리가 받는 값에 대한 require 문을 작성해야 할테지만, 기술적으로는 이 로직이 전부입니다.
+
+_transfer 는 호출자(caller)가 다른 주소로 돈을 직접 보내면  작동할 겁니다.
+
+But what happens if we want to allow some smart contract to work with our token, or we want to allow somebody else to work with our token, you know, maybe to deposit it into a protocol, or do some more functionality with it, there will be some approved function that will approve that contract to do that. 
+
+하지만 우리가 우리의 토큰으로 스마트 계약을 작동시키고 싶거나, 다른 누군가가 우리의 토큰을 이용해 작업하는 것을 허락하고 싶다면, 알다시피, 아마도 프로토콜에 보관(deposite)하거나 아니면 좀 더 많은 기능을 수행할 수 있다면, 그 계약을 승인(apporved)할 수 있는 승인된 함수(approved function)이 있을 겁니다,
+
+그러기 위해 function transferFrom 을 작성합니다.
+그리고 그 함수 안에서 할일은 사용자에게서 자금을 가져오는 걸 실행할겁니다.
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.7;
+
+contract ManualToken {
+    mapping (address => uint256) public balanceOf;
+
+    // transfer tokens
+    // substract from address and amount and add to 'to' address
+
+    function _transfer(address from, address to, uint256 amount) public {
+        balanceOf[from] -= amount;
+        balanceOf[to] += amount;
+    }
+
+    function transferFrom() public {
+        // implement taking funds from a user
+    }
+}
+```
+
+그리고 맨 위에는 누가 토큰을 얼마나 가져갈 수 있는지 알려주는 일종의 용돈(allowances) 매핑이 있을 겁니다. 약간 혼란스럽게 들리지만, 일단 작성해보도록 합시다.
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.7;
+
+contract ManualToken {
+    mapping (address => uint256) public balanceOf;
+    mapping (address => mapping (address => uint256)) public allowance;
+
+    // transfer tokens
+    // substract from address and amount and add to 'to' address
+
+    function _transfer(address from, address to, uint256 amount) public {
+        balanceOf[from] -= amount;
+        balanceOf[to] += amount;
+    }
+
+    function transferFrom() public {
+        // implement taking funds from a user
+    }
+}
+```
+```solidity
+mapping (address => mapping (address => uint256)) public allowance;
+```
+이 매핑을 이렇게 바꾸어 풀이해보겠습니다.
+
+mapping ( 철수(address) => mapping ( 영희(address) => 용돈(uint256) )) public allowance;
+
+철수가 영희 에게 용돈(uint256)만큼의 돈을 가져가도록 허락해 주었다는 걸 나타내는 매핑인 겁니다.
+
+그리고 transferFrom 함수는 이것을 체크하고 저장할 것입니다.
+"흠, 철수가 너어게 이 토큰을 가져갈 수 있도록 허가(authorization)해 줬니? 그랬어? 그랬구나 오케이 알았어 그럼 from으로 전송하도록 허락해줄께"
+
+깃허브에서 해당 코드를 복사해보겠습니다.
+
+```solidity
+
+```
+
+그리고 이것은 총 토큰의 개수로 시작하는 토큰의 개수와 같을 것입니다. 때로는 mint 함수를 만들어 더 많은 함수를 집어넣기도 할겁니다. 그러나 기본적으로 이 게약이 증가할 것입니다.
+
+그리고 EIP 사이트에가서 spec을 보며 한줄씩 복사해서 토큰을 빌드하는 거죠.
+
+그러고 나면 아마 이런 모양새일겁니다.
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.7;
+
+interface tokenRecipient {
+  function receiveApproval(
+    address _from,
+    uint256 _value,
+    address _token,
+    bytes calldata _extraData
+  ) external;
+}
+
+contract TokenERC20 {
+  // Public variables of the token
+  string public name;
+  string public symbol;
+  uint8 public decimals = 18;
+  // 18 decimals is the strongly suggested default, avoid changing it
+  uint256 public totalSupply;
+
+  // This creates an array with all balances
+  mapping(address => uint256) public balanceOf;
+  mapping(address => mapping(address => uint256)) public allowance;
+
+  // This generates a public event on the blockchain that will notify clients
+  event Transfer(address indexed from, address indexed to, uint256 value);
+
+  // This generates a public event on the blockchain that will notify clients
+  event Approval(
+    address indexed _owner,
+    address indexed _spender,
+    uint256 _value
+  );
+
+  // This notifies clients about the amount burnt
+  event Burn(address indexed from, uint256 value);
+
+  /**
+   * Constructor function
+   *
+   * Initializes contract with initial supply tokens to the creator of the contract
+   */
+  constructor(
+    uint256 initialSupply,
+    string memory tokenName,
+    string memory tokenSymbol
+  ) {
+    totalSupply = initialSupply * 10**uint256(decimals); // Update total supply with the decimal amount
+    balanceOf[msg.sender] = totalSupply; // Give the creator all initial tokens
+    name = tokenName; // Set the name for display purposes
+    symbol = tokenSymbol; // Set the symbol for display purposes
+  }
+
+  /**
+   * Internal transfer, only can be called by this contract
+   */
+  function _transfer(
+    address _from,
+    address _to,
+    uint256 _value
+  ) internal {
+    // Prevent transfer to 0x0 address. Use burn() instead
+    require(_to != address(0x0));
+    // Check if the sender has enough
+    require(balanceOf[_from] >= _value);
+    // Check for overflows
+    require(balanceOf[_to] + _value >= balanceOf[_to]);
+    // Save this for an assertion in the future
+    uint256 previousBalances = balanceOf[_from] + balanceOf[_to];
+    // Subtract from the sender
+    balanceOf[_from] -= _value;
+    // Add the same to the recipient
+    balanceOf[_to] += _value;
+    emit Transfer(_from, _to, _value);
+    // Asserts are used to use static analysis to find bugs in your code. They should never fail
+    assert(balanceOf[_from] + balanceOf[_to] == previousBalances);
+  }
+
+  /**
+   * Transfer tokens
+   *
+   * Send `_value` tokens to `_to` from your account
+   *
+   * @param _to The address of the recipient
+   * @param _value the amount to send
+   */
+  function transfer(address _to, uint256 _value) public returns (bool success) {
+    _transfer(msg.sender, _to, _value);
+    return true;
+  }
+
+  /**
+   * Transfer tokens from other address
+   *
+   * Send `_value` tokens to `_to` on behalf of `_from`
+   *
+   * @param _from The address of the sender
+   * @param _to The address of the recipient
+   * @param _value the amount to send
+   */
+  function transferFrom(
+    address _from,
+    address _to,
+    uint256 _value
+  ) public returns (bool success) {
+    require(_value <= allowance[_from][msg.sender]); // Check allowance
+    allowance[_from][msg.sender] -= _value;
+    _transfer(_from, _to, _value);
+    return true;
+  }
+
+  /**
+   * Set allowance for other address
+   *
+   * Allows `_spender` to spend no more than `_value` tokens on your behalf
+   *
+   * @param _spender The address authorized to spend
+   * @param _value the max amount they can spend
+   */
+  function approve(address _spender, uint256 _value)
+    public
+    returns (bool success)
+  {
+    allowance[msg.sender][_spender] = _value;
+    emit Approval(msg.sender, _spender, _value);
+    return true;
+  }
+
+  /**
+   * Set allowance for other address and notify
+   *
+   * Allows `_spender` to spend no more than `_value` tokens on your behalf, and then ping the contract about it
+   *
+   * @param _spender The address authorized to spend
+   * @param _value the max amount they can spend
+   * @param _extraData some extra information to send to the approved contract
+   */
+  function approveAndCall(
+    address _spender,
+    uint256 _value,
+    bytes memory _extraData
+  ) public returns (bool success) {
+    tokenRecipient spender = tokenRecipient(_spender);
+    if (approve(_spender, _value)) {
+      spender.receiveApproval(msg.sender, _value, address(this), _extraData);
+      return true;
+    }
+  }
+
+  /**
+   * Destroy tokens
+   *
+   * Remove `_value` tokens from the system irreversibly
+   *
+   * @param _value the amount of money to burn
+   */
+  function burn(uint256 _value) public returns (bool success) {
+    require(balanceOf[msg.sender] >= _value); // Check if the sender has enough
+    balanceOf[msg.sender] -= _value; // Subtract from the sender
+    totalSupply -= _value; // Updates totalSupply
+    emit Burn(msg.sender, _value);
+    return true;
+  }
+
+  /**
+   * Destroy tokens from other account
+   *
+   * Remove `_value` tokens from the system irreversibly on behalf of `_from`.
+   *
+   * @param _from the address of the sender
+   * @param _value the amount of money to burn
+   */
+  function burnFrom(address _from, uint256 _value)
+    public
+    returns (bool success)
+  {
+    require(balanceOf[_from] >= _value); // Check if the targeted balance is enough
+    require(_value <= allowance[_from][msg.sender]); // Check allowance
+    balanceOf[_from] -= _value; // Subtract from the targeted balance
+    allowance[_from][msg.sender] -= _value; // Subtract from the sender's allowance
+    totalSupply -= _value; // Update totalSupply
+    emit Burn(_from, _value);
+    return true;
+  }
+}
+```
+
+`constructor`를 살펴봅시다.
+
+initialSupply, tokenName, tokenSymbol이 있습니다.
+
+tokenName이 `Ethereum` 이라면, 토큰 심볼은 `ETH` 입니다.
+
+## Creating an ERC20 Token with Openzeppelin
+
+매번 이렇게 계약을 작성하는건 매우 번거로울 겁니다. 그래서 `Open Zeppelin`과 같은 오픈소스 라이브러리를 활용할 겁니다.
+오픈 제플린은 보일러 플레이트를 이용해 작업할 수 있으며, 이는 거의 솔리디티 표준 라이브러리로 간주되고 있습니다.
+
+그들은 누구나 계약에 import 해서 사용할 수 있는 수많은 오픈소스 계약을 가지고 있습니다. 그래서 직접 모든 코드를 작성하지 않아도 됩니다. 그 코드들을 깃허브 레포지토리에서 볼 수 있습니다. 
+
+그리고 우리는 앞으로 이것을 많이 사용할 것입니다.
+
+>https://docs.openzeppelin.com/contracts/4.x/erc20
+예를들어서, 오픈제플린 문서의 왼쪽을 보시면 Token 섹션이 있을겁니다. 그리고 그안에 토큰 표준의 하나인 ERC20이 있습니다.
+
+스크롤해보면 토큰을 어떻게 만드는지에 대한 간단한 예제가 나와있습니다. 그리고 이것이 우리가 이용할 코드입니다.
+
+보시다시피 얼마나 작습니까. 얼마나 작은 코드를 갖고있는지 한번 보세요.
+
+```solidity
+// contracts/GLDToken.sol
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+contract GLDToken is ERC20 {
+    constructor(uint256 initialSupply) ERC20("Gold", "GLD") {
+        _mint(msg.sender, initialSupply);
+    }
+}
+```
+
+이제 오픈제플린을 통해 토큰을 만들어 봅시다.
+
+새 파일을 만듭니다. `OurToken.sol`
+
+그리고 오픈제플린 계약을 불러오기 위해 체인링크 계약을 불러오는 것처럼 yarn으로 npm패키지를 설치해줍니다.
+
+```bash
+yarn add --dev @openzeppelin/contracts
+```
+
+그리고 contracts 안에 있는 계약중 하나의 코드조각을 OurToken 걔약에 상속시킬겁니다.
+
+```solidity
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.7;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+contract OurToken {}
+```
+이 import 문을 작성한 뒤 해야할건 우리의 토큰이 이 것을 상속받도록 하는것입니다.
+
+그러고 나면 OurToken에 밑줄로 `Contract "OurToken" should be marked as abstract.solidity(3656)` 라는 에러가 생길겁니다.
+
+왜냐하면 `ERC20.sol` 파일을 확인해보면 constructor가 있으며 우리는 이 constructor를 사용해야하기 때문입니다.
+
+```solidity
+// ERC20.sol
+// ...
+
+    /**
+     * @dev Sets the values for {name} and {symbol}.
+     *
+     * The default value of {decimals} is 18. To select a different value for
+     * {decimals} you should overload it.
+     *
+     * All two of these values are immutable: they can only be set once during
+     * construction.
+     */
+    constructor(string memory name_, string memory symbol_) {
+        _name = name_;
+        _symbol = symbol_;
+    }
+```
+우리 토큰의 이름(`name_`) 과 심볼(`symbol_`)을 컨스트럭터에서 정해줘야 합니다.
+
+```solidity
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.7;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+contract OurToken is ERC20 {
+    constructor () ERC20 ("OurToken","OT") {
+        
+    }
+}
+```
+
+그리고 이 ERC20 토큰에는 `mint((화폐)주조)` 함수라 불리는 것이 있습니다.
+
+```solidity
+// ERC20.sol
+// ...
+
+    /** @dev Creates `amount` tokens and assigns them to `account`, increasing
+     * the total supply.
+     *
+     * Emits a {Transfer} event with `from` set to the zero address.
+     *
+     * Requirements:
+     *
+     * - `account` cannot be the zero address.
+     */
+    function _mint(address account, uint256 amount) internal virtual {
+        require(account != address(0), "ERC20: mint to the zero address");
+
+        _beforeTokenTransfer(address(0), account, amount);
+
+        _totalSupply += amount;
+        _balances[account] += amount;
+        emit Transfer(address(0), account, amount);
+
+        _afterTokenTransfer(address(0), account, amount);
+    }
+```
+
+이 민트 함수는 본질적으로 우리가 토큰을 만들 수 있게 해주는 함수입니다.
+
+왜냐하면 지금 우리는 토큰 0개로 초기화되기 때문입니다. 그래서 아무도 토큰을 가질 수 없습니다.
+
+그래서 우리는 토큰의 초기 양을 주조(mint)하고 그 모든 토큰을 누가 소유하고 있는지부터 시작하고자 합니다.
+
+`_mint`함수의 첫번째 인자를 `msg.sender` 로 정함으로써 배포자가 모든 토큰을 가지고 시작하게 만들겁니다.
+
+그리고 주조량은 `initialSupply`라는 변수로 정하겠습니다.
+
+그리고 만약 initialSupply 로 50의 값을 받았다면 50 wei로 처리됩니다.
+
+ERC20에는 ERC20을 통해서 얼마나 많은 소숫점을 예측하고 있는지 알려주는  `decimals` 라는 함수도 있습니다.
+
+디폴트 값은 `18` 입니다. 그리고 우리가 다른 값을 원한다면 덮어쓰기(override) 가 가능합니다. 그리고 우리가 원하는 것은 50의 주조량입니다. 우리의 initialSupply 50e18이 될것을 원합니다.  아니면 50 * 10 ** 18 로 나타내도 됩니다.
+
+```solidity
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.7;
+
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
+contract OurToken is ERC20 {
+    // if initial supply is 50 <- 50 wei
+    // initial supply 50e18
+    // 50 * 10 ** 18
+    constructor (uint256 initialSupply) ERC20 ("OurToken","OT") {
+        _mint(msg.sender, initialSupply);
+    }
+}
+```
+
+이제 끝났습니다. 우리가 해야할건 배포 스크립트를 작성하는것 뿐입니다. 
+
+여러분은 이미 이것을 배포하고 테스트를 작성하는 방법을 배웠습니다.
+
+그러니 여러분이 직접 이 계약을 배포하고 테스트를 작성하고 싶다면 깃 리포지토리를 언제든 참고하시길 바랍니다.
+
+## Lesson 12 Recap
+
+우리가 온체인에 배포해본 토큰은 스마트 계약입니다.
+이 토큰들은 이더리움이나 아발란체 그리고 폴리곤 같은 레이어 원(layer one) 토큰과 명확히 다릅니다.
+
+그것들은 스마트 계약이 아니라 블록체인 네이티브 토큰이 될 것입니다. 그리고 여러분은 제가 그것을 블록체인 네이티브 토큰이라고 부르는 것을 많이 들을 것입니다.
+
+이러한 토크들과 비교했을때, ERC-20 스마트계약 토큰은 단지 스마트 계약 일 뿐입니다. 그리고 이것들은 단지 이러한 얼마나 많은 토큰을 각각의 주소가 가지고 있는지 나타내는 함수들의 콥비네이션일 뿐입니다. 우리는 모든 사양(specification)을 추가하여 나만의 토큰을 만들 수 있습니다. 아니면 오픈제플린을 가져와서(import) 만들던가요. 
+
+자 이제 오픈제플린처럼 유명한 리포가 있습니다. Rari-Capital 이 만든 `solmate` 입니다.
+
+이 둘은(오픈제플린과 솔메이트) 모두 솔리디티 표준 라이브러리를 목표로 하고 있습니다. 그리고 명심해야할 것 한가지가 있는데, 이 토큰들은 `allowance` 매핑을 가지고 있다는 점입니다.
+
+```solidity
+//ManualToken.sol
+  // This creates an array with all balances
+  mapping(address => uint256) public balanceOf;
+  mapping(address => mapping(address => uint256)) public allowance;
+```
+
+다른 주소가 내 토큰에 접근할 수 있도록 허락하여 토큰을 이리저리 옮길 수 있습니다. 
+
+This is important, especially when we get to later on when working with 'defi' when we want to give some smart contract access to our tokens so that they can input it into their 'defi' protocol. It's also a little bit tricky. 
+
+이건 매우 중요한 부분입니다. 특히, 나중에 defi를 이용한 작업을 할때 중요한데, 토큰에 대한 스마트 계약 액세스 권한을 부여하여 'defi' 프로토콜에 토큰을 입력할 수 있도록 해야 합니다. 이건 약간 까다롭습니다. 그리고 악의적인 스마트 계약의 상호작용을 불허해야 합니다.
+
+And we'll also see that when we start to interact with these tokens more before any contract can interact with our tokens, we need to approve them to interact with our tokens.
+
+또한 계약이 토큰과 상호 작용하기 전에 이러한 토큰과 상호 작용하기 시작할 때 토큰과 상호 작용하도록 승인해야 합니다.
+
+```solidity
+//ManualToken.sol
+  /**
+   * Set allowance for other address
+   *
+   * Allows `_spender` to spend no more than `_value` tokens on your behalf
+   *
+   * @param _spender The address authorized to spend
+   * @param _value the max amount they can spend
+   */
+  function approve(address _spender, uint256 _value)
+    public
+    returns (bool success)
+  {
+    allowance[msg.sender][_spender] = _value;
+    emit Approval(msg.sender, _spender, _value);
+    return true;
+  }
+```
+
+자 이게 전부입니다. 이제 여러분만의 토큰을 만들 수 있어요.
+
+# Lesson 13 Hardhat DeFi & Aave
+
+## What is DeFi ?
+
+드디어 `DeFi` 섹션에 오게되었습니다. 이제 디파이(DeFi)프로토콜과 프로그래메틱하게 상호작용할 겁니다. 
+
+`Defi`는 스마트 계약의 베스트 사용사례 중 하나입니다. 그리고 제가 특히 좋아하는 사용사례중 하나입니다.
+
+그리고 전에 언급했듯이, `Defi``디파이`는 `Decentralized Finance`의 준말 입니다. 깃허브에 Defi에 관한 링크가 있습니다.
+
+>https://chain.link/education/defi
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-26%20155812.png)
+
+우리가 디파이에 열광하는 주된 이유 중 하나는 전통적인 합의(동의서같은)(agreements)의 영역에서 벗어날 수 있기 때문입니다.
+그리고 그것이 스마트 계약의 전부입니다. 
+
+They're about removing this centralized entity, from our financial world, and especially from these financial institutions that have a conflict of interest.
+
+그것들은 바로 우리의 금융세계에서 온, 그리고 특히 이해상충이 있는 금융기관들같은 중앙집권적인 실체를 제거하는 것에 관한 것입니다. 
+
+이 실체들은 우리의 자산을 지켜주고 늘려주는게 목적이 아닌 돈을 만드는 사업이 목적입니다. 
+
+그리고 우리들은 모든것이 투명한, (특히 그것이 우리의 금융 서비스일때) 시스템을 원합니다.
+
+그래서 우리는 현명한 계약의 세계로 나아가고자 합니다. 특히 우리의 돈에 관해서는 말이죠. 그리고 제 생각에 'defi'는 대중들에게 가장 빨리 영향을 미치는 산업이 될 것입니다. 왜냐하면 분산형 금융이 중앙집권형 금융보다 얼마나 더 나은지를 알기 때문입니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-26%20165355.png)
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-26%20165427.png)
+
+그리고 현재, 분산형 금융에서 얻을 수 있는 이율(금리)(rates), 수익률(yields), 이자(interest)는 중앙 집중형 금융보다 훨씬 더 좋습니다. 
+
+beacuse remember, will go away from these centralized protocols, saying, "hey, trust us, we'll give you access to the markets or hate trust us put your money in us will keep your money safe to this cryptographic math base guarantees instead of having to trust these companies and these entities", which is what we want. 
+
+왜냐하면, 기억하세요, 이러한 중앙 집중식 프로토콜에서 벗어나 "저희를 믿으세요. 시장에 대한 접근 권한을 드리겠습니다. 아니면 신뢰하지 않으셔도 됩니다. 저희한테 돈을 맡기면 이 암호화 수학 기반 보증을 안전하게 지킬 수 있습니다."라고 말할 것입니다. 이것이 바로 우리가 원하는 것입니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-26%20165456.png)
+
+더 나아가서 오라클 네트워크가 더 개선될수록 , 더 많은 오라클 네트워크가 이더리움, 폴리곤, 아비트럼(arbitrum)과 같은 스마트 계약과 연동될수록, 더 많은 데이터와 더 복합적인 금융 상품들을 사용할 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-27%20083504.png)
+
+그리고 `defi`가 기대되는 또 다른 이유가 있습니다. 이 차트를 보시면 규모 별로 다른 시장을 보여주고 있습니다.
+이 이미지는 조금 오래되었지만, 여전히 다른 산업들간의 상대적인 규모를 확인할 수 있습니다. 
+
+현재(2022.04 기준) `DeFi`의 시장규모는 2000억 달러($200 billion) 입니다. 약 2000억 달러가 `DeFi` 산업에 묶여있습니다. 따라서 여기 도표에서 보단 많습니다.
+조금 있다 더 자세히 보여드리죠.
+
+** 2022.07.27 기준으로는 $83.53b 로 줄어들었습니다. **
+
+`암호화폐(CryptoCurrency)` 는 당시 기록인 360억 달러($360 billion)와 다르게 지금은 현재 약 1조 8천억 달러($1.8 trillon)정도의 규모를 이루고 있습니다.
+
+그러나 여전히 다른 시장의 아주 작은 일부분에 불과합니다. 금은 10조 달러($10 trillion), 주식시장 89.5조 달러, 국제 부동산 시장은 거의 300조 달러 에 이르며, 파생상품 시장은 1천조 달러 에 이릅니다.
+
+하지만 앞으로 `DeFi`가 이 모든 영역을 대체할 수 도 있습니다. 이 현상은 점점 빨리지며 그렇게 되어가고 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-27%20091802.png)
+
+그래서 이러한 프로토콜을 만들고 사람들이 훨씬 더 쉽게 공정하고, 책임감있고, 투명한, 더 나은 금융 공간에 들어올 수 있게 하는것은 우리에게 달려있습니다. 
+
+>https://defillama.com
+
+그리고 수익률도 훨씬 좋습니다. `Defi Llama`라는 사이트에서 `DeFi`에서 무슨 일이 일어나는지 알 수 있는 좋은 요약본을 볼 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-27%20094546.png)
+
+여기에서는 서로 다른 모든 프로토콜의 `Total Value Locked(총 예치금)`을 보여주고 있습니다.
+
+그리고 많은 것들이 여러개의 체인에 걸쳐있는것을 볼 수 있습니다. 
+
+많은것들이 `EVM compatible chains` (비교가능한 EVM 체인)들입니다.
+
+이더리움, 바이낸스 스마트체인(BSC), 팬텀, 트론, 폴리곤...
+
+이것들은 모두 `EVM compatible blockchain` 로 정확히 이용자 한명이 얼마 만큼의 돈을 이 프로토콜에 투자했는지 알 수 있습니다. 2022.4 기준으로 AAVE가 8.54% 점유율, TVL 22.45b로 가장 높습니다. 현재 2022.07.27 는 MakerDAO(MKR) 가 점유율 9.52%, TVL이 $7.95b로 가장 높습니다.
+
+AAVE는 우리가 오늘 검토해볼 프로토콜입니다.
+
+## What is AAVE?
+
+`AAVE`는 무엇일까요? 
+
+`AAVE`는 `borrowing and lending(대차거래)` 프로토콜입니다.
+
+우리가 암호화폐를 `차입(borrow)`하고 `대출(lend)` 할 수 있게 해줍니다.
+그래서 우리는 실제로 토큰을 담보로 넣을 수 있습니다. 이것은 은행에 돈을 넣는 것과 비슷합니다. 그리고 다른 사람들이 우리에게서 그 담보를 빌리는 것에 대해 수익률을 얻을 수 있습니다. 은행이 하는 것과 거의 똑같습니다. 단지 `비구금(non-custodial)`이라고 불리는 것을 제외합니다.
+
+AAVE팀은 돈을 건드릴 수 없으며, 아무도 그 돈을 건드릴 수 없습니다. 모두 스마트 계약일 뿐입니다. 단지 프로그램밍 된 코드일 뿐입니다.
+
+그래서 우리는 안심할 수 있습니다. 아무도 우리 돈을 가지고 도망가지 않을 것이고, 나쁜 짓을 하지 않을 것입니다.
+그리고 심지어 이러한 높은 수익률도 얻을 수 있습니다. 
+
+차입(borrwing)과 대출(lending)은 흥미로운 금융 애플리케이션을 만드는 데 있어 중요한 부분입니다.
+
+ If you want to short sell something, if you want to leverage up on some asset if you want to. If you want to do more complex financial products, you need borrowing and lending. 
+
+만약 여러분이 무언가를 공매도하고 싶다면, 어떤 자산가치를 높이고(레버리지)(leverage up) 싶어한다면. 좀 더 복잡한 금융상품을 하고 싶다면 차입과 대출이 필요합니다.
+
+많은 전형적인 핀테크, 금융 기술 또는 금융 용어가 여기에 적용됩니다.
+그리고 이 과정은 이러한 금융 상품들이 어떻게 작동하는지에 대해서 까지는 파고들지(deepdive) 않을겁니다.
+또한 금융에 관한 과정이 아니기 때문입니다.
+
+금융에 대해 더 알고싶다면, 그것에 관한 깃허브 레포지토리 링크가 있습니다.
+
+>
+
+그래서 여러분이 경제금융에 대해 더 배우면 제가 `DeFi Quants`라 부르는 `quantitative DeFi engineer`가 될 수 있습니다. 
+그리고 좀 더 많은 DeFi Quants가 이 바닥에 들어왔으면 싶네요.
+
+> https://testnet.aave.com/market
+
+예금(depositing)과 대출(loan)을 할 수 있고 자산을 공매도(shorting) 할 수 도 있습니다. 그러나 사이트에 접속하는걸 추천드리진 않습니다. 왜냐하면 Kovan 네트워크에서 여러분의 예상과 다르게 작동하지 않을 수 도 있기 때문입니다.
+그러니 이번엔 보기만 하세요.
+
+우리가 숏거래나 마진거래를 하기 위해선 첫번째로 해야할 일은 담보를 예치시키는 것입니다. 우리는 대출(borrow)하기 위해 담보(colleteral)를 예치(deposit) 시켜야 합니다. 
+
+만약 우리가 빌린 대출금이나 빌린 금액을 절대 갚지 않는다면 에이브(AAVE)는 그냥 여기에 넣은 담보를 가져가는 `청산콜(liquidation call)`이라고 불리는 것을 할 것입니다.
+
+그리고 이것이 기존 시장에서 공매도(short selling)를 하는것 보다 실제로 조금 더 안전한 이유입니다.
+
+왜냐하면 담보물이 빌린 금액보다 적으면 바로 청산되기 때문입니다.
+
+그래도 돈을 많이 잃었으니 청산하지 말라는 식으로요.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-27%20122919.png)
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-27%20123043.png)
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-27%20123132.png)
+
+>https://kovan.etherscan.io/tx/0x6e62a884e6577e7f97618bcb6ff965a339d208efc4aebf1b569d40289dc7de0c
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-27%20123513.png)
+
+APY는 에이브에 입금하면 돌려받을 수 있는 수익률 같은 거죠.
+
+그리고 Collateral 를 Yes 와 No를 설정해서 담보로 설정할 수 있습니다.
+
+이제 자산을 빌리러 가볼까요?
+
+여기에서의 Varable APY는 1년 동안 우리가 실제로 이 자산을 빌리기 위해 지불해야 하는 비율입니다.
+
+stable(안정적인)은 항상 이 값을 가진다는 것이고 variable(가변적인)은 프로토콜의 유동성 정도에 따라 실제로 변화한다는 것을 의미합니다.
+
+you can kind of pick which one you want to do stable is you're always gonna be a 4% variable is going to be a little bit riskier, but you might get a lower fee.
+
+또한 안정성을 선택할 수 있습니다. 항상 4% 변동성(variable)이 조금 더 위험하지만, 수수료(fee)가 더 낮아질 수 있습니다.
+
+So we're actually going to borrow some dye right, because dye is a stable coin. It's worth $1. In a way, you could call this taking out on margin because we're taking out dye to borrow and another way we could say we're shorting dye which is kind of funny to think about, but you get to choose how much you want to borrow here and you'll see this this thing called Health factor I'm going to zoom in a little bit this thing called Health factor here as we as we scroll this thing. 
+
+그래서 우리는 `DIY` 코인을 빌릴겁니다. 다이는 스테이블 코인이며, 1달러 가치를 지니고 있으며, 어떤면에서는 이것은 마진 테이크 아웃이라 볼 수 도 있습니다. 우리가 대출을 위해 다이코인을 가지고 나왔고, 아니면 다른말로는 다이코인을 숏쳤다라고 말할 수 도 있겠습니다. 좀 웃기게 들리겠지만요, 그라나 얼마나 빌릴지 선택했고, 그리고 이 헬스팩터(health facotr)를 보실수 있을겁니다. 
+
+헬스팩터란 청산(liquiditd) 에 얼마나 가까운지를 나타내는 지표입니다. 이 말의 뜻은 아이브가 우리에게 "있잖아, fu가 니 돈을 가져갈꺼야 "라는 것에  근접해있는지 말해주고 있습니다.
+
+If it goes below one at any time, somebody can liquidate you and take a lot of that deposit that we put in,
+
+만약 그게 언제든지 하나 아래로 내려가면 누군가 당신을 청산하고 우리가 넣어둔 보증금을 많이 가져갈 수 있어요.
+실제로 헬스팩터에 대한 수학적인 근거가 있습니다. aave docs에서 찾아보십쇼
+
+우리는 30 DIY를 빌릴것입니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-27%20154148.png)
+
+보시면 variable APY 와 Stable APY 중 하나를 선택하여 대출할 수 있습니다.
+
+>https://kovan.etherscan.io/tx/0x3a85fcf460848ac25173b89b94e47eb21cbaa1db41f48fd751679ba49386ab92
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-27%20154647.png)
+
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-27%20155200.png)
+
+여기서 risk detail 버튼을 눌러보면 여기서 헬스팩터(health factor)는 청산에 가까워졌다는 뜻이라는 걸 말해주고 잇습니다.
+
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-27%20160535.png)
+
+In order for AAVE to understand and under to price the underlying collateral, so it knows how much it can lend out. 
+
+Available을 보시면 AAVE가 기본 담보의 가격을 이해하고 주문하기 위해서, 얼마나 대출할 수 있는지 알고있습니다.
+
+분명히 'Chainlink price feed'를 사용하여 기본 담보물의 가격을 결정하는 또 다른 프로토콜 중 하나이며, 이 10억 달러짜리 DeFi 프로토콜의 대부분은 모든 가격 매커니즘을 수행하기 위해 백엔드의 체인링크를 사용합니다.
+
+그리고 이것이 기본이였습니다. 우리는 이제 우리의 빚을 갚거나, 아니면 자산을 더 빌릴 수 있습니다. 아니면 자산을 스왑(변환)할 수 도 있습니다. 그리고 우리가 자산을 예치할 때 얻는 이자 수익 또한 놀랍습니다.
+
+자 이제 IFPS 로 호스팅되는 UI를 어떻게 다루는지에 대해 알게되었습니다. 이제 계속 나아가서 이 모든것들과 그 이상을 어떻게 프로그래메틱하게 할 수 있는지 알아보고 `디파이 퀀트 엔지니어` 가 되어봅시다.
+
+## Programmatic Borrowing & Lending
+
+현재 aave 프로토콜 v2 문서를 보면서 할겁니다. 가능하다면 v3 를 시도해보셔도 좋습니다.
+v2가 자금이 더 많이 예치되어있긴 하지만, v3가 명백히 최신판입니다.
+
+우리는 문서와 코드베이스를 왔다갔다 하면서 진행할겁니다. 그러니 문서와 코드 둘다 띄워놓고 하시는걸 추천드립니다.
+
+폴더를 만들고 프로젝트를 하나 만듭시다.
+
+```bash
+yarn add --dev hardhat
+
+yarn hardhat
+
+>create empty hardhat.config.js
+```
+
+저번에 만든 프로젝트나 보일러플레이트에서 hardhat.config.js 내용을 붙여넣겠습니다.
+
+
+```bash
+yarn add --dev @nomiclabs/hardhat-ethers@npm:hardhat-deploy-ethers ethers @nomiclabs/hardhat-etherscan @nomiclabs/hardhat-waffle chai ethereum-waffle hardhat-contract-sizer hardhat-deploy hardhat-gas-reporter solidity-coverage dotenv
+```
+
+우리가 배우고 싶은것에 대해서 README.md를 작성하겠습니다.
+
+1. Deposit collateral : ETH/WETH
+
+먼저 담보를 프로그래메틱하게 예치시키는 방법에 대해 알아보고 싶습니다.
+담보를 예치시키는 방법만 안다면 충분합니다. 우리는 프로그래밍 방식으로 담보를 예치할 수 있고 그렇게 함으로써 우리는 수익률을 올릴 수 있고 예치된 담보에 대해서만 그 비율의 수익을 얻게 될 것입니다.
+
+So accomplishing this by itself is already a feat.
+
+그래서 이를 달성하는것 자체가 목적이기도 합니다.
+
+2. Borrow another asset : DAI
+
+한발 더 나아가 얘기해봅시다. 우리는 더 흥미로운 금융상품을 갖고 싶습니다.
+그래서 담보를 예치시킨 후 우리는 어떻게 프로그래밍 방식으로 다른 자산을 대출하는지 배울겁니다.
+
+이번 실습에는 DAI 토큰을 써볼건데요, DAI를 쓰는 이유는 DAI가 스테이블 코인이기 때문입니다.
+DAI는 makerDAO 에서 만든 토큰으로 가격이 언제나 $1로 고정됩니다.
+
+3. Repay the DAI
+
+우리는 ETH를 담보로 넣을것이고, 암호화폐나 달러 같은것을 대출받을 겁니다. 
+우리는 미국달러나 다름없는 DAI 토큰을 대출받을 겁니다. 
+그리고 우리는 거의 모든것을 바로 상환(repay)할 것이고,
+왜 몇 분 내로 바로 상환하지 않는지에 대한 이유를 알게 될 것입니다.
+
+빠르게 소개할 다른 프로토콜은 `유니스왑(Uniswap)`입니다. 
+
+그리고 유니스왑 프로토콜은 거래를 위한 피난처가 되었습니다. 이것은 자동화된 마켓 메이커(automated amrket maker)라고 불리는 것을 통해 자산과 토큰을 서로 거래할 수 있는 분산형 애플리케이션입니다.
+
+기본적으로 탈중앙화된 증권거래소(스톡 익스체인지)이지만, 다만 토큰을 이용합니다.
+그리고 다시 말하지만, 토큰은 정확히는 주식(stock)이 아닙니다. 둘은 매우 다릅니다.
+
+그래서 우리는 WETH(Wrap ethereum), DAI, 아니면 LINK 토큰 같은 자산들 중 일부를 얻으려고 할 때
+메인넷에서는 이 분산화된 거래소를 자주 이용하게 될겁니다.  
+
+그리고 명백히 이 분산화된 거래소가 훨씬 공정합니다. 왜냐하면 모든 여기서 일어나는 일들은 투명하기 때문입니다.
+온체인에서 발생하는 모든 일들을 볼 수 있기 때문에 투명하고 공정합니다.
+
+자 이제 시작해봅시다.
+
+`scripts`폴더를 생성합니다.
+이 프로젝트에서는 우리가 스스로 계약을 작성하지 않고, 다만 이 프로토콜과 소통하는 방법에 대해 배울것입니다.
+
+만약 이러한 프로토콜을 만드시고 싶으시다면, 이 세션 끝에 많은 링크가 있으며, 그리고 이러한 분산 프로토콜을 만드는 몇가지 방법에 대해 설명해주실 특별 초대 손님이 기다리고 있습니다.
+
+게다가, 우리는 이미 이런것을 한번 만들어봤어요, 분산화 추첨 앱 말이죠! 굉장하군요!
+
+스크립트를 작성해봅시다.
+
+scripts 폴더에 `aaveBorrow.js` 파일을 생성합니다.
+그리고 리드미에 적은 세가지 과정 (담보 예치, 대출과 상환)을 이 한가지 스크립트에 다 넣을 것입니다.
+
+그리고 이것은 스크립트이기 때문에! 우리가 저번에 했던 것과 같은 세티을 할 겁니다.
+
+```js
+requrie("")
+
+async function main() {}
+
+main()
+```
+
+```js
+
+```
+
+
+>https://docs.aave.com/developers/v/2.0/
+
+그리고 문서를 보시면 AAVE 프로토콜은 모든것을 ERC20 토큰으로 취급한다는것을 알 수 있습니다.
+그리고 이더리움같은 네이티브 블록체인 토큰은 ERC20 토큰이 아니라는것을 아실겁니다. 
+
+모든것을 ERC20 토큰으로 다루는 이유는 , 단지 더 쉬운 방식이기 때문입니다.
+만약 모든것이 ERC20 토큰을 표준으로 사용한다면, 어떤것을 전송하고 상호작용하는것이 훨씬 쉬워질 것입니다.
+
+## WETH Wrapped ETH
+
+이러한 많은 프로토콜들은, 우리가 이더리움, 폴리곤, 아니면 아비트럼 등등 을 예치시킬때, 일어나는 일은 `웹 게이트웨이(Web Gateway`라 불리는 것을 통해 당신의 이더리움을 전송하는것입니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-28%20082907.png)
+
+그리고 그것을 `wrap(랩)`으로 스왑합니다. 바로 `Wrapped Ether`라 불리는 것입니다.
+이것은 기본적으로 이더리움이지만, ERC20 스마트계약에 들어있습니다. 
+
+이제 우리가 할것은 동일합니다. 이러한 웹 게이트웨이를 사용하는것을 건너뛰고 우리 스스로 WETH 토큰을 받을 겁니다. 그리고 그것을 담보로 사용할겁니다.
+
+스크립트 파일에 `getWeth.js`라는 파일을 만듭시다.
+
+그리고 여기에 우리가 가지고 있는 토큰을 WETH 토큰으로 예치시킬겁니다. 
+
+WETH의 주요 동작원리는 여러분이 이더리움을 예치시키면 그만큼의 WETH를 반환하는 겁니다. 
+
+>[링크비 WETH토큰](https://rinkeby.etherscan.io/token/0xc778417e063141139fce010982780140aa0cd5ab#writeContract)
+>
+>[메인넷 WETH토큰](https://etherscan.io/token/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2)
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-28%20093106.png)
+
+여기에 0.05 를 넣어보겠습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-28%20093655.png)
+
+그런다음 토큰 가져오기로 해당 토큰의 주소를 넣어 가져오면 다음과 같이 WETH가 들어오게 됩니다.
+
+아니면 반대로 withdraw함수를 이용해서 WETH를 ETH로 인출도 가능합니다. 이것을 WETH를 `Burn(태운다)`라고 합니다.
+
+지금 현재 계약 자체가 이더리움 토큰을 가지고 있기 때문에 가능한겁니다.
+
+그래서 우리 getWeth 함수에서는 aaveBrrow 안의 main 같은 내용을 작성하지 않고 getWeth만 모듈처럼 작성할 겁니다.
+그리고 나서 aaveBorrow에 import 할겁니다.
+
+```js
+async function getWeth() {
+
+}
+
+module.exports = { getWeth }
+```
+
+그리고 먼저 계약과 상호작용하기 위해선 계정이 필요할겁니다.
+
+```js
+const { getNamedAccounts } = require("hardhat");
+
+async function getWeth() {
+  const { deployer } = await getNamedAccounts();
+}
+
+module.exports = { getWeth }
+```
+이제 어떻게 WETH 계약에 있는 예치(deposit)함수를 호출할 수 있을까요? 
+먼저 계약을 호출하려면 어떻게 해야하나요? 네 ABI와 address가 필요하죠.
+
+우리는 계약을 통째로 넣어 ABI를 가지고 오는 방법도 알지만. 
+interface를 사용하여 ABI를 가져오는 방법도 알고있습니다. 그걸로도 충분합니다.
+우리에게 모든 기능을 제공하진 않을테지만. ABI를 알려줄것이고, 우리의 ethers에게 어떤 함수를 사용할 수 있는지 알려줍니다. 그러니, 새 폴더를 하나 만들겠습니다. 
+
+`contracts`폴더를 하나 만들고 그 안에 또 새 폴더 `interface`를 만들겠습니다.
+
+그리고 여기에 WETH 인터페이스를 작성할겁니다.
+
+WETH 인터페이스는 ERC20 인터페이스와 매우 흡사합니다.
+
+그러니 혼자 해보셔도 좋습니다. 
+
+아니면 깃허브 리포지토리에 있습니다.
+
+보시다시피 여기있는 함수들은 ERC20함수와 똑같습니다.
+
+다만 여기에 deposit 함수와 withdraw 함수가 추가되었을 뿐이죠.
+
+```js
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.4.19;
+
+interface IWeth {
+  function allowance(address owner, address spender) external view returns (uint256 remaining);
+
+  function approve(address spender, uint256 value) external returns (bool success);
+
+  function balanceOf(address owner) external view returns (uint256 balance);
+
+  function decimals() external view returns (uint8 decimalPlaces);
+
+  function name() external view returns (string memory tokenName);
+
+  function symbol() external view returns (string memory tokenSymbol);
+
+  function totalSupply() external view returns (uint256 totalTokensIssued);
+
+  function transfer(address to, uint256 value) external returns (bool success);
+
+  function transferFrom(
+    address from,
+    address to,
+    uint256 value
+  ) external returns (bool success);
+
+  function deposit() external payable;
+
+  function withdraw(uint256 wad) external;
+}
+
+```
+
+
+>https://ethereum.stackexchange.com/questions/27101/what-does-wadstand-for
+>
+>A `wad` is a decimal number with 18 digits of precision that is being represented as an integer.
+>
+>A `ray` is a decimal number with 27 digits of precision that is being represented as an integer.
+>
+>Under the hood, they both are `uint` (i.e. `uint256`).
+>
+>Introduced by DS-Math library. With DS-Math you can safely add, subtract, multiply, and divide uint numbers without fear of integer overflow. You can also find the minimum and maximum of two numbers.
+>
+>This naming convention helps a programmer avoid mistakes while performing arithmetic operations on these values.
+>
+>Hope this helps!
+
+
+그리고 솔리디티 컴파일러 0.4.19 버전이 필요하기 때문에 hardhat.config.js 에 솔리디티 버전을 명시해두겠습니다.
+
+
+```js
+require("@nomiclabs/hardhat-ethers");
+require("@nomiclabs/hardhat-etherscan");
+require("@nomiclabs/hardhat-waffle");
+require("hardhat-deploy");
+require("hardhat-gas-reporter");
+require("hardhat-contract-sizer");
+require("dotenv").config();
+
+const RINKEBY_RPC_URL = process.env.RINKEBY_RPC_URL;
+const PRIVATE_KEY = process.env.PRIVATE_KEY;
+const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY;
+const COINMARKETCAP_API_KEY = process.env.COINMARKETCAP_API_KEY;
+
+/** @type import('hardhat/config').HardhatUserConfig */
+module.exports = {
+  defaultNetwork: "hardhat",
+  solidity: {
+    compilers: [
+      { version: "0.8.7" },
+      { version: "0.6.6" },
+      { version: "0.4.19" },
+    ],
+  },
+  networks: {
+    rinkeby: {
+      chainId: 4,
+      blockConfirmations: 6,
+      url: RINKEBY_RPC_URL,
+      accounts: [PRIVATE_KEY],
+    },
+    localhost: {
+      chainId: 31337,
+      blockConfirmations: 1,
+    },
+  },
+  namedAccounts: {
+    deployer: {
+      default: 0,
+    },
+    user: {
+      default: 1,
+    },
+  },
+  etherscan: {
+    apiKey: ETHERSCAN_API_KEY,
+  },
+  gasReporter: {
+    enabled: true,
+    outputFile: "gas-report.txt",
+    noColors: true,
+    coinmarketcap: COINMARKETCAP_API_KEY,
+    currency: "KRW",
+    token: "ETH",
+  },
+  mocha: {
+    timeOut: 300000,
+  },
+};
+
+```
+
+그리고 이제 인터페이스를 컴파일 하여 ABI를 얻도록 합시다.
+
+```bash
+yarn hardhat compile
+```
+```bash
+Downloading compiler 0.4.19
+Compiled 1 Solidity file successfully
+Done in 5.16s.
+```
+
+이제 ABI를 얻게 되었으니 contrct address만 알면 됩니다.
+
+하지만 곧 알게 될 이유 때문에 실제로는 메인넷만으로 작업할 것입니다.
+
+그러니 이번엔 rinkeby 테스트넷의 WETH 주소가 아닌 메인넷의 WETH주소를 가지고 올겁니다.
+
+>https://etherscan.io/token/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2
+>
+>`0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2`
+
+```js
+const { getNamedAccounts } = require("hardhat");
+
+async function getWeth() {
+    const { deployer } = await getNamedAccounts()
+    // call the "deposit" function on the weth contract
+    // abi ✅, contract address ✅
+    // 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
+    const iWeth = await ethers.getContractAt("IWeth","0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",deployer)
+}
+
+module.exports = { getWeth }
+```
+
+`getContractAt` : 특정한 주소에서 계약을 가져옵니다.
+
+여기서 즉 deployer와 연결된 이 주소`0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2`에서 IWeth가 가지는 abi를 이용해 이 계약을 가져오자라고 말하는 것입니다. 
+
+```js
+const { getNamedAccounts, ethers } = require("hardhat");
+
+const AMOUNT = ethers.utils.parseEther("0.02");
+
+async function getWeth() {
+  const { deployer } = await getNamedAccounts();
+  // call the "deposit" function on the weth contract
+  // abi ✅, contract address ✅
+  // 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
+  const iWeth = await ethers.getContractAt(
+    "IWeth",
+    "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+    deployer
+  );
+  const tx = await iWeth.deposit({ value: AMOUNT });
+  await tx.wait(1);
+}
+
+module.exports = { getWeth };
+
+```
+
+그리고 가져온 계약주소로 deposit을 실행시켜봅시다.
+
+예치금을 AMOUNT 변수로 선언해줍니다.
+
+마찬가지로 wait으로 블록승인을 기다립니다.
+
+그리고 다음은 balanceOf 함수를 호출해 계약이 가지고 있는 총자산을 보겠습니다.
+
+```js
+const { getNamedAccounts, ethers } = require("hardhat");
+
+const AMOUNT = ethers.utils.parseEther("0.02");
+
+async function getWeth() {
+  const { deployer } = await getNamedAccounts();
+  // call the "deposit" function on the weth contract
+  // abi ✅, contract address ✅
+  // 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
+  const iWeth = await ethers.getContractAt(
+    "IWeth",
+    "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+    deployer
+  );
+  const tx = await iWeth.deposit({ value: AMOUNT });
+  await tx.wait(1);
+  const wethBalance = await iWeth.balanceOf(deployer);
+  console.log(`${wethBalance.toStirng()} WETH 만큼 가지고 있습니다.`)
+}
+
+module.exports = { getWeth };
+
+
+```
+우리는 이제 메인넷에 자금을 예치시켜 ERC-20 버전 이더리움인 WETH를 얻게되었습니다.
+
+## Forking Mainnet
+
+자 여기서 갑자기 이렇게 생각하실겁니다.
+
+"왜 메인넷에 돈을 집어넣는거죠?, 진정하고 이 계약을 모의계약으로 배포한 뒤에 똑같은 환경을 만든 뒤 작업하는게 어때요? 왜 여기에 하드코딩하는거에요"
+
+음 저는 이걸 얼마전부터 암시해왔습니다.
+그러나 여기엔 스마트 계약을 테스트 할 수 있는 다른 방법이 있습니다.
+
+그리고 이것이 바로 `Mainnet Forking`이라 불리는 것입니다.
+
+메인넷을 포크해와서 로컬 하드햇네트워크에 마치 메인넷인것처럼 노드를 실행시키는겁니다.
+
+>https://hardhat.org/hardhat-network/docs/guides/forking-other-networks
+
+우리가 할것은 hardhat.config.js 를 이렇게 업데이트하기만 하면 됩니다.
+
+```js
+networks: {
+  hardhat: {
+    forking: {
+      url: "https://eth-mainnet.alchemyapi.io/v2/<key>",
+    }
+  }
+}
+```
+
+블록체인 포킹에 대해 알아봅시다.
+
+이 예시는 메인넷(이더리움,폴리곤...etc) 뿐만 아니라 테스트넷(링크비,코반...etc)도 마찬가지입니다.
+
+여기 블럭들이 보일겁니다. 우리는 이렇게 작동하는 큰 체인을 가지고 있습니다, 그리고 블록체인안의 모든 정보는 모두 공공정보(public)입니다.
+
+각가의 블록체인들은 트랜잭션을 가지고 있습니다.
+
+그럼 다음과 같이 하나는 price feed contract 다른하나는 AAVE contract 같은 WETH token contract 등이 있다고 생각해봅시다.
+
+이 모든 계약정보들도 공개(public)되어있습니다.
+
+그러니, 가정해봅시다. 만약 이미 거기에 존재한다면, 우리는 기본적으로 이것을 로컬 환경으로 복사해올 수 있어야 합니다. 그리고 우리스스로 시뮬레이션 할 수 있어야 합니다. 그리고 `Forking(포킹)`이 바로 그것입니다.
+
+포크 블록체인이란 말 그대로 이미 존재하는 블록체인을 (그림 왼쪽) 오른쪽의 우리 로컬 컴퓨터로 복사해서 가져오는 것입니다.
+
+우리는 실제로 로컬에서 실행되는 블록체인을 제어할 수 있습니다. 왜냐하면 로컬 컴퓨터에서 돌아가기 때문입니다. 하드햇고 비슷하게 말이죠.
+
+그리고 우리가 행하는 모든 일들은 실제 메인넷 네트워크에 아무 영향도 끼치지 않습니다. 왜냐하면 시뮬레이트 블록체인이기 때문이죠. 이건 단지 로컬 환경에서 실행되고 있을뿐입니다. 
+
+따라서 우리는 실제 블록체인을 모방하는 것과 유사한 이러한 종류의 로컬 블록체인과 실제로 상호 작용할 수 있습니다.
+
+그리고 포킹 블록체인이 못하는게 있습니다. 포킹블록체인은 전체 블록체인을 로컬 셋업에 다운로드하지 않습니다.
+
+우리는 언제나 주소를 통해 참조해줄 겁니다. "이봐, 거기 명시한 주소가 있어, Ethereum 노드에서 ABI를 호출할거야"
+
+그리고 우린 또 알케미(alchemy)를 사용할겁니다. 그리고 "이봐, 오, 이 주소엔 뭐가 있지" 그리고 그것은 명시한 계약을 우리에게 갖다줄겁니다.
+
+이런 방법이라면 우리는 전체 블록체인을 다운받지 않아도 됩니다. 그리고 이게 더 빠릅니다. 또한 우리는 포킹을 아무 코드를 테스트하는데에도 사용할 수 있습니다. 
+
+그러면 아마 이런 생각이 들겁니다. "오 정말 좋네요, 그런데 왜 이좋은걸 다른곳에서 안하는거죠?"
+
+음, 거기엔 몇가지 장단점이있습니다.
+
+장점은 빠르다는 겁니다. 그리고 쉽고, 테스트는 메인넷에 있는 것과 비슷할 것입니다.
+
+그리고 단점은 우리가 ABI가 필요하다는것, 모든걸 로컬에서 할 수 없다는 점, 어떤 계약들은 작동하기 매우 복잡한경우가 있어 모의계약이 나을때도 있습니다. 
+
+그러나 포크된 네트워크를 사용하는건 테스트를 실행하는데 좋을겁니다. 아마 모의계약의 좋은 대체제가 될겁니다.
+
+하드햇 포킹은 메인넷 상의 이더리움을 가지고있는 페이크 계정도 제공해줍니다.
+
+그래서 우리는 이 포킹을 위해 메인넷에 있는 페이크 계정을 얻을겁니다. 이러한 작업을 위해서는 이 포킹을 이용해서 우리의 스크립를 실행하고 테스트를 실행할 겁니다.
+
+그리고 이후에 깃허브 레포지토리를 보시면 Kovan 네트워크에서의 세팅이 있을겁니다. Kovan 네트워크에 있는 많은 가계정을 얻을 수 있습니다. 그래서 코반에서 바로 스크립트를 실행할 수 도 있습니다. 그리고 여러분 자기자신의 트랜잭션도 볼 수 있습니다.
+
+한가지 알려드리자면, 코반을 사용할때 반드시 똑같은 주소를 사용해야 합니다. AAVE 문서에 나와있는것처럼 말입니다.
+왜냐하면 그것들이 무언갈 바꿔버리기 때문입니다.
+
+이제 포킹을 시작해봅시다.
+
+hardhat.config.js 부터 시작합니다.
+```js
+require("@nomiclabs/hardhat-ethers");
+require("@nomiclabs/hardhat-etherscan");
+require("@nomiclabs/hardhat-waffle");
+require("hardhat-deploy");
+require("hardhat-gas-reporter");
+require("hardhat-contract-sizer");
+require("dotenv").config();
+
+const RINKEBY_RPC_URL = process.env.RINKEBY_RPC_URL;
+const PRIVATE_KEY = process.env.PRIVATE_KEY;
+const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY;
+const COINMARKETCAP_API_KEY = process.env.COINMARKETCAP_API_KEY;
+
+/** @type import('hardhat/config').HardhatUserConfig */
+module.exports = {
+  defaultNetwork: "hardhat",
+  solidity: {
+    compilers: [
+      { version: "0.8.7" },
+      { version: "0.6.6" },
+      { version: "0.4.19" },
+    ],
+  },
+  networks: {
+    hardhat: {
+      chainId: 31337,
+      forking: {
+        url: MAINNET_RPC_URL,
+      }
+    },
+    rinkeby: {
+      chainId: 4,
+      blockConfirmations: 6,
+      url: RINKEBY_RPC_URL,
+      accounts: [PRIVATE_KEY],
+    },
+  },
+  namedAccounts: {
+    deployer: {
+      default: 0,
+    },
+    user: {
+      default: 1,
+    },
+  },
+  etherscan: {
+    apiKey: ETHERSCAN_API_KEY,
+  },
+  gasReporter: {
+    enabled: true,
+    outputFile: "gas-report.txt",
+    noColors: true,
+    coinmarketcap: COINMARKETCAP_API_KEY,
+    currency: "KRW",
+    token: "ETH",
+  },
+  mocha: {
+    timeOut: 300000,
+  },
+};
+
+
+```
+
+알케미에 가서 이더리움 메인넷으로 새 앱을 만듭니다. 
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-28%20155207.png)
+
+그리고 detail 페이지에 가서 HTTP 주소를 복사해옵니다.
+
+.env 파일에 `MAINNET_RPC_URL`로 추가해줍니다.
+
+우리가 해놓은 Hardhat.config.js 설정을 살펴보면 이제 블록체인에서 마음으로 작업할 때마다 메인넷 RPC URL에서 포킹됩니다.
+
+자 이제 만들어놓은 `getWeth`를 실행해봅시다.
+
+우리가 블록체인을 포킹했으니, 시뮬레이트도 가능해야할겁니다.
+
+`aaveBorrow`로 돌아가서 이렇게 작성합니다.
+
+```js
+const { getWeth } = require("../scripts/getWeth")
+
+async function main() {
+    // the protocal treats everthing as an ERC20 token
+    await getWeth();
+}
+
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.log(error);
+    process.exit(1);
+  });
+```
+
+터미널에서 다음과 같이 실행합니다. default 네트워크가 하드햇으로 설정되어있어서 hardhat을 명시하지 않아도 됩니다.
+
+```bash
+# yarn hardhat run scripts/aaveBorrow.js --network hardhat
+yarn hardhat run scripts/aaveBorrow.js
+```
+이제 우리가 하드햇을 사용할때 컨픽에서 forking 프로퍼티를 발견하고 forking해올것입니다.
+
+```bash
+20000000000000000 WETH 만큼 가지고 있습니다.
+Done in 8.48s.
+```
+
+0.020000000000000000 WETH 만큼 가지고 있군요.
+
+자 이제 메인넷과 로컬하게 상호작용할겁니다. 미친소리처럼 들리겠지만 매우 강력한 기능입니다.
+
+우리는 이 메인넷을 포크해서 스크립트를 실행시키고 테스트를한다음 트랜잭션이 어떻게 생겼는지 시뮬레이트 해볼겁니다.
+
+getWeth.js 에서 getcontractAt에 있는 메인넷 WETH 주소를 helper-hardhat-config.js에 넣어 모듈화해도 되지만 지금은 생략하겠습니다.
+
+다시 `aaveBorrow.js`로 돌아와서 스크립트의 살을 채워봅시다.
+
+이후 과정은 다른 스크립트와 마찬가지로 거의 보일러플레이트와 다름없습니다.
+
+```js
+```
+
+## Depositing ino AAVE
+
+이제 본격적으로 AAVE 프로토콜과 상호작용할것입니다.
+자 뭐가 필요할까요 맞습니다. ABI, address 입니다. 바뀐게 없습니다.
+
+AAVE 문서로 가봅시다. 
+
+이것이 작동하는 방법은 우리에게 맞는 계약을 가리켜주는 어떤 계약이 있습니다.
+
+그리고 대출(랜딩)에 관한 작업을 할때는 `Lending pool`이라는 것이 모두 도맡아 합니다. 
+그리고 랜딩 풀 주소를 얻기 위해서, 우리는 랜딩 풀 프로바이더를 가지고 와야합니다.
+
+>https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool
+
+>https://docs.aave.com/developers/v/2.0/the-core-protocol/addresses-provider
+이 계약이 랜딩 풀 주소가 어떻게 되는지 알려줍니다.
+
+그리고 deployed address 라고 온체인에 배포되어있는 주소록이 있습니다.
+>https://docs.aave.com/developers/v/2.0/deployed-contracts/deployed-contracts
+
+그리고 우리가 사용해야할 LendingPoolAddressesProvider의 주소는 다음과 같습니다.
+`0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5`
+
+코드에 명시해놓겠습니다.
+
+```js
+const { getNamedAccounts, deployments } = require("hardhat");
+const { getWeth } = require("./getWeth")
+
+async function main() {
+    // the protocal treats everthing as an ERC20 token
+    await getWeth();
+    const { deployer } = await getNamedAccounts();
+    const { deploy, log } = deployments
+    // abi, address
+    
+    // Lending Pool Address Provider : 0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5
+    // Lending Pool : ^
+}
+
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.log(error);
+    process.exit(1);
+  });
+
+```
+
+랜딩 풀(Lending Pool)은 랜딩 풀 어드래스 프로바이더(Lending Pool Address Provider)에서 가져올 수 있습니다.
+
+프로바이더에서 랜딩 풀 주소를 얻기 위한 함수를 생성해봅시다.
+여기서 깃 레포지토리에 있는 인터페이스를 복사해와도 좋고 나만의 인터페이스를 만들어도 됩니다.
+아니면 AAVE 공식문서에 있는 `ILendingPoolAddressesProvider` 인터페이스를 가져와도 좋습니다.
+
+```js
+const { getNamedAccounts, deployments } = require("hardhat");
+const { getWeth } = require("./getWeth")
+
+async function main() {
+    // the protocal treats everthing as an ERC20 token
+    await getWeth();
+    const { deployer } = await getNamedAccounts();
+    const { deploy, log } = deployments
+    // abi, address
+    
+    // Lending Pool Address Provider : 0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5
+    // Lending Pool : ^
+}
+
+async function getLendingPool() {}
+
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.log(error);
+    process.exit(1);
+  });
+```
+
+scripts/interface에 `ILendingPoolAddressesProvider.sol`을 생성합니다.
+
+```solidity
+// SPDX-License-Identifier: agpl-3.0
+pragma solidity 0.6.12;
+
+/**
+ * @title LendingPoolAddressesProvider contract
+ * @dev Main registry of addresses part of or connected to the protocol, including permissioned roles
+ * - Acting also as factory of proxies and admin of those, so with right to change its implementations
+ * - Owned by the Aave Governance
+ * @author Aave
+ **/
+interface ILendingPoolAddressesProvider {
+  event MarketIdSet(string newMarketId);
+  event LendingPoolUpdated(address indexed newAddress);
+  event ConfigurationAdminUpdated(address indexed newAddress);
+  event EmergencyAdminUpdated(address indexed newAddress);
+  event LendingPoolConfiguratorUpdated(address indexed newAddress);
+  event LendingPoolCollateralManagerUpdated(address indexed newAddress);
+  event PriceOracleUpdated(address indexed newAddress);
+  event LendingRateOracleUpdated(address indexed newAddress);
+  event ProxyCreated(bytes32 id, address indexed newAddress);
+  event AddressSet(bytes32 id, address indexed newAddress, bool hasProxy);
+
+  function getMarketId() external view returns (string memory);
+
+  function setMarketId(string calldata marketId) external;
+
+  function setAddress(bytes32 id, address newAddress) external;
+
+  function setAddressAsProxy(bytes32 id, address impl) external;
+
+  function getAddress(bytes32 id) external view returns (address);
+
+  function getLendingPool() external view returns (address);
+
+  function setLendingPoolImpl(address pool) external;
+
+  function getLendingPoolConfigurator() external view returns (address);
+
+  function setLendingPoolConfiguratorImpl(address configurator) external;
+
+  function getLendingPoolCollateralManager() external view returns (address);
+
+  function setLendingPoolCollateralManager(address manager) external;
+
+  function getPoolAdmin() external view returns (address);
+
+  function setPoolAdmin(address admin) external;
+
+  function getEmergencyAdmin() external view returns (address);
+
+  function setEmergencyAdmin(address admin) external;
+
+  function getPriceOracle() external view returns (address);
+
+  function setPriceOracle(address priceOracle) external;
+
+  function getLendingRateOracle() external view returns (address);
+
+  function setLendingRateOracle(address lendingRateOracle) external;
+}
+
+```
+
+또한 솔리디티 버전도 추가해줍니다.
+
+```js
+//hardhat.config.js
+  solidity: {
+    compilers: [
+      { version: "0.8.7" },
+      { version: "0.6.6" },
+      { version: "0.6.12" },
+      { version: "0.4.19" },
+    ],
+  },
+```
+
+컴파일 해줍니다.
+```bash
+yarn hardhat compile
+```
+
+이제 인터페이스를 연결해봅시다.
+getLendingPool 함수에 인수로 account를 넣어주고 여기에 들어갈 아규먼츠는 당연히 deployer가 될것입니다.
+
+```js
+const { getNamedAccounts, deployments, ethers } = require("hardhat");
+const { getWeth } = require("./getWeth");
+
+async function main() {
+  // the protocal treats everthing as an ERC20 token
+  await getWeth();
+  const { deployer } = await getNamedAccounts();
+  const { deploy, log } = deployments;
+  // abi, address
+
+  // Lending Pool Address Provider : 0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5
+  // Lending Pool : ^
+}
+
+async function getLendingPool(account) {
+  const lendingPoolAddressesProvider = await ethers.getContractAt(
+    "ILendingPoolAddressesProvider",
+    "0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5",
+    account
+  );
+}
+
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.log(error);
+    process.exit(1);
+  });
+```
+
+그리고 `ILendingPoolAddressesProvider.sol`을 살펴보면 `getLendingPool`이라는 함수가 보일겁니다.
+
+```solidity
+//...
+function getLendingPool() external view returns (address);
+//...
+```
+
+
+이 함수는 랜딩 풀 주소(address)를 반환하는데요. 이것이 우리가 필요한 함수입니다.
+
+따라서 인터페이스로 가져온 계약에서 다음과 같이 호출해줍니다.
+
+```js
+const { getNamedAccounts, deployments, ethers } = require("hardhat");
+const { getWeth } = require("./getWeth");
+
+async function main() {
+  // the protocal treats everthing as an ERC20 token
+  await getWeth();
+  const { deployer } = await getNamedAccounts();
+  const { deploy, log } = deployments;
+  // abi, address
+
+  // Lending Pool Address Provider : 0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5
+  // Lending Pool : ^
+}
+
+async function getLendingPool(account) {
+  const lendingPoolAddressesProvider = await ethers.getContractAt(
+    "ILendingPoolAddressesProvider",
+    "0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5",
+    account
+  );
+  const lendingPoolAddress = await lendingPoolAddressesProvider.getLendingPool();
+}
+
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.log(error);
+    process.exit(1);
+  });
+
+```
+
+그리고! 받은 Lending Pool 주소로 이번에야말로 LendingPool 계약을 가지고 옵니다.
+그러기 위해선 LendingPool의 interface 와 abi가 필요할겁니다.
+
+AAVE 문서로 가서 `ILendingPool.sol`의 내용을 가져와서 마찬가지로 interface 폴더에 복사해줍니다.
+>https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool/ilendingpool
+
+```solidity
+// SPDX-License-Identifier: agpl-3.0
+pragma solidity 0.6.12;
+pragma experimental ABIEncoderV2;
+
+import {ILendingPoolAddressesProvider} from './ILendingPoolAddressesProvider.sol';
+import {DataTypes} from './DataTypes.sol';
+
+interface ILendingPool {
+  /**
+   * @dev Emitted on deposit()
+   * @param reserve The address of the underlying asset of the reserve
+   * @param user The address initiating the deposit
+   * @param onBehalfOf The beneficiary of the deposit, receiving the aTokens
+   * @param amount The amount deposited
+   * @param referral The referral code used
+   **/
+  event Deposit(
+    address indexed reserve,
+    address user,
+    address indexed onBehalfOf,
+    uint256 amount,
+    uint16 indexed referral
+  );
+
+  /**
+   * @dev Emitted on withdraw()
+   * @param reserve The address of the underlyng asset being withdrawn
+   * @param user The address initiating the withdrawal, owner of aTokens
+   * @param to Address that will receive the underlying
+   * @param amount The amount to be withdrawn
+   **/
+  event Withdraw(address indexed reserve, address indexed user, address indexed to, uint256 amount);
+
+  /**
+   * @dev Emitted on borrow() and flashLoan() when debt needs to be opened
+   * @param reserve The address of the underlying asset being borrowed
+   * @param user The address of the user initiating the borrow(), receiving the funds on borrow() or just
+   * initiator of the transaction on flashLoan()
+   * @param onBehalfOf The address that will be getting the debt
+   * @param amount The amount borrowed out
+   * @param borrowRateMode The rate mode: 1 for Stable, 2 for Variable
+   * @param borrowRate The numeric rate at which the user has borrowed
+   * @param referral The referral code used
+   **/
+  event Borrow(
+    address indexed reserve,
+    address user,
+    address indexed onBehalfOf,
+    uint256 amount,
+    uint256 borrowRateMode,
+    uint256 borrowRate,
+    uint16 indexed referral
+  );
+
+  /**
+   * @dev Emitted on repay()
+   * @param reserve The address of the underlying asset of the reserve
+   * @param user The beneficiary of the repayment, getting his debt reduced
+   * @param repayer The address of the user initiating the repay(), providing the funds
+   * @param amount The amount repaid
+   **/
+  event Repay(
+    address indexed reserve,
+    address indexed user,
+    address indexed repayer,
+    uint256 amount
+  );
+
+  /**
+   * @dev Emitted on swapBorrowRateMode()
+   * @param reserve The address of the underlying asset of the reserve
+   * @param user The address of the user swapping his rate mode
+   * @param rateMode The rate mode that the user wants to swap to
+   **/
+  event Swap(address indexed reserve, address indexed user, uint256 rateMode);
+
+  /**
+   * @dev Emitted on setUserUseReserveAsCollateral()
+   * @param reserve The address of the underlying asset of the reserve
+   * @param user The address of the user enabling the usage as collateral
+   **/
+  event ReserveUsedAsCollateralEnabled(address indexed reserve, address indexed user);
+
+  /**
+   * @dev Emitted on setUserUseReserveAsCollateral()
+   * @param reserve The address of the underlying asset of the reserve
+   * @param user The address of the user enabling the usage as collateral
+   **/
+  event ReserveUsedAsCollateralDisabled(address indexed reserve, address indexed user);
+
+  /**
+   * @dev Emitted on rebalanceStableBorrowRate()
+   * @param reserve The address of the underlying asset of the reserve
+   * @param user The address of the user for which the rebalance has been executed
+   **/
+  event RebalanceStableBorrowRate(address indexed reserve, address indexed user);
+
+  /**
+   * @dev Emitted on flashLoan()
+   * @param target The address of the flash loan receiver contract
+   * @param initiator The address initiating the flash loan
+   * @param asset The address of the asset being flash borrowed
+   * @param amount The amount flash borrowed
+   * @param premium The fee flash borrowed
+   * @param referralCode The referral code used
+   **/
+  event FlashLoan(
+    address indexed target,
+    address indexed initiator,
+    address indexed asset,
+    uint256 amount,
+    uint256 premium,
+    uint16 referralCode
+  );
+
+  /**
+   * @dev Emitted when the pause is triggered.
+   */
+  event Paused();
+
+  /**
+   * @dev Emitted when the pause is lifted.
+   */
+  event Unpaused();
+
+  /**
+   * @dev Emitted when a borrower is liquidated. This event is emitted by the LendingPool via
+   * LendingPoolCollateral manager using a DELEGATECALL
+   * This allows to have the events in the generated ABI for LendingPool.
+   * @param collateralAsset The address of the underlying asset used as collateral, to receive as result of the liquidation
+   * @param debtAsset The address of the underlying borrowed asset to be repaid with the liquidation
+   * @param user The address of the borrower getting liquidated
+   * @param debtToCover The debt amount of borrowed `asset` the liquidator wants to cover
+   * @param liquidatedCollateralAmount The amount of collateral received by the liiquidator
+   * @param liquidator The address of the liquidator
+   * @param receiveAToken `true` if the liquidators wants to receive the collateral aTokens, `false` if he wants
+   * to receive the underlying collateral asset directly
+   **/
+  event LiquidationCall(
+    address indexed collateralAsset,
+    address indexed debtAsset,
+    address indexed user,
+    uint256 debtToCover,
+    uint256 liquidatedCollateralAmount,
+    address liquidator,
+    bool receiveAToken
+  );
+
+  /**
+   * @dev Emitted when the state of a reserve is updated. NOTE: This event is actually declared
+   * in the ReserveLogic library and emitted in the updateInterestRates() function. Since the function is internal,
+   * the event will actually be fired by the LendingPool contract. The event is therefore replicated here so it
+   * gets added to the LendingPool ABI
+   * @param reserve The address of the underlying asset of the reserve
+   * @param liquidityRate The new liquidity rate
+   * @param stableBorrowRate The new stable borrow rate
+   * @param variableBorrowRate The new variable borrow rate
+   * @param liquidityIndex The new liquidity index
+   * @param variableBorrowIndex The new variable borrow index
+   **/
+  event ReserveDataUpdated(
+    address indexed reserve,
+    uint256 liquidityRate,
+    uint256 stableBorrowRate,
+    uint256 variableBorrowRate,
+    uint256 liquidityIndex,
+    uint256 variableBorrowIndex
+  );
+
+  /**
+   * @dev Deposits an `amount` of underlying asset into the reserve, receiving in return overlying aTokens.
+   * - E.g. User deposits 100 USDC and gets in return 100 aUSDC
+   * @param asset The address of the underlying asset to deposit
+   * @param amount The amount to be deposited
+   * @param onBehalfOf The address that will receive the aTokens, same as msg.sender if the user
+   *   wants to receive them on his own wallet, or a different address if the beneficiary of aTokens
+   *   is a different wallet
+   * @param referralCode Code used to register the integrator originating the operation, for potential rewards.
+   *   0 if the action is executed directly by the user, without any middle-man
+   **/
+  function deposit(
+    address asset,
+    uint256 amount,
+    address onBehalfOf,
+    uint16 referralCode
+  ) external;
+
+  /**
+   * @dev Withdraws an `amount` of underlying asset from the reserve, burning the equivalent aTokens owned
+   * E.g. User has 100 aUSDC, calls withdraw() and receives 100 USDC, burning the 100 aUSDC
+   * @param asset The address of the underlying asset to withdraw
+   * @param amount The underlying amount to be withdrawn
+   *   - Send the value type(uint256).max in order to withdraw the whole aToken balance
+   * @param to Address that will receive the underlying, same as msg.sender if the user
+   *   wants to receive it on his own wallet, or a different address if the beneficiary is a
+   *   different wallet
+   * @return The final amount withdrawn
+   **/
+  function withdraw(
+    address asset,
+    uint256 amount,
+    address to
+  ) external returns (uint256);
+
+  /**
+   * @dev Allows users to borrow a specific `amount` of the reserve underlying asset, provided that the borrower
+   * already deposited enough collateral, or he was given enough allowance by a credit delegator on the
+   * corresponding debt token (StableDebtToken or VariableDebtToken)
+   * - E.g. User borrows 100 USDC passing as `onBehalfOf` his own address, receiving the 100 USDC in his wallet
+   *   and 100 stable/variable debt tokens, depending on the `interestRateMode`
+   * @param asset The address of the underlying asset to borrow
+   * @param amount The amount to be borrowed
+   * @param interestRateMode The interest rate mode at which the user wants to borrow: 1 for Stable, 2 for Variable
+   * @param referralCode Code used to register the integrator originating the operation, for potential rewards.
+   *   0 if the action is executed directly by the user, without any middle-man
+   * @param onBehalfOf Address of the user who will receive the debt. Should be the address of the borrower itself
+   * calling the function if he wants to borrow against his own collateral, or the address of the credit delegator
+   * if he has been given credit delegation allowance
+   **/
+  function borrow(
+    address asset,
+    uint256 amount,
+    uint256 interestRateMode,
+    uint16 referralCode,
+    address onBehalfOf
+  ) external;
+
+  /**
+   * @notice Repays a borrowed `amount` on a specific reserve, burning the equivalent debt tokens owned
+   * - E.g. User repays 100 USDC, burning 100 variable/stable debt tokens of the `onBehalfOf` address
+   * @param asset The address of the borrowed underlying asset previously borrowed
+   * @param amount The amount to repay
+   * - Send the value type(uint256).max in order to repay the whole debt for `asset` on the specific `debtMode`
+   * @param rateMode The interest rate mode at of the debt the user wants to repay: 1 for Stable, 2 for Variable
+   * @param onBehalfOf Address of the user who will get his debt reduced/removed. Should be the address of the
+   * user calling the function if he wants to reduce/remove his own debt, or the address of any other
+   * other borrower whose debt should be removed
+   * @return The final amount repaid
+   **/
+  function repay(
+    address asset,
+    uint256 amount,
+    uint256 rateMode,
+    address onBehalfOf
+  ) external returns (uint256);
+
+  /**
+   * @dev Allows a borrower to swap his debt between stable and variable mode, or viceversa
+   * @param asset The address of the underlying asset borrowed
+   * @param rateMode The rate mode that the user wants to swap to
+   **/
+  function swapBorrowRateMode(address asset, uint256 rateMode) external;
+
+  /**
+   * @dev Rebalances the stable interest rate of a user to the current stable rate defined on the reserve.
+   * - Users can be rebalanced if the following conditions are satisfied:
+   *     1. Usage ratio is above 95%
+   *     2. the current deposit APY is below REBALANCE_UP_THRESHOLD * maxVariableBorrowRate, which means that too much has been
+   *        borrowed at a stable rate and depositors are not earning enough
+   * @param asset The address of the underlying asset borrowed
+   * @param user The address of the user to be rebalanced
+   **/
+  function rebalanceStableBorrowRate(address asset, address user) external;
+
+  /**
+   * @dev Allows depositors to enable/disable a specific deposited asset as collateral
+   * @param asset The address of the underlying asset deposited
+   * @param useAsCollateral `true` if the user wants to use the deposit as collateral, `false` otherwise
+   **/
+  function setUserUseReserveAsCollateral(address asset, bool useAsCollateral) external;
+
+  /**
+   * @dev Function to liquidate a non-healthy position collateral-wise, with Health Factor below 1
+   * - The caller (liquidator) covers `debtToCover` amount of debt of the user getting liquidated, and receives
+   *   a proportionally amount of the `collateralAsset` plus a bonus to cover market risk
+   * @param collateralAsset The address of the underlying asset used as collateral, to receive as result of the liquidation
+   * @param debtAsset The address of the underlying borrowed asset to be repaid with the liquidation
+   * @param user The address of the borrower getting liquidated
+   * @param debtToCover The debt amount of borrowed `asset` the liquidator wants to cover
+   * @param receiveAToken `true` if the liquidators wants to receive the collateral aTokens, `false` if he wants
+   * to receive the underlying collateral asset directly
+   **/
+  function liquidationCall(
+    address collateralAsset,
+    address debtAsset,
+    address user,
+    uint256 debtToCover,
+    bool receiveAToken
+  ) external;
+
+  /**
+   * @dev Allows smartcontracts to access the liquidity of the pool within one transaction,
+   * as long as the amount taken plus a fee is returned.
+   * IMPORTANT There are security concerns for developers of flashloan receiver contracts that must be kept into consideration.
+   * For further details please visit https://developers.aave.com
+   * @param receiverAddress The address of the contract receiving the funds, implementing the IFlashLoanReceiver interface
+   * @param assets The addresses of the assets being flash-borrowed
+   * @param amounts The amounts amounts being flash-borrowed
+   * @param modes Types of the debt to open if the flash loan is not returned:
+   *   0 -> Don't open any debt, just revert if funds can't be transferred from the receiver
+   *   1 -> Open debt at stable rate for the value of the amount flash-borrowed to the `onBehalfOf` address
+   *   2 -> Open debt at variable rate for the value of the amount flash-borrowed to the `onBehalfOf` address
+   * @param onBehalfOf The address  that will receive the debt in the case of using on `modes` 1 or 2
+   * @param params Variadic packed params to pass to the receiver as extra information
+   * @param referralCode Code used to register the integrator originating the operation, for potential rewards.
+   *   0 if the action is executed directly by the user, without any middle-man
+   **/
+  function flashLoan(
+    address receiverAddress,
+    address[] calldata assets,
+    uint256[] calldata amounts,
+    uint256[] calldata modes,
+    address onBehalfOf,
+    bytes calldata params,
+    uint16 referralCode
+  ) external;
+
+  /**
+   * @dev Returns the user account data across all the reserves
+   * @param user The address of the user
+   * @return totalCollateralETH the total collateral in ETH of the user
+   * @return totalDebtETH the total debt in ETH of the user
+   * @return availableBorrowsETH the borrowing power left of the user
+   * @return currentLiquidationThreshold the liquidation threshold of the user
+   * @return ltv the loan to value of the user
+   * @return healthFactor the current health factor of the user
+   **/
+  function getUserAccountData(address user)
+    external
+    view
+    returns (
+      uint256 totalCollateralETH,
+      uint256 totalDebtETH,
+      uint256 availableBorrowsETH,
+      uint256 currentLiquidationThreshold,
+      uint256 ltv,
+      uint256 healthFactor
+    );
+
+  function initReserve(
+    address reserve,
+    address aTokenAddress,
+    address stableDebtAddress,
+    address variableDebtAddress,
+    address interestRateStrategyAddress
+  ) external;
+
+  function setReserveInterestRateStrategyAddress(address reserve, address rateStrategyAddress)
+    external;
+
+  function setConfiguration(address reserve, uint256 configuration) external;
+
+  /**
+   * @dev Returns the configuration of the reserve
+   * @param asset The address of the underlying asset of the reserve
+   * @return The configuration of the reserve
+   **/
+  function getConfiguration(address asset)
+    external
+    view
+    returns (DataTypes.ReserveConfigurationMap memory);
+
+  /**
+   * @dev Returns the configuration of the user across all the reserves
+   * @param user The user address
+   * @return The configuration of the user
+   **/
+  function getUserConfiguration(address user)
+    external
+    view
+    returns (DataTypes.UserConfigurationMap memory);
+
+  /**
+   * @dev Returns the normalized income normalized income of the reserve
+   * @param asset The address of the underlying asset of the reserve
+   * @return The reserve's normalized income
+   */
+  function getReserveNormalizedIncome(address asset) external view returns (uint256);
+
+  /**
+   * @dev Returns the normalized variable debt per unit of asset
+   * @param asset The address of the underlying asset of the reserve
+   * @return The reserve normalized variable debt
+   */
+  function getReserveNormalizedVariableDebt(address asset) external view returns (uint256);
+
+  /**
+   * @dev Returns the state and configuration of the reserve
+   * @param asset The address of the underlying asset of the reserve
+   * @return The state of the reserve
+   **/
+  function getReserveData(address asset) external view returns (DataTypes.ReserveData memory);
+
+  function finalizeTransfer(
+    address asset,
+    address from,
+    address to,
+    uint256 amount,
+    uint256 balanceFromAfter,
+    uint256 balanceToBefore
+  ) external;
+
+  function getReservesList() external view returns (address[] memory);
+
+  function getAddressesProvider() external view returns (ILendingPoolAddressesProvider);
+
+  function setPause(bool val) external;
+
+  function paused() external view returns (bool);
+}
+
+```
+
+그리고 이 인터페이스의 상단에 보시면 로컬에 가지고 있지 않은 계약들을 import해오고 있는걸 볼 수 있습니다.
+
+이것들도 마찬가지로 interface를 만들어서 처리해줄 수 도 있지만 이번에는 npm package를 이용해 처리하겠습니다.
+
+```yarn
+yarn add --dev @aave/protocol-v2
+```
+
+자 이제 우리는 에이브 프로토콜을 노드모듈에 가지게 되었고, 해당 인터페이스의 임포트를 노드모듈을 향하게 만들어야 합니다.
+
+```solidity
+import {ILendingPoolAddressesProvider} from '@aave/protocol-v2/contracts/interfaces/ILendingPoolAddressesProvider.sol';
+import {DataTypes} from '@aave/protocol-v2/contracts/protocol/libraries/types/DataTypes.sol';
+```
+
+그리고 다시 컴파일 해줍시다.
+```bash
+yarn hardhat compile
+```
+
+`aaveBorrow.js`로 돌아와서 `LendingPool`을 반환하도록 나머지를 작성합니다.
+```js
+const { getNamedAccounts, deployments, ethers } = require("hardhat");
+const { getWeth } = require("./getWeth");
+
+async function main() {
+  // the protocal treats everthing as an ERC20 token
+  await getWeth();
+  const { deployer } = await getNamedAccounts();
+  const { deploy, log } = deployments;
+  // abi, address
+
+  // Lending Pool Address Provider : 0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5
+  // Lending Pool : ^
+}
+
+async function getLendingPool(account) {
+  const lendingPoolAddressesProvider = await ethers.getContractAt(
+    "ILendingPoolAddressesProvider",
+    "0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5",
+    account
+  );
+  const lendingPoolAddress =
+    await lendingPoolAddressesProvider.getLendingPool();
+  const lendingPool = await ethers.getContractAt(
+    "ILendingPool",
+    lendingPoolAddress,
+    account
+  );
+  return lendingPool;
+}
+
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.log(error);
+    process.exit(1);
+  });
+
+```
+
+이제 `main`함수에서 랜딩 풀 함수를 호출해줍시다.
+
+```js
+const { getNamedAccounts, deployments, ethers } = require("hardhat");
+const { getWeth } = require("./getWeth");
+
+async function main() {
+  // the protocal treats everthing as an ERC20 token
+  await getWeth();
+  const { deployer } = await getNamedAccounts();
+  const { deploy, log } = deployments;
+  // abi, address
+  // Lending Pool Address Provider : 0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5
+  // Lending Pool : ^
+  const lendingPool = await getLendingPool(deployer);
+  console.log(`랜딩 풀 주소 : ${lendingPool.address}`);
+}
+
+async function getLendingPool(account) {
+  const lendingPoolAddressesProvider = await ethers.getContractAt(
+    "ILendingPoolAddressesProvider",
+    "0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5",
+    account
+  );
+  const lendingPoolAddress =
+    await lendingPoolAddressesProvider.getLendingPool();
+  const lendingPool = await ethers.getContractAt(
+    "ILendingPool",
+    lendingPoolAddress,
+    account
+  );
+  return lendingPool;
+}
+
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.log(error);
+    process.exit(1);
+  });
+
+```
+
+메인넷 포킹 덕분에 이걸 지금 실행해 볼 수 있습니다.
+```bash
+yarn hardhat run scripts/aaveBorrow.js
+```
+
+그러면 다음과 같은 에러를 볼 수 있습니다.
+
+```bash
+HardhatError: HH701: There are multiple artifacts for contract "ILendingPoolAddressesProvider", please use a fully qualified name.
+
+Please replace ILendingPoolAddressesProvider for one of these options wherever you are trying to read its artifact:
+
+@aave/protocol-v2/contracts/interfaces/ILendingPoolAddressesProvider.sol:ILendingPoolAddressesProvider        
+contracts/interface/ILendingPoolAddressesProvider.sol:ILendingPoolAddressesProvider
+```
+
+왜냐하면 우리가 인터페이스로 작성한 `ILendingPoolAddressesProvider`와 노드모듈로 설치한 `ILendingPoolAddressesProvider`가 중복되기 때문입니다.
+
+그러므로 contract/interface 안의 `ILendingPoolAddressesProvider.sol`을 삭제해주겠습니다.
+
+다시한번 run으로 스크립트를 실행해보겠습니다.
+
+```bash
+20000000000000000 WETH 만큼 가지고 있습니다.
+랜딩 풀 주소 : 0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9
+Done in 9.08s.
+```
+
+성공적으로 실행되었습니다.
+
+그리고 `0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9`이 주소가 실제 이더리움 메인넷의 랜딩 풀 주소입니다.
+
+이더스캔에 들어가서 해당 주소로 검색해볼까요?
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-28%20175906.png)
+
+Aave: Lending Pool V2 라고 명명되있기 까지 합니다.
+그리고 많은 양의 트랜잭션들도 보입니다.
+
+좋아요, 이제 랜딩풀도 얻었고, WETH 토큰도 얻었습니다.
+이제 무얼 해야할까요?
+
+Deposit 예금/예치입니다!
+
+무엇이 필요할까요
+
+Aave 깃허브의 LendingPool 계약을 살펴봅시다.
+
+>https://github.com/aave/protocol-v2/blob/ice/mainnet-deployment-03-12-2020/contracts/protocol/lendingpool/LendingPool.sol
+
+```solidity
+  /**
+   * @dev Deposits an `amount` of underlying asset into the reserve, receiving in return overlying aTokens.
+   * - E.g. User deposits 100 USDC and gets in return 100 aUSDC
+   * @param asset The address of the underlying asset to deposit
+   * @param amount The amount to be deposited
+   * @param onBehalfOf The address that will receive the aTokens, same as msg.sender if the user
+   *   wants to receive them on his own wallet, or a different address if the beneficiary of aTokens
+   *   is a different wallet
+   * @param referralCode Code used to register the integrator originating the operation, for potential rewards.
+   *   0 if the action is executed directly by the user, without any middle-man
+   **/
+  function deposit(
+    address asset,
+    uint256 amount,
+    address onBehalfOf,
+    uint16 referralCode
+  ) external override whenNotPaused {
+    DataTypes.ReserveData storage reserve = _reserves[asset];
+
+    ValidationLogic.validateDeposit(reserve, amount);
+
+    address aToken = reserve.aTokenAddress;
+
+    reserve.updateState();
+    reserve.updateInterestRates(asset, aToken, amount, 0);
+
+    IERC20(asset).safeTransferFrom(msg.sender, aToken, amount);
+
+    bool isFirstDeposit = IAToken(aToken).mint(onBehalfOf, amount, reserve.liquidityIndex);
+
+    if (isFirstDeposit) {
+      _usersConfig[onBehalfOf].setUsingAsCollateral(reserve.id, true);
+      emit ReserveUsedAsCollateralEnabled(asset, onBehalfOf);
+    }
+
+    emit Deposit(asset, msg.sender, onBehalfOf, amount, referralCode);
+  }
+```
+
+결과적으로 `IERC20(asset).safeTransferFrom(msg.sender, aToken, amount);` 
+
+`safeTransferFrom` 함수를 호출하고 있습니다.
+
+우리가 이 계약에서 `safeTransferFrom`함수를 호출하면, 우리 지갑에서 돈이 빠져나가게 됩니다.
+
+그래서 Aave 계약에게 우리 지갑으로부터 돈을 빼낼 수 있는 권한을 주기 위해선, 무엇을 해야하나요?
+
+맞습니다. 계약을 approve(승인) 하는것이 필요합니다.
+
+그러니 먼저, 입금하기 전에 승인을 받아야 WETH 토큰을 받을 수 있습니다.
+우리는 main함수 안에서 WETH 토큰 받는 작업을 먼저 해보겠습니다.
+
+그리고 그 다음 approve 할겁니다.
+
+approveErc20 함수를 작성합니다.
+인수로는 erc20 계약주소, 
+그리고 지출자(spender)주소, 즉 이 계약은 우리가 토큰을 쓰도록 허락해줄 지출자 주소, 
+그리고 정확히 얼마나 지출할 것인지 알려주는 amount
+그리고 이 계약을 진행할 account를 넣습니다. 
+
+그리고 우리는 여기서도 인터페이스 계약을 사용할 겁니다. IWETH를 사용해도 되지만, 이번엔 ERC20 토큰을 사용해보겠습니다.
+
+깃허브 리포지토리에 erc20계약의 인터페이스 파일이 있습니다.
+
+그걸 갖고와서 contracts/interfaces 에 IERC20.sol 파일을 생성하고 내용을 붙여넣습니다.
+
+그리고 erc20 토큰계약을 IERC20 abi와 erc20Address 그리고 account를 이용해 불러오고 
+
+불러온 erc20계약에서 `approve`함수를 호출합니다. 이때 인수로 지출자주소, 그리고 지출량을 넘겨줍니다.
+
+그런다음 블록이 승인될때까지 wait 해줍니다.
+
+```js
+
+const wethTokenAddress = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
+
+//...
+
+async function approveErc20(
+  erc20Address,
+  spenderAddress,
+  amountToSpend,
+  account
+) {
+  const erc20Token = await ethers.getContractAt(
+    "IERC20",
+    erc20Address,
+    account
+  );
+  const tx = await erc20Token.approve(spenderAddress, amountToSpend)
+  await tx.wait(1);
+  console.log("토큰 승인됨")
+}
+```
+자 그리고 이 함수를 예금 전에 실행하지 마세요. 그러면 이런 에러가 나올겁니다. "이봐 토큰이 승인되지 않았어"
+아주 흔한 에러입니다. 그래서 그 에러를 보게된다면 "아 내가 토큰승인을 깜빡했구나" 하시면 됩니다.
+
+이제 다시 `main` 함수로 돌아와서 작성한 `erc20approve` 함수를 호출하겠습니다.
+
+우리는 여기서 이 함수를 호출함으로서 lendingPool에게 우리 지갑에서 돈을 빼갈 approval을 주는 겁니다.
+```js
+await apporveErc20(wethTokenAddress, lendingPool.address, ... )
+```
+
+
+그리고 spendAmount 파라미터를 넣기 위해 아까 정한 `AMOUNT`를 getWeth에서 불러옵니다.
+
+```js
+const { getWeth, AMOUNT } = require("../scripts/getWeth")
+```
+getWeth에서는 module.exports로 AMOUTN를 내보내줍니다.
+```js
+// getWeth.js
+const { getNamedAccounts, ethers } = require("hardhat");
+
+const AMOUNT = ethers.utils.parseEther("0.02");
+
+async function getWeth() {
+  const { deployer } = await getNamedAccounts();
+  // call the "deposit" function on the weth contract
+  // abi ✅, contract address ✅
+  // 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2
+  const iWeth = await ethers.getContractAt(
+    "IWeth",
+    "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2",
+    deployer
+  );
+  const tx = await iWeth.deposit({ value: AMOUNT });
+  await tx.wait(1);
+  const wethBalance = await iWeth.balanceOf(deployer);
+  console.log(`${wethBalance.toString()} WETH 만큼 가지고 있습니다.`)
+}
+
+module.exports = { getWeth, AMOUNT };
+```
+
+다시 aaveBorrow.js 파일로 돌아와서 마저 아규먼츠를 채워줍니다.
+
+```js
+await apporveErc20(wethTokenAddress, lendingPool.address, AMOUNT, deployer);
+```
+
+```js
+const { getNamedAccounts, deployments, ethers } = require("hardhat");
+const { getWeth, AMOUNT } = require("./getWeth");
+
+async function main() {
+  // the protocal treats everthing as an ERC20 token
+  await getWeth();
+  const { deployer } = await getNamedAccounts();
+  const { deploy, log } = deployments;
+  // abi, address
+  // Lending Pool Address Provider : 0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5
+  // Lending Pool : ^
+  const lendingPool = await getLendingPool(deployer);
+  console.log(`랜딩 풀 주소 : ${lendingPool.address}`);
+
+  // deposit!
+  const wethTokenAddress = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
+  // approve
+  await approveErc20(wethTokenAddress, lendingPool.address, AMOUNT, deployer);
+  
+}
+
+async function getLendingPool(account) {
+  const lendingPoolAddressesProvider = await ethers.getContractAt(
+    "ILendingPoolAddressesProvider",
+    "0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5",
+    account
+  );
+  const lendingPoolAddress =
+    await lendingPoolAddressesProvider.getLendingPool();
+  const lendingPool = await ethers.getContractAt(
+    "ILendingPool",
+    lendingPoolAddress,
+    account
+  );
+  return lendingPool;
+}
+
+async function approveErc20(
+  erc20Address,
+  spenderAddress,
+  amountToSpend,
+  account
+) {
+  const erc20Token = await ethers.getContractAt(
+    "IERC20",
+    erc20Address,
+    account
+  );
+  const tx = await erc20Token.approve(spenderAddress, amountToSpend)
+  await tx.wait(1);
+  console.log("토큰 승인됨")
+}
+
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.log(error);
+    process.exit(1);
+  });
+
+```
+
+그리고 이제 deposit 하는 일만 남았습니다.
+
+그전에 lendingPool안의 deposit 함수를 살펴봅시다.
+
+```solidity
+  /**
+   * @dev Deposits an `amount` of underlying asset into the reserve, receiving in return overlying aTokens.
+   * - E.g. User deposits 100 USDC and gets in return 100 aUSDC
+   * @param asset The address of the underlying asset to deposit
+   * @param amount The amount to be deposited
+   * @param onBehalfOf The address that will receive the aTokens, same as msg.sender if the user
+   *   wants to receive them on his own wallet, or a different address if the beneficiary of aTokens
+   *   is a different wallet
+   * @param referralCode Code used to register the integrator originating the operation, for potential rewards.
+   *   0 if the action is executed directly by the user, without any middle-man
+   **/
+  function deposit(
+    address asset,
+    uint256 amount,
+    address onBehalfOf,
+    uint16 referralCode
+  ) external override whenNotPaused {
+    DataTypes.ReserveData storage reserve = _reserves[asset];
+
+    ValidationLogic.validateDeposit(reserve, amount);
+
+    address aToken = reserve.aTokenAddress;
+
+    reserve.updateState();
+    reserve.updateInterestRates(asset, aToken, amount, 0);
+
+    IERC20(asset).safeTransferFrom(msg.sender, aToken, amount);
+
+    bool isFirstDeposit = IAToken(aToken).mint(onBehalfOf, amount, reserve.liquidityIndex);
+
+    if (isFirstDeposit) {
+      _usersConfig[onBehalfOf].setUsingAsCollateral(reserve.id, true);
+      emit ReserveUsedAsCollateralEnabled(asset, onBehalfOf);
+    }
+
+    emit Deposit(asset, msg.sender, onBehalfOf, amount, referralCode);
+  }
+```
+
+즉 이렇습니다.
+```js
+deposit()
+function deposit(address asset, uint256 amount, address onBehalfOf, uint16 referralCode)
+```
+>https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool
+
+`address asset`은 우리가 입금할 주소, `uint256 amount`는 우리가 입금할 양, `address onBehalfof` 는 대표자주소 인데 우리는 우리자신이 대표자가 될겁니다. `uint16 referralCode`(위탁코드)는 일단 지금은 항상 `0`이 될겁니다. 왜냐면 `referralCode`는 현재 중단된 상태이기때문입니다.
+
+```js
+await lendingPool.deposit(wethTokenAddress, AMOUNT, deployer, 0);
+```
+우리는 `wethTokenAddress`WETH 토큰 주소에 ETH를 넣을것이며,
+`AMOUNT`만큼의 ETH를 넣을 것이고, `deployer`우리가 대표자입니다.
+그리고 `referralCode`는 항상 `0`으로 둡니다.
+
+```js
+const { getNamedAccounts, deployments, ethers } = require("hardhat");
+const { getWeth, AMOUNT } = require("./getWeth");
+
+async function main() {
+  // the protocal treats everthing as an ERC20 token
+  await getWeth();
+  const { deployer } = await getNamedAccounts();
+  const { deploy, log } = deployments;
+  // abi, address
+  // Lending Pool Address Provider : 0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5
+  // Lending Pool : ^
+  const lendingPool = await getLendingPool(deployer);
+  console.log(`랜딩 풀 주소 : ${lendingPool.address}`);
+
+  // deposit!
+  const wethTokenAddress = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
+  // approve
+  await approveErc20(wethTokenAddress, lendingPool.address, AMOUNT, deployer);
+  console.log("예치시키는중 ... ");
+  await lendingPool.deposit(wethTokenAddress, AMOUNT, deployer, 0);
+  console.log("입금이 완료되었습니다.")
+}
+
+async function getLendingPool(account) {
+  const lendingPoolAddressesProvider = await ethers.getContractAt(
+    "ILendingPoolAddressesProvider",
+    "0xB53C1a33016B2DC2fF3653530bfF1848a515c8c5",
+    account
+  );
+  const lendingPoolAddress =
+    await lendingPoolAddressesProvider.getLendingPool();
+  const lendingPool = await ethers.getContractAt(
+    "ILendingPool",
+    lendingPoolAddress,
+    account
+  );
+  return lendingPool;
+}
+
+async function approveErc20(
+  erc20Address,
+  spenderAddress,
+  amountToSpend,
+  account
+) {
+  const erc20Token = await ethers.getContractAt(
+    "IERC20",
+    erc20Address,
+    account
+  );
+  const tx = await erc20Token.approve(spenderAddress, amountToSpend)
+  await tx.wait(1);
+  console.log("토큰 승인됨")
+}
+
+main()
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.log(error);
+    process.exit(1);
+  });
+
+```
+
+자 이제 이 스크립트가 실행되는지 실행해봅시다.
+
+```bash
+yarn hardhat run scripts/aaveBorrow.js
+```
+
+```bash
+contracts/interfaces/IERC20.sol: Warning: SPDX license identifier not provided in source file. Before publishing, consider adding a comment containing "SPDX-License-Identifier: <SPDX-License>" to each source file. Use "SPDX-License-Identifier: UNLICENSED" for non-open-source code. Please see https://spdx.org for more information.
+
+Compiled 3 Solidity files successfully
+20000000000000000 WETH 만큼 가지고 있습니다.
+랜딩 풀 주소 : 0x7d2768dE32b0b80b7a3454c06BdAc94A69DDc7A9
+토큰 승인됨
+예치시키는중 ... 
+입금이 완료되었습니다.
+Done in 21.99s.
+```
+
+토큰을 승인하고 담보 예치를 성공했습니다!
+
+## Borrwing from Aave
+
+1. Deposit collateral: ETH / WETH 를 성공했습니다.
+
+이제 이 담보를 통해 다른 자산을 빌려볼겁니다.
+
+```js
+  // Borrow
+  // how much we have borrowed, how much we have in collateral, how much we can borrow
+```
+
+랜딩 풀에는 유저 계정 정보를 가지고 오는 다음과 같은 함수가 있습니다.
+>https://docs.aave.com/developers/v/2.0/the-core-protocol/lendingpool#getuseraccountdata
+
+```solidity
+getUserAccountData()
+function getUserAccountData(address user)
+```
+
+모든 준비금에 대한 사용자 계정 데이터를 반환합니다.
+
+반환값에는 이러한 여러가지 파라미터가 있으며, 
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-07-29%20002658.png)
+
+이들은 매우 중요한 지표(metrics) 입니다.
+
+우리가 1ETH 를 담보(`totalCollateralETH`)로 넣어놓고 있다고 해서, `availableBorrowsETH` 1ETH의 자산을 빌릴 수 있는것은 아닙니다.
+
+각각의 토큰들은 다른 value값을 지니고 있습니다.
+
+>https://docs.aave.com/risk/v/aave-v2/asset-risk/risk-parameters
+
+예를 들어 DIA 토큰은 `Loan To Value`가 77%이며 빌릴때 1ETH의 77% 만을 가지고 DAI 토큰을 빌릴수 있습니다.
+이는 담보의 위험을 줄이고 가격 변동에 따라 사람들이 충분한 담보를 갖지 못할 위험을 줄이기 위한 것입니다.
+
+그리고 80%의 `liquidation thereshold` 가 있습니다.
+
+만약 당신이 1ETH를 담보로 가지고 있다면, `0.81` ETH를 빌린경우, `청산(liquidation)`을 하게됩니다.
+
+그렇다면 청산이란 무엇인가? 담보물을 놓고 차입할 때 이 청산 임계값을 초과하여 차용한 금액이 80%를 초과하거나 다른 자산에 따라 다른 사람들이 청산이라고 하는 것을 할 수 있습니다. 이것은 그들이 당신이 빌린 대출금의 일부를 상환할 때입니다. 그리고 그들은 또한 더 저렴한 가격으로 귀하의 담보물 중 일부를 사게 됩니다. 이것은 Ave 플랫폼을 용매로 유지하고 담보보다 더 많은 차입이 없도록 합니다.
+
