@@ -29590,7 +29590,7 @@ Done in 34.04s.
 보시면 첫번째 트랜잭션이 deposit인걸 보실 수 있습니다.
 
 지금부터 어떤일이 일어나는지 보여드리겠습니다. 이부분은
-```
+```js
 await lendingPool.deposit(wethTokenAddress, AMOUNT, deployer, 0);
 ```
 이 부분에서 일어나는 일입니다.
@@ -30487,7 +30487,7 @@ s_requestId = COORDINATOR.requestRandomWords( keyHash, s_subscriptionId, request
 ```
 
 이제 `COORDINATOR` 주소를 전역변수로 저장해서 그것으로 `requestRandomWords를` 호출할겁니다.
-그리고 나머지 아규먼트들 전역변수로 만들어 채워줍니다.
+그리고 나머지 아규먼트들을 전역변수로 만들어 채워줍니다.
 ```solidity
 // SPDX-License-Identifier: MIT
 
@@ -32748,3 +32748,5348 @@ Done in 49.41s.
 이제 만든 ipfs 주소를 가지고 ipfs노드를 켜서 FILES탭에 import -> From IPFS를 눌러
 ipfs 주소와 Name을 입력해서 나만의 IPFS 노드를 만들고 핀할수 있습니다.
 
+또한 서버나 컴퓨터가 다운되더라도 접근가능한 데이터를 얻었습니다.
+
+## Random IPFS NFT PART X
+
+## Deploying III
+
+이제 `tokenUris`를 얻게 되었고
+
+아까 작성하던 args를 마저 완성할 수 있게되었습니다.
+
+```js
+  const args = [
+    vrfCoordinatorV2Address,
+    subscriptionId,
+    networkConfig[chainId].gasLane,
+    networkConfig[chainId].callbackGasLimit,
+    tokenUris,
+    networkConfig[chainId].mintFee,
+  ]
+```
+
+그리고 helper-hardhat-config.js에서 `mintFee` 도 설정해주겠습니다.
+
+```js
+const { ethers } = require("hardhat");
+
+const networkConfig = {
+    4: {
+        name: "rinkeby",
+        vrfCoordinatorV2: "0x6168499c0cFfCaCD319c818142124B7A15E857ab",
+        entranceFee: ethers.utils.parseEther("0.01"),
+        keyHash: "0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc",
+        subscriptionId: "7276",
+        callbackGasLimit: "500000", // 500,000
+        mintFee: ethers.utils.parseEther("0.01"),
+    },
+    31337: {
+        name: "localhost",
+        entranceFee: ethers.utils.parseEther("0.01"),
+        keyHash: "0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc", //모의계약이기때문에 뭐가와도 상관없음(비어있어도 돌아감)
+        callbackGasLimit: "500000", // 500,000
+        mintFee: ethers.utils.parseEther("0.01"),
+    }
+}
+
+const developmentChains = ["hardhat","localhost"];
+
+module.exports = {
+    networkConfig,
+    developmentChains,
+}
+```
+
+이제 계약을 배포하고 검증해봅시다.
+
+```js
+const randomIpfsNft = await deploy("RandomIpfsNft",{
+  from: deployer,
+  args: args,
+  log: true,
+  waitConfirmations: network.config.blockConfirmations || 1,
+})
+log("--------------")
+if(!developmentChains.includes(network.name) && process.env.ETHERSCAN_API_KEY) {
+  log("계약을 검증하고 있습니다...")
+  await verify(randomIpfsNft.address, args)
+}
+```
+
+```ps1
+Nothing to compile
+deploying "VRFCoordinatorV2Mock" (tx: 0x319100f3afcf0412b06ab6e69de64ae20b88fcdb7fd78bdb50c921718a989b5f)...: deployed at 0x0a17FabeA4633ce714F1Fa4a2dcA62C3bAc4758d with 2539340 gas
+---------------모의계약이 배포되었습니다.---------------
+[ 'flying0308.png', 'flying0317.png', 'flying0335.png' ]
+파일을 Pinata 에 업로드하고 있습니다...
+0 번째 파일을 작업중입니다.
+1 번째 파일을 작업중입니다.
+2 번째 파일을 작업중입니다.
+flying0308 업로드 중 ...
+flying0317 업로드 중 ...
+flying0335 업로드 중 ...
+TokenURI가 업로드 되었습니다.
+[
+  'ipfs://QmaMLaa4VwpPtBkmNi76hg6jnJ5vqANn3iaWRCztgS5e91',
+  'ipfs://QmfTGQnCb2MkBkRha54nJXFJECeWbN7RHVFXA1Ln1KzEtE',
+  'ipfs://Qmds3ajTncEs2RaA5gE8pbPkaQ9G2ehQWwd2bwCH75xXFE'
+]
+----------------------------------------
+deploying "RandomIpfsNft" (tx: 0x3064004f3a2d40b307a331745a80ac1f3a2fb2fa5b9eea6c3ed2eb39238f4480)...: deployed at 0x79E8AB29Ff79805025c9462a2f2F12e9A496f81d with 3556177 gas
+--------------
+Done in 42.28s.
+```
+
+** helper-hardhat-config.js에서 gasLane을 keyHash라는 이름으로 설정해놨기 때문에 args의 gasLane을 `networkConfig[chianId].keyHash` 로 바꿔서 배포했습니다.
+
+
+이제 이 배열을 코드 안에 넣어놓고
+```js
+[
+  'ipfs://QmaMLaa4VwpPtBkmNi76hg6jnJ5vqANn3iaWRCztgS5e91',
+  'ipfs://QmfTGQnCb2MkBkRha54nJXFJECeWbN7RHVFXA1Ln1KzEtE',
+  'ipfs://Qmds3ajTncEs2RaA5gE8pbPkaQ9G2ehQWwd2bwCH75xXFE'
+]
+```
+
+.env로 가서 `UPLOAD_TO_PINATA = true`를 `UPLOAD_TO_PINATA = false`로 바꿔주면
+업로드 하지 않고 바로 배포가 가능합니다.
+
+이제 Opensea에서 우리의 nft를 찾을수도 있어요. 하지만 그전에 테스트넷에 NFT를 발행하는 일은 시간이 오래걸리므로
+rinkeby에 올릴 준비를 해야합니다.
+
+그리고!
+
+테스트 코드를 작성하기 전에 놓친것이 있습니다.
+
+바로 tokenCounter를 증가시키지 않은것이에요!
+
+`RandomIpfsNft.sol`파일로 가서 수정해봅시다.
+
+newTokenId를 정하는 fulfillRandomWords 함수에 추가하면 되겠죠!
+
+```solidity
+//...
+    function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords)
+        internal
+        override
+    {
+        address frameOwner = s_requestIdToSender[requestId];
+        uint256 newTokenId = s_tokenCounter;
+        // What does this token look like?
+        uint256 moddedRng = randomWords[0] % MAX_CHANCE_VALUE;
+        Rarity frameRarity = getRarityFromModdedRng(moddedRng);
+        s_tokenCounter += s_tokenCounter;
+        _safeMint(frameOwner, newTokenId);
+        _setTokenURI(newTokenId, s_frameTokenUris[uint256(frameRarity)]);
+        emit NftMinted(frameRarity, frameOwner);
+    }
+    //...
+```
+
+그리고 또하나!
+
+subscription에 자금을 넣어야(fund) 합니다!
+
+vrfCoordinatorV2Mocks.sol 파일을 보시면 다음과 같은 함수가 있습니다.
+
+```solidity
+  /**
+   * @notice fundSubscription allows funding a subscription with an arbitrary amount for testing.
+   *
+   * @param _subId the subscription to fund
+   * @param _amount the amount to fund
+   */
+  function fundSubscription(uint64 _subId, uint96 _amount) public {
+    if (s_subscriptions[_subId].owner == address(0)) {
+      revert InvalidSubscription();
+    }
+    uint96 oldBalance = s_subscriptions[_subId].balance;
+    s_subscriptions[_subId].balance += _amount;
+    emit SubscriptionFunded(_subId, oldBalance, oldBalance + _amount);
+  }
+```
+
+이것을 이용해 subscription에 돈을 넣을 수 있습니다.
+
+```js
+const FUND_AMOUNT = ethers.utils.parseEther("10");
+//...
+await vrfCoordinatorV2Mock.fundSubscription(subscriptionId, FUND_AMOUNT);
+```
+
+```js
+const { network, ethers } = require("hardhat");
+const { developmentChains, networkConfig } = require("../helper-hardhat-config");
+const { verify } = require("../utils/verify");
+const { storeImages, storeTokenUriMetadata } = require("../utils/UploadToPinata");
+
+const imagesLocation = "./images/randomNft"
+
+const metadataTemplate = {
+  name: "",
+  description:"",
+  image:"",
+  attributes: [
+    {
+      trait_type:"frame",
+      value: 308,
+    }
+  ]
+}
+
+const FUND_AMOUNT = ethers.utils.parseEther("10");
+
+module.exports = async function ({ getNamedAccounts, deployments }) {
+  const { deploy, log } = deployments;
+  const { deployer } = await getNamedAccounts();
+  const chainId = network.config.chainId;
+  let tokenUris
+  // get the IPFS hashes of our images
+  if (process.env.UPLOAD_TO_PINATA == "true") {
+    tokenUris = await handleTokenUris()
+  }
+
+
+  // 1. With our own IPFS node.
+  // 2. Pinata
+  // 3. nft.storage
+
+
+  let vrfCoordinatorV2Address, subscriptionId;
+
+  if(developmentChains.includes(network.name)) {
+    const vrfCoordinatorV2Mock = await ethers.getContract("VRFCoordinatorV2Mock");
+    vrfCoordinatorV2Address = vrfCoordinatorV2Mock.address;
+    const tx = await vrfCoordinatorV2Mock.createSubscription();
+    const txReceipt = await tx.wait(1);
+    subscriptionId = txReceipt.events[0].args.subId;
+    await vrfCoordinatorV2Mock.fundSubscription(subscriptionId, FUND_AMOUNT);
+
+  } else {
+    vrfCoordinatorV2Address = networkConfig[chainId].vrfCoordinatorV2
+    subscriptionId = networkConfig[chainId].subscriptionId
+
+  }
+  log("----------------------------------------")
+  // address vrfCoordinatorV2,
+  // uint64 subcriptionId,
+  // bytes32 gasLane,
+  // uint32 callbackGasLimit,
+  // string[3] memory frameTokenUris,
+  // uint256 mintFee
+  const args = [
+    vrfCoordinatorV2Address,
+    subscriptionId,
+    networkConfig[chainId].keyHash,
+    networkConfig[chainId].callbackGasLimit,
+    tokenUris,
+    networkConfig[chainId].mintFee,
+  ]
+
+  const randomIpfsNft = await deploy("RandomIpfsNft",{
+    from: deployer,
+    args: args,
+    log: true,
+    waitConfirmations: network.config.blockConfirmations || 1,
+  })
+  log("--------------")
+  if(!developmentChains.includes(network.name) && process.env.ETHERSCAN_API_KEY) {
+    log("계약을 검증하고 있습니다...")
+    await verify(randomIpfsNft.address, args)
+  }
+
+}
+
+
+async function handleTokenUris() {
+  //토큰uri들을 반환해주는 함수
+  tokenUris = []
+  // ipfs에 이미지 저장
+  // ipfs에 metadata 저장
+  const {responses: imageUploadResponses, files } = await storeImages(imagesLocation)
+  for (const [imageUploadResponsesIndex, imageUploadResponse] of imageUploadResponses.entries()) {  
+    // metadata 생성
+    // metadata 업로드
+    let tokenUriMetadata = { ...metadataTemplate};
+    tokenUriMetadata.name = files[imageUploadResponsesIndex].replace(".png","");
+    tokenUriMetadata.description = `video frame ${tokenUriMetadata.name}`
+    tokenUriMetadata.image = `ipfs://${imageUploadResponse.IpfsHash}`
+    console.log(`${tokenUriMetadata.name} 업로드 중 ...`);
+    // JSON 파일을 pinata 혹은 ipfs 에 저장해야함
+    const metadataUploadResponse = await storeTokenUriMetadata(tokenUriMetadata);
+    tokenUris.push(`ipfs://${metadataUploadResponse.IpfsHash}`);
+  }
+  console.log("TokenURI가 업로드 되었습니다.");
+  console.log(tokenUris);
+  return tokenUris
+}
+
+module.exports.tags = ["all", "randomipfs", "main"]
+```
+
+## Random IPFS NFT Part XI
+
+### Random IPFS NFT Tests
+
+링크비 테스트넷에 배포하기 전에 반드시 테스트를 거처야합니다.
+
+`test/uint/randomIpfsNft.test.js` 파일을 만들어줍니다.
+
+raffle 앱을 만들때 했던 테스트와 다를건 없습니다.
+
+혼자서 해보시길
+
+### Pasue the video! Write some tests!
+
+```ps1
+테스트 코드 시작
+
+  randomIpfsNft
+    requestNft
+[ 'flying0308.png', 'flying0317.png', 'flying0335.png' ]
+파일을 Pinata 에 업로드하고 있습니다...
+0 번째 파일을 작업중입니다.
+1 번째 파일을 작업중입니다.
+2 번째 파일을 작업중입니다.
+flying0308 업로드 중 ...
+flying0317 업로드 중 ...
+flying0335 업로드 중 ...
+
+      1) "before each" hook for "사용자가 보낸 돈(msg.value)이 없거나 발행금액(i_mintFee)보다 작을 때 거절하기"
+
+
+  0 passing (41s)
+  1 failing
+
+  1) randomIpfsNft
+       "before each" hook for "사용자가 보낸 돈(msg.value)이 없거나 발행금액(i_mintFee)보다 작을 때 거절하기":   
+     Error: Timeout of 40000ms exceeded. For async tests and hooks, ensure "done()" is called; if returning a Promise, ensure it resolves. (C:\Users\ESO\Desktop\Dev\web3\hardhat-nft\test\unit\randomIpfsNft.test.js)
+      at listOnTimeout (node:internal/timers:559:17)
+      at processTimers (node:internal/timers:502:7)
+
+```
+
+해결방법 -> hardhat.config.js 의 mocha: {timeOut : 300000}이 tiemOut 이 아니라 timeout으로 해줘야 합니다.
+
+
+
+consumer is 0xead789bd8ce8b9e94f5d0fca99f8787c7e758817 subId is 1
+
+
+```ps1
+테스트 코드 시작
+
+  randomIpfsNft
+    requestNft
+개발체인입니다. subscriptionId를 생성합니다.
+subscriptionId 생성을 완료했습니다. 1
+구독아이디 1
+vrf주소0x5FbDB2315678afecb367f032d93F642f64180aa3, nft주소0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9
+[
+  BigNumber { _hex: '0x8ac7230489e80000', _isBigNumber: true },
+  BigNumber { _hex: '0x00', _isBigNumber: true },
+  '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+  [],
+  balance: BigNumber { _hex: '0x8ac7230489e80000', _isBigNumber: true },
+  reqCount: BigNumber { _hex: '0x00', _isBigNumber: true },
+  owner: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+  consumers: []
+]
+subId and consumer 1 0xcf7ed3acca5a467e9e704c703e8d87f634fb0fc9
+
+      1) NftRequested 이벤트를 emit 하고 requestId와 msg.sender를 인수로 가짐
+
+
+  0 passing (2s)
+  1 failing
+
+  1) randomIpfsNft
+       requestNft
+         NftRequested 이벤트를 emit 하고 requestId와 msg.sender를 인수로 가짐:
+     Error: VM Exception while processing transaction: reverted with custom error 'InvalidConsumer()'
+      at VRFCoordinatorV2Mock.onlyValidConsumer (@chainlink/contracts/src/v0.8/mocks/VRFCoordinatorV2Mock.sol:74) 
+      at VRFCoordinatorV2Mock.requestRandomWords (@chainlink/contracts/src/v0.8/mocks/VRFCoordinatorV2Mock.sol:150)
+      at RandomIpfsNft.requestNft (contracts/RandomIpfsNft.sol:69)
+      at HardhatNode._mineBlockWithPendingTxs (node_modules\hardhat\src\internal\hardhat-network\provider\node.ts:1773:23)
+      at HardhatNode.mineBlock (node_modules\hardhat\src\internal\hardhat-network\provider\node.ts:466:16)        
+      at EthModule._sendTransactionAndReturnHash (node_modules\hardhat\src\internal\hardhat-network\provider\modules\eth.ts:1504:18)
+      at HardhatNetworkProvider.request (node_modules\hardhat\src\internal\hardhat-network\provider\provider.ts:118:18)
+      at EthersProviderWrapper.send (node_modules\@nomiclabs\hardhat-ethers\src\internal\ethers-provider-wrapper.ts:13:20)
+
+
+
+```
+
+#### 참고 : hardhat node 하드햇 노드 실행 시 일반적인 주소
+
+하드햇 노드를 돌렸을때
+```
+Nothing to compile
+deploying "VRFCoordinatorV2Mock" (tx: 0x2e37296f459c794e2837dbca3acbc0d10292c57f47a28cc25f9c10260eb5ffb8)...: deployed at 0x5FbDB2315678afecb367f032d93F642f64180aa3 with 2764422 gas
+---------------모의계약이 배포되었습니다.---------------
+---------------------------------------------------
+deploying "BasicNft" (tx: 0x2bc6db3613dcbf9015a725a51d76835d56ce1270e7e747d6064dc02689539a15)...: deployed at 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512 with 2013545 gas
+---------------------------------------------------
+개발체인입니다. subscriptionId를 생성합니다.
+subscriptionId 생성을 완료했습니다. 1
+----------------------------------------
+deploying "RandomIpfsNft" (tx: 0xf50d05599c16fc1c1dad73de3daf409493e7b58f08a12c06481a3062f4c6e66e)...: deployed at 0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9 with 3587667 gas
+--------------
+Started HTTP and WebSocket JSON-RPC server at http://127.0.0.1:8545/
+
+Accounts
+========
+
+WARNING: These accounts, and their private keys, are publicly known.
+Any funds sent to them on Mainnet or any other live network WILL BE LOST.
+
+Account #0: 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266 (10000 ETH)
+Private Key: 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+
+Account #1: 0x70997970C51812dc3A010C7d01b50e0d17dc79C8 (10000 ETH)
+Private Key: 0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
+
+Account #2: 0x3C44CdDdB6a900fa2b585dd299e03d12FA4293BC (10000 ETH)
+Private Key: 0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a
+
+Account #3: 0x90F79bf6EB2c4f870365E785982E1f101E93b906 (10000 ETH)
+Private Key: 0x7c852118294e51e653712a81e05800f419141751be58f605c371e15141b007a6
+
+Account #4: 0x15d34AAf54267DB7D7c367839AAf71A00a2C6A65 (10000 ETH)
+Private Key: 0x47e179ec197488593b187f80a00eb0da91f1b9d0b13f8733639f19c30a34926a
+
+Account #5: 0x9965507D1a55bcC2695C58ba16FB37d819B0A4dc (10000 ETH)
+Private Key: 0x8b3a350cf5c34c9194ca85829a2df0ec3153be0318b5e2d3348e872092edffba
+
+Account #6: 0x976EA74026E726554dB657fA54763abd0C3a0aa9 (10000 ETH)
+Private Key: 0x92db14e403b83dfe3df233f83dfa3a0d7096f21ca9b0d6d6b8d88b2b4ec1564e
+
+Account #7: 0x14dC79964da2C08b23698B3D3cc7Ca32193d9955 (10000 ETH)
+Private Key: 0x4bbbf85ce3377467afe5d46f804f221813b2bb87f24d81f60f1fcdbf7cbf4356
+
+Account #8: 0x23618e81E3f5cdF7f54C3d65f7FBc0aBf5B21E8f (10000 ETH)
+Private Key: 0xdbda1821b80551c9d65939329250298aa3472ba22feea921c0cf5d620ea67b97
+
+Account #9: 0xa0Ee7A142d267C1f36714E4a8F75612F20a79720 (10000 ETH)
+Private Key: 0x2a871d0798f97d79848a013d4936a73bf4cc922c825d33c1cf7073dff6d409c6
+
+Account #10: 0xBcd4042DE499D14e55001CcbB24a551F3b954096 (10000 ETH)
+Private Key: 0xf214f2b2cd398c806f84e317254e0f0b801d0643303237d97a22a48e01628897
+
+Account #11: 0x71bE63f3384f5fb98995898A86B02Fb2426c5788 (10000 ETH)
+Private Key: 0x701b615bbdfb9de65240bc28bd21bbc0d996645a3dd57e7b12bc2bdf6f192c82
+
+Account #12: 0xFABB0ac9d68B0B445fB7357272Ff202C5651694a (10000 ETH)
+Private Key: 0xa267530f49f8280200edf313ee7af6b827f2a8bce2897751d06a843f644967b1
+
+Account #13: 0x1CBd3b2770909D4e10f157cABC84C7264073C9Ec (10000 ETH)
+Private Key: 0x47c99abed3324a2707c28affff1267e45918ec8c3f20b8aa892e8b065d2942dd
+
+Account #14: 0xdF3e18d64BC6A983f673Ab319CCaE4f1a57C7097 (10000 ETH)
+Private Key: 0xc526ee95bf44d8fc405a158bb884d9d1238d99f0612e9f33d006bb0789009aaa
+
+Account #15: 0xcd3B766CCDd6AE721141F452C550Ca635964ce71 (10000 ETH)
+Private Key: 0x8166f546bab6da521a8369cab06c5d2b9e46670292d85c875ee9ec20e84ffb61
+
+Account #16: 0x2546BcD3c84621e976D8185a91A922aE77ECEc30 (10000 ETH)
+Private Key: 0xea6c44ac03bff858b476bba40716402b03e41b8e97e276d1baec7c37d42484a0
+
+Account #17: 0xbDA5747bFD65F08deb54cb465eB87D40e51B197E (10000 ETH)
+Private Key: 0x689af8efa8c651a91ad287602527f3af2fe9f6501a7ac4b061667b5a93e037fd
+
+Account #18: 0xdD2FD4581271e230360230F9337D5c0430Bf44C0 (10000 ETH)
+Private Key: 0xde9be858da4a475276426320d5e9262ecfc3ba460bfac56360bfa6c4c28b4ee0
+
+Account #19: 0x8626f6940E2eb28930eFb4CeF49B2d1F2C9C1199 (10000 ETH)
+Private Key: 0xdf57089febbacf7ba0bc227dafbffa9fc08a93fdc68e1e42411a14efcf23656e
+
+WARNING: These accounts, and their private keys, are publicly known.
+Any funds sent to them on Mainnet or any other live network WILL BE LOST.
+```
+
+#### 참고: 배포 후 contract 계약 객체 구조
+
+```shell
+Contract {
+  interface: Interface {
+    fragments: [
+      [ConstructorFragment], [ErrorFragment],
+      [ErrorFragment],       [ErrorFragment],
+      [ErrorFragment],       [EventFragment],
+      [EventFragment],       [EventFragment],
+      [EventFragment],       [EventFragment],
+      [EventFragment],       [FunctionFragment],
+      [FunctionFragment],    [FunctionFragment],
+      [FunctionFragment],    [FunctionFragment],
+      [FunctionFragment],    [FunctionFragment],
+      [FunctionFragment],    [FunctionFragment],
+      [FunctionFragment],    [FunctionFragment],
+      [FunctionFragment],    [FunctionFragment],
+      [FunctionFragment],    [FunctionFragment],
+      [FunctionFragment],    [FunctionFragment],
+      [FunctionFragment],    [FunctionFragment],
+      [FunctionFragment],    [FunctionFragment],
+      [FunctionFragment],    [FunctionFragment],
+      [FunctionFragment],    [FunctionFragment],
+      [FunctionFragment],    [FunctionFragment]
+    ],
+    _abiCoder: AbiCoder { coerceFunc: null },
+    functions: {
+      'approve(address,uint256)': [FunctionFragment],
+      'balanceOf(address)': [FunctionFragment],
+      'getApproved(uint256)': [FunctionFragment],
+      'getChanceArray()': [FunctionFragment],
+      'getFrameTokenUris(uint256)': [FunctionFragment],
+      'getMintFee()': [FunctionFragment],
+      'getRarityFromModdedRng(uint256)': [FunctionFragment],
+      'getSubscriptionId()': [FunctionFragment],
+      'getTokenCounter()': [FunctionFragment],
+      'isApprovedForAll(address,address)': [FunctionFragment],
+      'name()': [FunctionFragment],
+      'owner()': [FunctionFragment],
+      'ownerOf(uint256)': [FunctionFragment],
+      'rawFulfillRandomWords(uint256,uint256[])': [FunctionFragment],
+      'renounceOwnership()': [FunctionFragment],
+      'requestNft()': [FunctionFragment],
+      's_requestIdToSender(uint256)': [FunctionFragment],
+      's_tokenCounter()': [FunctionFragment],
+      'safeTransferFrom(address,address,uint256)': [FunctionFragment],
+      'safeTransferFrom(address,address,uint256,bytes)': [FunctionFragment],
+      'setApprovalForAll(address,bool)': [FunctionFragment],
+      'supportsInterface(bytes4)': [FunctionFragment],
+      'symbol()': [FunctionFragment],
+      'tokenURI(uint256)': [FunctionFragment],
+      'transferFrom(address,address,uint256)': [FunctionFragment],
+      'transferOwnership(address)': [FunctionFragment],
+      'withdraw()': [FunctionFragment]
+    },
+    errors: {
+      'OnlyCoordinatorCanFulfill(address,address)': [ErrorFragment],
+      'RandomIpfsNft__NeedMoreETHsent()': [ErrorFragment],
+      'RandomIpfsNft__RangeOutOfBounds()': [ErrorFragment],
+      'RandomIpfsNft__TransferFailed()': [ErrorFragment]
+    },
+    events: {
+      'Approval(address,address,uint256)': [EventFragment],
+      'ApprovalForAll(address,address,bool)': [EventFragment],
+      'NftMinted(uint8,address)': [EventFragment],
+      'NftRequested(uint256,address)': [EventFragment],
+      'OwnershipTransferred(address,address)': [EventFragment],
+      'Transfer(address,address,uint256)': [EventFragment]
+    },
+    structs: {},
+    deploy: ConstructorFragment {
+      name: null,
+      type: 'constructor',
+      inputs: [Array],
+      payable: false,
+      stateMutability: 'nonpayable',
+      gas: null,
+      _isFragment: true
+    },
+    _isInterface: true
+  },
+  provider: EthersProviderWrapper {
+    _isProvider: true,
+    _events: [],
+    _emitted: {
+      block: -2,
+      't:0x51321e96341d4b07d3342cf8ccb3456ca4cfbe912eadc5cbc7c46cc0d3170baa': 7
+    },
+    disableCcipRead: false,
+    formatter: Formatter { formats: [Object] },
+    anyNetwork: false,
+    _networkPromise: Promise { [Object] },
+    _maxInternalBlockNumber: 5,
+    _lastBlockNumber: -2,
+    _maxFilterBlockRange: 10,
+    _pollingInterval: 4000,
+    _fastQueryDate: 1659449402702,
+    connection: { url: 'http://localhost:8545' },
+    _nextId: 42,
+    _hardhatProvider: BackwardsCompatibilityProviderAdapter {
+      _wrapped: [EGRDataCollectionProvider],
+      _provider: [EGRDataCollectionProvider],
+      sendAsync: [Function: bound sendAsync],
+      send: [Function: bound send],
+      _sendJsonRpcRequest: [Function: bound _sendJsonRpcRequest] AsyncFunction
+    },
+    _eventLoopCache: { detectNetwork: null },
+    _network: { chainId: 31337, name: 'unknown' },
+    _internalBlockNumber: Promise { [Object] },
+    _fastBlockNumber: 5,
+    _fastBlockNumberPromise: Promise { 5 }
+  },
+  signer: SignerWithAddress {
+    _isSigner: true,
+    address: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+    _signer: JsonRpcSigner {
+      _isSigner: true,
+      provider: [EthersProviderWrapper],
+      _address: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+      _index: null
+    },
+    provider: EthersProviderWrapper {
+      _isProvider: true,
+      _events: [],
+      _emitted: [Object],
+      disableCcipRead: false,
+      formatter: [Formatter],
+      anyNetwork: false,
+      _networkPromise: [Promise],
+      _maxInternalBlockNumber: 5,
+      _lastBlockNumber: -2,
+      _maxFilterBlockRange: 10,
+      _pollingInterval: 4000,
+      _fastQueryDate: 1659449402702,
+      connection: [Object],
+      _nextId: 42,
+      _hardhatProvider: [BackwardsCompatibilityProviderAdapter],
+      _eventLoopCache: [Object],
+      _network: [Object],
+      _internalBlockNumber: [Promise],
+      _fastBlockNumber: 5,
+      _fastBlockNumberPromise: [Promise]
+    }
+  },
+  callStatic: {
+    'approve(address,uint256)': [Function (anonymous)],
+    'balanceOf(address)': [Function (anonymous)],
+    'getApproved(uint256)': [Function (anonymous)],
+    'getChanceArray()': [Function (anonymous)],
+    'getFrameTokenUris(uint256)': [Function (anonymous)],
+    'getMintFee()': [Function (anonymous)],
+    'getRarityFromModdedRng(uint256)': [Function (anonymous)],
+    'getSubscriptionId()': [Function (anonymous)],
+    'getTokenCounter()': [Function (anonymous)],
+    'isApprovedForAll(address,address)': [Function (anonymous)],
+    'name()': [Function (anonymous)],
+    'owner()': [Function (anonymous)],
+    'ownerOf(uint256)': [Function (anonymous)],
+    'rawFulfillRandomWords(uint256,uint256[])': [Function (anonymous)],
+    'renounceOwnership()': [Function (anonymous)],
+    'requestNft()': [Function (anonymous)],
+    's_requestIdToSender(uint256)': [Function (anonymous)],
+    's_tokenCounter()': [Function (anonymous)],
+    'safeTransferFrom(address,address,uint256)': [Function (anonymous)],
+    'safeTransferFrom(address,address,uint256,bytes)': [Function (anonymous)],
+    'setApprovalForAll(address,bool)': [Function (anonymous)],
+    'supportsInterface(bytes4)': [Function (anonymous)],
+    'symbol()': [Function (anonymous)],
+    'tokenURI(uint256)': [Function (anonymous)],
+    'transferFrom(address,address,uint256)': [Function (anonymous)],
+    'transferOwnership(address)': [Function (anonymous)],
+    'withdraw()': [Function (anonymous)],
+    approve: [Function (anonymous)],
+    balanceOf: [Function (anonymous)],
+    getApproved: [Function (anonymous)],
+    getChanceArray: [Function (anonymous)],
+    getFrameTokenUris: [Function (anonymous)],
+    getMintFee: [Function (anonymous)],
+    getRarityFromModdedRng: [Function (anonymous)],
+    getSubscriptionId: [Function (anonymous)],
+    getTokenCounter: [Function (anonymous)],
+    isApprovedForAll: [Function (anonymous)],
+    name: [Function (anonymous)],
+    owner: [Function (anonymous)],
+    ownerOf: [Function (anonymous)],
+    rawFulfillRandomWords: [Function (anonymous)],
+    renounceOwnership: [Function (anonymous)],
+    requestNft: [Function (anonymous)],
+    s_requestIdToSender: [Function (anonymous)],
+    s_tokenCounter: [Function (anonymous)],
+    setApprovalForAll: [Function (anonymous)],
+    supportsInterface: [Function (anonymous)],
+    symbol: [Function (anonymous)],
+    tokenURI: [Function (anonymous)],
+    transferFrom: [Function (anonymous)],
+    transferOwnership: [Function (anonymous)],
+    withdraw: [Function (anonymous)]
+  },
+  estimateGas: {
+    'approve(address,uint256)': [Function (anonymous)],
+    'balanceOf(address)': [Function (anonymous)],
+    'getApproved(uint256)': [Function (anonymous)],
+    'getChanceArray()': [Function (anonymous)],
+    'getFrameTokenUris(uint256)': [Function (anonymous)],
+    'getMintFee()': [Function (anonymous)],
+    'getRarityFromModdedRng(uint256)': [Function (anonymous)],
+    'getSubscriptionId()': [Function (anonymous)],
+    'getTokenCounter()': [Function (anonymous)],
+    'isApprovedForAll(address,address)': [Function (anonymous)],
+    'name()': [Function (anonymous)],
+    'owner()': [Function (anonymous)],
+    'ownerOf(uint256)': [Function (anonymous)],
+    'rawFulfillRandomWords(uint256,uint256[])': [Function (anonymous)],
+    'renounceOwnership()': [Function (anonymous)],
+    'requestNft()': [Function (anonymous)],
+    's_requestIdToSender(uint256)': [Function (anonymous)],
+    's_tokenCounter()': [Function (anonymous)],
+    'safeTransferFrom(address,address,uint256)': [Function (anonymous)],
+    'safeTransferFrom(address,address,uint256,bytes)': [Function (anonymous)],
+    'setApprovalForAll(address,bool)': [Function (anonymous)],
+    'supportsInterface(bytes4)': [Function (anonymous)],
+    'symbol()': [Function (anonymous)],
+    'tokenURI(uint256)': [Function (anonymous)],
+    'transferFrom(address,address,uint256)': [Function (anonymous)],
+    'transferOwnership(address)': [Function (anonymous)],
+    'withdraw()': [Function (anonymous)],
+    approve: [Function (anonymous)],
+    balanceOf: [Function (anonymous)],
+    getApproved: [Function (anonymous)],
+    getChanceArray: [Function (anonymous)],
+    getFrameTokenUris: [Function (anonymous)],
+    getMintFee: [Function (anonymous)],
+    getRarityFromModdedRng: [Function (anonymous)],
+    getSubscriptionId: [Function (anonymous)],
+    getTokenCounter: [Function (anonymous)],
+    isApprovedForAll: [Function (anonymous)],
+    name: [Function (anonymous)],
+    owner: [Function (anonymous)],
+    ownerOf: [Function (anonymous)],
+    rawFulfillRandomWords: [Function (anonymous)],
+    renounceOwnership: [Function (anonymous)],
+    requestNft: [Function (anonymous)],
+    s_requestIdToSender: [Function (anonymous)],
+    s_tokenCounter: [Function (anonymous)],
+    setApprovalForAll: [Function (anonymous)],
+    supportsInterface: [Function (anonymous)],
+    symbol: [Function (anonymous)],
+    tokenURI: [Function (anonymous)],
+    transferFrom: [Function (anonymous)],
+    transferOwnership: [Function (anonymous)],
+    withdraw: [Function (anonymous)]
+  },
+  functions: {
+    'approve(address,uint256)': [Function (anonymous)],
+    'balanceOf(address)': [Function (anonymous)],
+    'getApproved(uint256)': [Function (anonymous)],
+    'getChanceArray()': [Function (anonymous)],
+    'getFrameTokenUris(uint256)': [Function (anonymous)],
+    'getMintFee()': [Function (anonymous)],
+    'getRarityFromModdedRng(uint256)': [Function (anonymous)],
+    'getSubscriptionId()': [Function (anonymous)],
+    'getTokenCounter()': [Function (anonymous)],
+    'isApprovedForAll(address,address)': [Function (anonymous)],
+    'name()': [Function (anonymous)],
+    'owner()': [Function (anonymous)],
+    'ownerOf(uint256)': [Function (anonymous)],
+    'rawFulfillRandomWords(uint256,uint256[])': [Function (anonymous)],
+    'renounceOwnership()': [Function (anonymous)],
+    'requestNft()': [Function (anonymous)],
+    's_requestIdToSender(uint256)': [Function (anonymous)],
+    's_tokenCounter()': [Function (anonymous)],
+    'safeTransferFrom(address,address,uint256)': [Function (anonymous)],
+    'safeTransferFrom(address,address,uint256,bytes)': [Function (anonymous)],
+    'setApprovalForAll(address,bool)': [Function (anonymous)],
+    'supportsInterface(bytes4)': [Function (anonymous)],
+    'symbol()': [Function (anonymous)],
+    'tokenURI(uint256)': [Function (anonymous)],
+    'transferFrom(address,address,uint256)': [Function (anonymous)],
+    'transferOwnership(address)': [Function (anonymous)],
+    'withdraw()': [Function (anonymous)],
+    approve: [Function (anonymous)],
+    balanceOf: [Function (anonymous)],
+    getApproved: [Function (anonymous)],
+    getChanceArray: [Function (anonymous)],
+    getFrameTokenUris: [Function (anonymous)],
+    getMintFee: [Function (anonymous)],
+    getRarityFromModdedRng: [Function (anonymous)],
+    getSubscriptionId: [Function (anonymous)],
+    getTokenCounter: [Function (anonymous)],
+    isApprovedForAll: [Function (anonymous)],
+    name: [Function (anonymous)],
+    owner: [Function (anonymous)],
+    ownerOf: [Function (anonymous)],
+    rawFulfillRandomWords: [Function (anonymous)],
+    renounceOwnership: [Function (anonymous)],
+    requestNft: [Function (anonymous)],
+    s_requestIdToSender: [Function (anonymous)],
+    s_tokenCounter: [Function (anonymous)],
+    setApprovalForAll: [Function (anonymous)],
+    supportsInterface: [Function (anonymous)],
+    symbol: [Function (anonymous)],
+    tokenURI: [Function (anonymous)],
+    transferFrom: [Function (anonymous)],
+    transferOwnership: [Function (anonymous)],
+    withdraw: [Function (anonymous)]
+  },
+  populateTransaction: {
+    'approve(address,uint256)': [Function (anonymous)],
+    'balanceOf(address)': [Function (anonymous)],
+    'getApproved(uint256)': [Function (anonymous)],
+    'getChanceArray()': [Function (anonymous)],
+    'getFrameTokenUris(uint256)': [Function (anonymous)],
+    'getMintFee()': [Function (anonymous)],
+    'getRarityFromModdedRng(uint256)': [Function (anonymous)],
+    'getSubscriptionId()': [Function (anonymous)],
+    'getTokenCounter()': [Function (anonymous)],
+    'isApprovedForAll(address,address)': [Function (anonymous)],
+    'name()': [Function (anonymous)],
+    'owner()': [Function (anonymous)],
+    'ownerOf(uint256)': [Function (anonymous)],
+    'rawFulfillRandomWords(uint256,uint256[])': [Function (anonymous)],
+    'renounceOwnership()': [Function (anonymous)],
+    'requestNft()': [Function (anonymous)],
+    's_requestIdToSender(uint256)': [Function (anonymous)],
+    's_tokenCounter()': [Function (anonymous)],
+    'safeTransferFrom(address,address,uint256)': [Function (anonymous)],
+    'safeTransferFrom(address,address,uint256,bytes)': [Function (anonymous)],
+    'setApprovalForAll(address,bool)': [Function (anonymous)],
+    'supportsInterface(bytes4)': [Function (anonymous)],
+    'symbol()': [Function (anonymous)],
+    'tokenURI(uint256)': [Function (anonymous)],
+    'transferFrom(address,address,uint256)': [Function (anonymous)],
+    'transferOwnership(address)': [Function (anonymous)],
+    'withdraw()': [Function (anonymous)],
+    approve: [Function (anonymous)],
+    balanceOf: [Function (anonymous)],
+    getApproved: [Function (anonymous)],
+    getChanceArray: [Function (anonymous)],
+    getFrameTokenUris: [Function (anonymous)],
+    getMintFee: [Function (anonymous)],
+    getRarityFromModdedRng: [Function (anonymous)],
+    getSubscriptionId: [Function (anonymous)],
+    getTokenCounter: [Function (anonymous)],
+    isApprovedForAll: [Function (anonymous)],
+    name: [Function (anonymous)],
+    owner: [Function (anonymous)],
+    ownerOf: [Function (anonymous)],
+    rawFulfillRandomWords: [Function (anonymous)],
+    renounceOwnership: [Function (anonymous)],
+    requestNft: [Function (anonymous)],
+    s_requestIdToSender: [Function (anonymous)],
+    s_tokenCounter: [Function (anonymous)],
+    setApprovalForAll: [Function (anonymous)],
+    supportsInterface: [Function (anonymous)],
+    symbol: [Function (anonymous)],
+    tokenURI: [Function (anonymous)],
+    transferFrom: [Function (anonymous)],
+    transferOwnership: [Function (anonymous)],
+    withdraw: [Function (anonymous)]
+  },
+  filters: {
+    'Approval(address,address,uint256)': [Function (anonymous)],
+    'ApprovalForAll(address,address,bool)': [Function (anonymous)],
+    'NftMinted(uint8,address)': [Function (anonymous)],
+    'NftRequested(uint256,address)': [Function (anonymous)],
+    'OwnershipTransferred(address,address)': [Function (anonymous)],
+    'Transfer(address,address,uint256)': [Function (anonymous)],
+    Approval: [Function (anonymous)],
+    ApprovalForAll: [Function (anonymous)],
+    NftMinted: [Function (anonymous)],
+    NftRequested: [Function (anonymous)],
+    OwnershipTransferred: [Function (anonymous)],
+    Transfer: [Function (anonymous)]
+  },
+  _runningEvents: {},
+  _wrappedEmits: {},
+  address: '0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9',
+  resolvedAddress: Promise { '0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9' },
+  'approve(address,uint256)': [Function (anonymous)],
+  'balanceOf(address)': [Function (anonymous)],
+  'getApproved(uint256)': [Function (anonymous)],
+  'getChanceArray()': [Function (anonymous)],
+  'getFrameTokenUris(uint256)': [Function (anonymous)],
+  'getMintFee()': [Function (anonymous)],
+  'getRarityFromModdedRng(uint256)': [Function (anonymous)],
+  'getSubscriptionId()': [Function (anonymous)],
+  'getTokenCounter()': [Function (anonymous)],
+  'isApprovedForAll(address,address)': [Function (anonymous)],
+  'name()': [Function (anonymous)],
+  'owner()': [Function (anonymous)],
+  'ownerOf(uint256)': [Function (anonymous)],
+  'rawFulfillRandomWords(uint256,uint256[])': [Function (anonymous)],
+  'renounceOwnership()': [Function (anonymous)],
+  'requestNft()': [Function (anonymous)],
+  's_requestIdToSender(uint256)': [Function (anonymous)],
+  's_tokenCounter()': [Function (anonymous)],
+  'safeTransferFrom(address,address,uint256)': [Function (anonymous)],
+  'safeTransferFrom(address,address,uint256,bytes)': [Function (anonymous)],
+  'setApprovalForAll(address,bool)': [Function (anonymous)],
+  'supportsInterface(bytes4)': [Function (anonymous)],
+  'symbol()': [Function (anonymous)],
+  'tokenURI(uint256)': [Function (anonymous)],
+  'transferFrom(address,address,uint256)': [Function (anonymous)],
+  'transferOwnership(address)': [Function (anonymous)],
+  'withdraw()': [Function (anonymous)],
+  approve: [Function (anonymous)],
+  balanceOf: [Function (anonymous)],
+  getApproved: [Function (anonymous)],
+  getChanceArray: [Function (anonymous)],
+  getFrameTokenUris: [Function (anonymous)],
+  getMintFee: [Function (anonymous)],
+  getRarityFromModdedRng: [Function (anonymous)],
+  getSubscriptionId: [Function (anonymous)],
+  getTokenCounter: [Function (anonymous)],
+  isApprovedForAll: [Function (anonymous)],
+  name: [Function (anonymous)],
+  owner: [Function (anonymous)],
+  ownerOf: [Function (anonymous)],
+  rawFulfillRandomWords: [Function (anonymous)],
+  renounceOwnership: [Function (anonymous)],
+  requestNft: [Function (anonymous)],
+  s_requestIdToSender: [Function (anonymous)],
+  s_tokenCounter: [Function (anonymous)],
+  setApprovalForAll: [Function (anonymous)],
+  supportsInterface: [Function (anonymous)],
+  symbol: [Function (anonymous)],
+  tokenURI: [Function (anonymous)],
+  transferFrom: [Function (anonymous)],
+  transferOwnership: [Function (anonymous)],
+  withdraw: [Function (anonymous)]
+}
+```
+
+accounts[1].address 를 consumer로 추가해도 의미없는이유
+
+randomWords는 사용자가 받아서 처리하는것이 아니라 randomIpfsNft 계약이 받아서 사용하는 용도이기 때문에 consumer는 항상 randomIpfsNft일 수 밖에 없습니다.
+
+추가로 accounts[1]을 컨슈머로 추가한다해도 단독추가로는 onlySubOwner 함수(를 검사합니다. 초기화때 createSubscription을 호출한 주소를 subscription owner로 저장하고 requestRandomWords를 호출한 주소가 subscription owner인지 검사합니다. 또한 여기서 호출한 주소를 msg.sender로 판단하기 때문에 수동으로 어찌할 수 없습니다. 즉 아예 외부에서 vrf무조건 randomIpfsNft가 될수밖에 없습니다.)에 걸려서 invalidSubscription이나 invalidConsumer 에러가 발생합니다.
+
+따라서 먼저 owner인 randomIpfsNft가 addConsumer를 해줘야 합니다.
+
+
+fulfillRandomWords는 기본적으로 두가지 인자(requestId와 consumer)를 가지고 있습니다.
+그리고 다시 fulfillRandomWordsWithOverride를 호출하여 randomWords가 될 `new uint256[](0)` 파라미터를 하나 더 가집니다.
+
+```solidity
+  function fulfillRandomWords(uint256 _requestId, address _consumer) external {
+    fulfillRandomWordsWithOverride(_requestId, _consumer, new uint256[](0));
+  }
+
+  function fulfillRandomWordsWithOverride(
+    uint256 _requestId,
+    address _consumer,
+    uint256[] memory _words
+  ) public { ... }
+```
+
+randomIpfsNft.sol에서는 이렇게 fulfillRandomWords를 override해서 호출하고 있습니다.
+
+```solidity
+    function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords)
+        internal
+        override
+    {
+        console.log("fulfillRandomWords in RandomIpfsNft.sol");
+        address frameOwner = s_requestIdToSender[requestId];
+        uint256 newTokenId = s_tokenCounter;
+        // What does this token look like?
+        uint256 moddedRng = randomWords[0] % MAX_CHANCE_VALUE;
+        Rarity frameRarity = getRarityFromModdedRng(moddedRng);
+        s_tokenCounter += s_tokenCounter;
+        _safeMint(frameOwner, newTokenId);
+        _setTokenURI(newTokenId, s_frameTokenUris[uint256(frameRarity)]);
+        emit NftMinted(frameRarity, frameOwner);
+    }
+```
+
+인수로 requestId만 넣어서 실행해보겠습니다.
+
+```ps1
+     TypeError: randomIpfsNft.fulfillRandomWords is not a function
+      at Context.<anonymous> (test\unit\randomIpfsNft.test.js:80:40)
+```
+
+randomIpfsNft에서 fulfillRandomWords를 찾지못하고 있습니다.
+
+다시 randomIpfsNft 계약의 구조를 살펴보면 fulfillRandomWords는 보이지 않고 `rawFulfillRandomWords`함수만 보입니다.
+
+```ps1
+'rawFulfillRandomWords(uint256,uint256[])': [Function (anonymous)],
+```
+
+즉 실질적으로 `rawFulfillRandomWords`를 실행해야합니다.
+
+`rawFulfillRandomWords`는 `VRFConsumerBaseV2.sol`에서 찾을 수 있습니다.
+
+```solidity
+  // rawFulfillRandomness is called by VRFCoordinator when it receives a valid VRF
+  // proof. rawFulfillRandomness then calls fulfillRandomness, after validating
+  // the origin of the call
+  function rawFulfillRandomWords(uint256 requestId, uint256[] memory randomWords) external {
+    if (msg.sender != vrfCoordinator) {
+      revert OnlyCoordinatorCanFulfill(msg.sender, vrfCoordinator);
+    }
+    fulfillRandomWords(requestId, randomWords);
+  }
+```
+
+다 아닙니다. 
+
+VRFcoordinatorV2Mock.sol 에서 `fullfillRandomWords`를 실행시켜줘야합니다.
+
+randomIpfsNft에서 VRFcoordinatorV2Mock을 상속시키고 randomIpfsNft에서 fulfillrandomWords를 불러와 internal override 시키면 오버라이드 대상인 함수에서 실행시켜줘합니다.
+
+또 그래야 세가지 인수를 모두 넣어 randomWords만드는 조건을 충족 시킬 수 있습니다.
+
+```js
+      await vrfCoordinatorV2Mock.addConsumer(subscriptionId,randomIpfsNft.address);
+      const requestNftTx = await randomIpfsNft.requestNft({value: mintFee});
+      const requestNftTxReceipt = await requestNftTx.wait(1);
+      const { requestId, requester } = requestNftTxReceipt.events[1].args;
+      console.log(requestId);
+      console.log(requester);
+      const tx = await vrfCoordinatorV2Mock.fulfillRandomWords(requestId,requester);
+      const txReceipt = await tx.wait(1);
+      console.log(txReceipt);
+```
+
+
+
+
+VRFCoordinatorV2Mock.sol
+```ps1
+Contract {
+  interface: Interface {
+    fragments: [
+      [ConstructorFragment], [ErrorFragment],
+      [ErrorFragment],       [ErrorFragment],
+      [ErrorFragment],       [ErrorFragment],
+      [ErrorFragment],       [EventFragment],
+      [EventFragment],       [EventFragment],
+      [EventFragment],       [EventFragment],
+      [EventFragment],       [EventFragment],
+      [FunctionFragment],    [FunctionFragment],
+      [FunctionFragment],    [FunctionFragment],
+      [FunctionFragment],    [FunctionFragment],
+      [FunctionFragment],    [FunctionFragment],
+      [FunctionFragment],    [FunctionFragment],
+      [FunctionFragment],    [FunctionFragment],
+      [FunctionFragment],    [FunctionFragment],
+      [FunctionFragment],    [FunctionFragment],
+      [FunctionFragment],    [FunctionFragment],
+      [FunctionFragment],    [FunctionFragment]
+    ],
+    _abiCoder: AbiCoder { coerceFunc: null },
+    functions: {
+      'BASE_FEE()': [FunctionFragment],
+      'GAS_PRICE_LINK()': [FunctionFragment],
+      'MAX_CONSUMERS()': [FunctionFragment],
+      'acceptSubscriptionOwnerTransfer(uint64)': [FunctionFragment],
+      'addConsumer(uint64,address)': [FunctionFragment],
+      'cancelSubscription(uint64,address)': [FunctionFragment],
+      'consumerIsAdded(uint64,address)': [FunctionFragment],
+      'createSubscription()': [FunctionFragment],
+      'fulfillRandomWords(uint256,address)': [FunctionFragment],
+      'fulfillRandomWordsWithOverride(uint256,address,uint256[])': [FunctionFragment],
+      'fundSubscription(uint64,uint96)': [FunctionFragment],
+      'getConfig()': [FunctionFragment],
+      'getFallbackWeiPerUnitLink()': [FunctionFragment],
+      'getFeeConfig()': [FunctionFragment],
+      'getRequestConfig()': [FunctionFragment],
+      'getSubscription(uint64)': [FunctionFragment],
+      'pendingRequestExists(uint64)': [FunctionFragment],
+      'removeConsumer(uint64,address)': [FunctionFragment],
+      'requestRandomWords(bytes32,uint64,uint16,uint32,uint32)': [FunctionFragment],
+      'requestSubscriptionOwnerTransfer(uint64,address)': [FunctionFragment]
+    },
+    errors: {
+      'InsufficientBalance()': [ErrorFragment],
+      'InvalidConsumer()': [ErrorFragment],
+      'InvalidRandomWords()': [ErrorFragment],
+      'InvalidSubscription()': [ErrorFragment],
+      'MustBeSubOwner(address)': [ErrorFragment],
+      'TooManyConsumers()': [ErrorFragment]
+    },
+    events: {
+      'ConsumerAdded(uint64,address)': [EventFragment],
+      'ConsumerRemoved(uint64,address)': [EventFragment],
+      'RandomWordsFulfilled(uint256,uint256,uint96,bool)': [EventFragment],
+      'RandomWordsRequested(bytes32,uint256,uint256,uint64,uint16,uint32,uint32,address)': [EventFragment],
+      'SubscriptionCanceled(uint64,address,uint256)': [EventFragment],
+      'SubscriptionCreated(uint64,address)': [EventFragment],
+      'SubscriptionFunded(uint64,uint256,uint256)': [EventFragment]
+    },
+    structs: {},
+    deploy: ConstructorFragment {
+      name: null,
+      type: 'constructor',
+      inputs: [Array],
+      payable: false,
+      stateMutability: 'nonpayable',
+      gas: null,
+      _isFragment: true
+    },
+    _isInterface: true
+  },
+  provider: EthersProviderWrapper {
+    _isProvider: true,
+    _events: [],
+    _emitted: {
+      block: -2,
+      't:0x5cbb3980e9a3c1a4e51895a69caebf49dc9a503649465518f062c3e1e4eddfe5': 7,
+      't:0xd51f95875e1bdb714c6ad37e46e426f1a75159820b0253c16cd57dd997fae723': 8
+    },
+    disableCcipRead: false,
+    formatter: Formatter { formats: [Object] },
+    anyNetwork: false,
+    _networkPromise: Promise { [Object] },
+    _maxInternalBlockNumber: 5,
+    _lastBlockNumber: -2,
+    _maxFilterBlockRange: 10,
+    _pollingInterval: 4000,
+    _fastQueryDate: 1659516675458,
+    connection: { url: 'http://localhost:8545' },
+    _nextId: 42,
+    _hardhatProvider: BackwardsCompatibilityProviderAdapter {
+      _wrapped: [EGRDataCollectionProvider],
+      _provider: [EGRDataCollectionProvider],
+      sendAsync: [Function: bound sendAsync],
+      send: [Function: bound send],
+      _sendJsonRpcRequest: [Function: bound _sendJsonRpcRequest] AsyncFunction
+    },
+    _eventLoopCache: { detectNetwork: null },
+    _network: { chainId: 31337, name: 'unknown' },
+    _internalBlockNumber: Promise { [Object] },
+    _fastBlockNumber: 5,
+    _fastBlockNumberPromise: Promise { 5 }
+  },
+  signer: SignerWithAddress {
+    _isSigner: true,
+    address: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+    _signer: JsonRpcSigner {
+      _isSigner: true,
+      provider: [EthersProviderWrapper],
+      _address: '0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266',
+      _index: null
+    },
+    provider: EthersProviderWrapper {
+      _isProvider: true,
+      _events: [],
+      _emitted: [Object],
+      disableCcipRead: false,
+      formatter: [Formatter],
+      anyNetwork: false,
+      _networkPromise: [Promise],
+      _maxInternalBlockNumber: 5,
+      _lastBlockNumber: -2,
+      _maxFilterBlockRange: 10,
+      _pollingInterval: 4000,
+      _fastQueryDate: 1659516675458,
+      connection: [Object],
+      _nextId: 42,
+      _hardhatProvider: [BackwardsCompatibilityProviderAdapter],
+      _eventLoopCache: [Object],
+      _network: [Object],
+      _internalBlockNumber: [Promise],
+      _fastBlockNumber: 5,
+      _fastBlockNumberPromise: [Promise]
+    }
+  },
+  callStatic: {
+    'BASE_FEE()': [Function (anonymous)],
+    'GAS_PRICE_LINK()': [Function (anonymous)],
+    'MAX_CONSUMERS()': [Function (anonymous)],
+    'acceptSubscriptionOwnerTransfer(uint64)': [Function (anonymous)],
+    'addConsumer(uint64,address)': [Function (anonymous)],
+    'cancelSubscription(uint64,address)': [Function (anonymous)],
+    'consumerIsAdded(uint64,address)': [Function (anonymous)],
+    'createSubscription()': [Function (anonymous)],
+    'fulfillRandomWords(uint256,address)': [Function (anonymous)],
+    'fulfillRandomWordsWithOverride(uint256,address,uint256[])': [Function (anonymous)],
+    'fundSubscription(uint64,uint96)': [Function (anonymous)],
+    'getConfig()': [Function (anonymous)],
+    'getFallbackWeiPerUnitLink()': [Function (anonymous)],
+    'getFeeConfig()': [Function (anonymous)],
+    'getRequestConfig()': [Function (anonymous)],
+    'getSubscription(uint64)': [Function (anonymous)],
+    'pendingRequestExists(uint64)': [Function (anonymous)],
+    'removeConsumer(uint64,address)': [Function (anonymous)],
+    'requestRandomWords(bytes32,uint64,uint16,uint32,uint32)': [Function (anonymous)],
+    'requestSubscriptionOwnerTransfer(uint64,address)': [Function (anonymous)],
+    BASE_FEE: [Function (anonymous)],
+    GAS_PRICE_LINK: [Function (anonymous)],
+    MAX_CONSUMERS: [Function (anonymous)],
+    acceptSubscriptionOwnerTransfer: [Function (anonymous)],
+    addConsumer: [Function (anonymous)],
+    cancelSubscription: [Function (anonymous)],
+    consumerIsAdded: [Function (anonymous)],
+    createSubscription: [Function (anonymous)],
+    fulfillRandomWords: [Function (anonymous)],
+    fulfillRandomWordsWithOverride: [Function (anonymous)],
+    fundSubscription: [Function (anonymous)],
+    getConfig: [Function (anonymous)],
+    getFallbackWeiPerUnitLink: [Function (anonymous)],
+    getFeeConfig: [Function (anonymous)],
+    getRequestConfig: [Function (anonymous)],
+    getSubscription: [Function (anonymous)],
+    pendingRequestExists: [Function (anonymous)],
+    removeConsumer: [Function (anonymous)],
+    requestRandomWords: [Function (anonymous)],
+    requestSubscriptionOwnerTransfer: [Function (anonymous)]
+  },
+  estimateGas: {
+    'BASE_FEE()': [Function (anonymous)],
+    'GAS_PRICE_LINK()': [Function (anonymous)],
+    'MAX_CONSUMERS()': [Function (anonymous)],
+    'acceptSubscriptionOwnerTransfer(uint64)': [Function (anonymous)],
+    'addConsumer(uint64,address)': [Function (anonymous)],
+    'cancelSubscription(uint64,address)': [Function (anonymous)],
+    'consumerIsAdded(uint64,address)': [Function (anonymous)],
+    'createSubscription()': [Function (anonymous)],
+    'fulfillRandomWords(uint256,address)': [Function (anonymous)],
+    'fulfillRandomWordsWithOverride(uint256,address,uint256[])': [Function (anonymous)],
+    'fundSubscription(uint64,uint96)': [Function (anonymous)],
+    'getConfig()': [Function (anonymous)],
+    'getFallbackWeiPerUnitLink()': [Function (anonymous)],
+    'getFeeConfig()': [Function (anonymous)],
+    'getRequestConfig()': [Function (anonymous)],
+    'getSubscription(uint64)': [Function (anonymous)],
+    'pendingRequestExists(uint64)': [Function (anonymous)],
+    'removeConsumer(uint64,address)': [Function (anonymous)],
+    'requestRandomWords(bytes32,uint64,uint16,uint32,uint32)': [Function (anonymous)],
+    'requestSubscriptionOwnerTransfer(uint64,address)': [Function (anonymous)],
+    BASE_FEE: [Function (anonymous)],
+    GAS_PRICE_LINK: [Function (anonymous)],
+    MAX_CONSUMERS: [Function (anonymous)],
+    acceptSubscriptionOwnerTransfer: [Function (anonymous)],
+    addConsumer: [Function (anonymous)],
+    cancelSubscription: [Function (anonymous)],
+    consumerIsAdded: [Function (anonymous)],
+    createSubscription: [Function (anonymous)],
+    fulfillRandomWords: [Function (anonymous)],
+    fulfillRandomWordsWithOverride: [Function (anonymous)],
+    fundSubscription: [Function (anonymous)],
+    getConfig: [Function (anonymous)],
+    getFallbackWeiPerUnitLink: [Function (anonymous)],
+    getFeeConfig: [Function (anonymous)],
+    getRequestConfig: [Function (anonymous)],
+    getSubscription: [Function (anonymous)],
+    pendingRequestExists: [Function (anonymous)],
+    removeConsumer: [Function (anonymous)],
+    requestRandomWords: [Function (anonymous)],
+    requestSubscriptionOwnerTransfer: [Function (anonymous)]
+  },
+  functions: {
+    'BASE_FEE()': [Function (anonymous)],
+    'GAS_PRICE_LINK()': [Function (anonymous)],
+    'MAX_CONSUMERS()': [Function (anonymous)],
+    'acceptSubscriptionOwnerTransfer(uint64)': [Function (anonymous)],
+    'addConsumer(uint64,address)': [Function (anonymous)],
+    'cancelSubscription(uint64,address)': [Function (anonymous)],
+    'consumerIsAdded(uint64,address)': [Function (anonymous)],
+    'createSubscription()': [Function (anonymous)],
+    'fulfillRandomWords(uint256,address)': [Function (anonymous)],
+    'fulfillRandomWordsWithOverride(uint256,address,uint256[])': [Function (anonymous)],
+    'fundSubscription(uint64,uint96)': [Function (anonymous)],
+    'getConfig()': [Function (anonymous)],
+    'getFallbackWeiPerUnitLink()': [Function (anonymous)],
+    'getFeeConfig()': [Function (anonymous)],
+    'getRequestConfig()': [Function (anonymous)],
+    'getSubscription(uint64)': [Function (anonymous)],
+    'pendingRequestExists(uint64)': [Function (anonymous)],
+    'removeConsumer(uint64,address)': [Function (anonymous)],
+    'requestRandomWords(bytes32,uint64,uint16,uint32,uint32)': [Function (anonymous)],
+    'requestSubscriptionOwnerTransfer(uint64,address)': [Function (anonymous)],
+    BASE_FEE: [Function (anonymous)],
+    GAS_PRICE_LINK: [Function (anonymous)],
+    MAX_CONSUMERS: [Function (anonymous)],
+    acceptSubscriptionOwnerTransfer: [Function (anonymous)],
+    addConsumer: [Function (anonymous)],
+    cancelSubscription: [Function (anonymous)],
+    consumerIsAdded: [Function (anonymous)],
+    createSubscription: [Function (anonymous)],
+    fulfillRandomWords: [Function (anonymous)],
+    fulfillRandomWordsWithOverride: [Function (anonymous)],
+    fundSubscription: [Function (anonymous)],
+    getConfig: [Function (anonymous)],
+    getFallbackWeiPerUnitLink: [Function (anonymous)],
+    getFeeConfig: [Function (anonymous)],
+    getRequestConfig: [Function (anonymous)],
+    getSubscription: [Function (anonymous)],
+    pendingRequestExists: [Function (anonymous)],
+    removeConsumer: [Function (anonymous)],
+    requestRandomWords: [Function (anonymous)],
+    requestSubscriptionOwnerTransfer: [Function (anonymous)]
+  },
+  populateTransaction: {
+    'BASE_FEE()': [Function (anonymous)],
+    'GAS_PRICE_LINK()': [Function (anonymous)],
+    'MAX_CONSUMERS()': [Function (anonymous)],
+    'acceptSubscriptionOwnerTransfer(uint64)': [Function (anonymous)],
+    'addConsumer(uint64,address)': [Function (anonymous)],
+    'cancelSubscription(uint64,address)': [Function (anonymous)],
+    'consumerIsAdded(uint64,address)': [Function (anonymous)],
+    'createSubscription()': [Function (anonymous)],
+    'fulfillRandomWords(uint256,address)': [Function (anonymous)],
+    'fulfillRandomWordsWithOverride(uint256,address,uint256[])': [Function (anonymous)],
+    'fundSubscription(uint64,uint96)': [Function (anonymous)],
+    'getConfig()': [Function (anonymous)],
+    'getFallbackWeiPerUnitLink()': [Function (anonymous)],
+    'getFeeConfig()': [Function (anonymous)],
+    'getRequestConfig()': [Function (anonymous)],
+    'getSubscription(uint64)': [Function (anonymous)],
+    'pendingRequestExists(uint64)': [Function (anonymous)],
+    'removeConsumer(uint64,address)': [Function (anonymous)],
+    'requestRandomWords(bytes32,uint64,uint16,uint32,uint32)': [Function (anonymous)],
+    'requestSubscriptionOwnerTransfer(uint64,address)': [Function (anonymous)],
+    BASE_FEE: [Function (anonymous)],
+    GAS_PRICE_LINK: [Function (anonymous)],
+    MAX_CONSUMERS: [Function (anonymous)],
+    acceptSubscriptionOwnerTransfer: [Function (anonymous)],
+    addConsumer: [Function (anonymous)],
+    cancelSubscription: [Function (anonymous)],
+    consumerIsAdded: [Function (anonymous)],
+    createSubscription: [Function (anonymous)],
+    fulfillRandomWords: [Function (anonymous)],
+    fulfillRandomWordsWithOverride: [Function (anonymous)],
+    fundSubscription: [Function (anonymous)],
+    getConfig: [Function (anonymous)],
+    getFallbackWeiPerUnitLink: [Function (anonymous)],
+    getFeeConfig: [Function (anonymous)],
+    getRequestConfig: [Function (anonymous)],
+    getSubscription: [Function (anonymous)],
+    pendingRequestExists: [Function (anonymous)],
+    removeConsumer: [Function (anonymous)],
+    requestRandomWords: [Function (anonymous)],
+    requestSubscriptionOwnerTransfer: [Function (anonymous)]
+  },
+  filters: {
+    'ConsumerAdded(uint64,address)': [Function (anonymous)],
+    'ConsumerRemoved(uint64,address)': [Function (anonymous)],
+    'RandomWordsFulfilled(uint256,uint256,uint96,bool)': [Function (anonymous)],
+    'RandomWordsRequested(bytes32,uint256,uint256,uint64,uint16,uint32,uint32,address)': [Function (anonymous)],
+    'SubscriptionCanceled(uint64,address,uint256)': [Function (anonymous)],
+    'SubscriptionCreated(uint64,address)': [Function (anonymous)],
+    'SubscriptionFunded(uint64,uint256,uint256)': [Function (anonymous)],
+    ConsumerAdded: [Function (anonymous)],
+    ConsumerRemoved: [Function (anonymous)],
+    RandomWordsFulfilled: [Function (anonymous)],
+    RandomWordsRequested: [Function (anonymous)],
+    SubscriptionCanceled: [Function (anonymous)],
+    SubscriptionCreated: [Function (anonymous)],
+    SubscriptionFunded: [Function (anonymous)]
+  },
+  _runningEvents: {},
+  _wrappedEmits: {},
+  address: '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512',
+  resolvedAddress: Promise { '0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512' },
+  'BASE_FEE()': [Function (anonymous)],
+  'GAS_PRICE_LINK()': [Function (anonymous)],
+  'MAX_CONSUMERS()': [Function (anonymous)],
+  'acceptSubscriptionOwnerTransfer(uint64)': [Function (anonymous)],
+  'addConsumer(uint64,address)': [Function (anonymous)],
+  'cancelSubscription(uint64,address)': [Function (anonymous)],
+  'consumerIsAdded(uint64,address)': [Function (anonymous)],
+  'createSubscription()': [Function (anonymous)],
+  'fulfillRandomWords(uint256,address)': [Function (anonymous)],
+  'fulfillRandomWordsWithOverride(uint256,address,uint256[])': [Function (anonymous)],
+  'fundSubscription(uint64,uint96)': [Function (anonymous)],
+  'getConfig()': [Function (anonymous)],
+  'getFallbackWeiPerUnitLink()': [Function (anonymous)],
+  'getFeeConfig()': [Function (anonymous)],
+  'getRequestConfig()': [Function (anonymous)],
+  'getSubscription(uint64)': [Function (anonymous)],
+  'pendingRequestExists(uint64)': [Function (anonymous)],
+  'removeConsumer(uint64,address)': [Function (anonymous)],
+  'requestRandomWords(bytes32,uint64,uint16,uint32,uint32)': [Function (anonymous)],
+  'requestSubscriptionOwnerTransfer(uint64,address)': [Function (anonymous)],
+  BASE_FEE: [Function (anonymous)],
+  GAS_PRICE_LINK: [Function (anonymous)],
+  MAX_CONSUMERS: [Function (anonymous)],
+  acceptSubscriptionOwnerTransfer: [Function (anonymous)],
+  addConsumer: [Function (anonymous)],
+  cancelSubscription: [Function (anonymous)],
+  consumerIsAdded: [Function (anonymous)],
+  createSubscription: [Function (anonymous)],
+  fulfillRandomWords: [Function (anonymous)],
+  fulfillRandomWordsWithOverride: [Function (anonymous)],
+  fundSubscription: [Function (anonymous)],
+  getConfig: [Function (anonymous)],
+  getFallbackWeiPerUnitLink: [Function (anonymous)],
+  getFeeConfig: [Function (anonymous)],
+  getRequestConfig: [Function (anonymous)],
+  getSubscription: [Function (anonymous)],
+  pendingRequestExists: [Function (anonymous)],
+  removeConsumer: [Function (anonymous)],
+  requestRandomWords: [Function (anonymous)],
+  requestSubscriptionOwnerTransfer: [Function (anonymous)]
+}
+```
+
+## Dynamic SVG On-chain NFT
+
+이제 알려드릴게 있는데, 우리는 IPFS에 우리 데이터를 저장하지 않아도 됩니다.
+
+우리가 가진 메타데이터를 온체인에 직접 올릴 수 있기 때문입니다.
+
+그러나 여기엔 장단점이 있습니다.
+
+IPFS 호스팅
+- Pros : 싸다,
+- Cons : 누군가 내 데이터를 pin 해줘야함 (항상 1명 이상 pin되어있어야함)
+
+Onchain NFT
+- Pors : 데이터가 온체인에 있어서 pin할 필요가 없음
+- Cons : 훨씬 더 비싼 비용
+
+우리가 전에 사용했던 이미지들은 생각보다 용량이 큰 이미지들입니다.
+
+그러니 이번엔 훨씬 작은 용량, 저렴한비용 의 이미지를 활용해보겠습니다.
+
+>그리고 이과정과 동일한 작업을 하는 다른 깃허브 리포지토리가 제공되니 이것도 다른 레퍼런스로써 참고하시기 바랍니다.
+>https://github.com/PatrickAlphaC/nft-mix
+
+png 대신 사용할 파일은 바로 svg 파일입니다.
+
+만약 ETH 값이 x 보다 크다면 -> 웃는_얼굴.svg
+만약 ETH 값이 x 보다 작다면 -> 슬픈_얼굴.svg
+
+이런식으로 작동하는 NFT를 만들겁니다.
+즉 이 NFT는 현실세계의 매개변수에 기반하여 바뀔겁니다.
+
+아주 강력한 멋진 기능입니다. 왜냐하면 어떤 stat에 따라 NFT를 바꿀 수 있기 때문입니다.
+
+그리고, 우리는 모든 데이터를 on-chain에 저장할 겁니다.
+
+그래서 약간 비용이 들겁니다.
+
+## Dynamic SVG On-chain NFT Part 3
+
+### Initial Code
+
+새 계약을 생성합니다.
+`DynamicSvgNft.sol`
+
+```solidity
+// DynamicSvgNft.sol
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.7;
+
+contract DynamicSvgNft {
+    // mint
+    // sotre our SVG information somewhere
+    // some logic to say "Show X image" or "Show Y image"
+    
+}
+```
+
+기본구조는 보통 NFT와 다를게 없지만 거기에 약간의 기능을 더 추가할 것입니다.
+
+이번에는 setTokenUri같은 함수를 사용하지 않을것이기 때문에 오픈제플린 기본 ERC721.sol을 불러와 사용하겠습니다.
+
+그리고 이번엔 좀더 조건을 완화해서 payable을 붙이지 않고 비용없이 바로 nft를 mint할수 있게 만들겁니다.
+
+```solidity
+// DynamicSvgNft.sol
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.7;
+
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+
+contract DynamicSvgNft is ERC721 {
+    // mint
+    // sotre our SVG information somewhere
+    // some logic to say "Show X image" or "Show Y image"
+
+    uint256 s_tokenCounter;
+
+    constructor() ERC721("DynamicSvgNft","DSN") {
+        s_tokenCounter = 0;
+    }
+
+    function mintNft() public {
+        _safeMint(msg.sender, s_tokenCounter);
+        s_tokenCounter++;
+    }
+
+}
+```
+자 이제 mintNft에서 만들어질 토큰은 어떻게 생겼나요?
+우리는 여기서 발행될 토큰이 constructor에 있는 어떤 자산(asset)에 따라 모습이 바뀌게 만들겁니다.
+
+## Dynamic SVG On-chain NFT Part IV
+
+### Base64 Encoding
+
+```solidity
+// DynamicSvgNft.sol
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.7;
+
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+
+contract DynamicSvgNft is ERC721 {
+    // mint
+    // sotre our SVG information somewhere
+    // some logic to say "Show X image" or "Show Y image"
+
+    uint256 private s_tokenCounter;
+    string private i_lowImageURI;
+    string private i_highImageURI;
+
+    constructor(string memory lowSvg, string memory highSvg) ERC721("DynamicSvgNft","DSN") {
+        s_tokenCounter = 0;
+    }
+
+    function mintNft() public {
+        _safeMint(msg.sender, s_tokenCounter);
+        s_tokenCounter++;
+    }
+
+}
+```
+
+우리의 코드에 lowSvg와 highSvg를 저장할겁니다.
+
+여기 있는 웃는얼굴과 슬픈얼굴 모두 입력 파라미터로 불러들여오고 있습니다.
+
+그리고 아마도 바뀌지 않을것이 때문에 immutable 변수에 할당해줄 수 있을겁니다.
+
+svg 파일을 보면 코드로 되어있는걸 볼 수 있습니다.
+
+우리가 원하는건 ipfs://~ 같은 imageURI 이죠.
+
+이제 svg코드를 imageURI로 변환시켜주는 함수를 작성할겁니다.
+
+`svgToImageURI` 함수를 작성해줍니다.
+
+즉 컨스트럭터에서 건내받은 lowSvg, highSvg 코드를 imageURI로 바꿔줄 겁니다.
+
+처음부터 ipfs주소를 사용하기 보다는 이번에는 base64 encoding 을 사용할겁니다.
+
+>https://base64.guru/converter/encode/image
+
+>https://ko.wikipedia.org/wiki/%EB%B2%A0%EC%9D%B4%EC%8A%A464
+>In computer programming, Base64 is a group of binary-to-text encoding schemes that represent binary data (more specifically, a sequence of 8-bit bytes) in sequences of 24 bits that can be represented by four 6-bit Base64 digits.
+>
+>Common to all binary-to-text encoding schemes, Base64 is designed to carry data stored in binary formats across channels that only reliably support text content. Base64 is particularly prevalent on the World Wide Web[1] where one of its uses is the ability to embed image files or other binary assets inside textual assets such as HTML and CSS files.[2]
+>
+>Base64 is also widely used for sending e-mail attachments. This is required because SMTP – in its original form – was designed to transport 7-bit ASCII characters only. This encoding causes an overhead of 33–37% (33% by the encoding itself; up to 4% more by the inserted line breaks).
+
+
+주목해야할 문장은 이겁니다
+
+>>Common to all binary-to-text encoding schemes, Base64 is designed to carry data stored in binary formats across channels that only reliably support text content. Base64 is particularly prevalent on the World Wide Web[1] where one of its uses is the ability to embed image files or other binary assets inside textual assets such as HTML and CSS files.[2]
+
+Base64의 쓰임새 중 하나는 HTML 및 CSS 파일과 같은 텍스트 에셋 내부에 이미지 파일이나 기타 바이너리 에셋을 첨부할때 사용됩니다. 라고 되어있습니다.
+
+즉, svg코드 전체를 base64로 인코딩해서 URI, ImageURI로 변환할 수 있다는 뜻입니다.
+
+인터넷에 있는 아무 base64 인코더로 svg파일을 인코딩하면 다음과 같은 코드가 나옵니다.
+
+```url
+https://raw.githubusercontent.com/PatrickAlphaC/hardhat-nft-fcc/8bb515e864f0f82f5ddb88725192400f3dd8cdb8/images/dynamicNft/happy.svg
+```
+```base64
+PHN2ZyB2aWV3Qm94PSIwIDAgMjAwIDIwMCIgd2lkdGg9IjQwMCIgIGhlaWdodD0iNDAwIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgogIDxjaXJjbGUgY3g9IjEwMCIgY3k9IjEwMCIgZmlsbD0ieWVsbG93IiByPSI3OCIgc3Ryb2tlPSJibGFjayIgc3Ryb2tlLXdpZHRoPSIzIi8+CiAgPGcgY2xhc3M9ImV5ZXMiPgogICAgPGNpcmNsZSBjeD0iNjEiIGN5PSI4MiIgcj0iMTIiLz4KICAgIDxjaXJjbGUgY3g9IjEyNyIgY3k9IjgyIiByPSIxMiIvPgogIDwvZz4KICA8cGF0aCBkPSJtMTM2LjgxIDExNi41M2MuNjkgMjYuMTctNjQuMTEgNDItODEuNTItLjczIiBzdHlsZT0iZmlsbDpub25lOyBzdHJva2U6IGJsYWNrOyBzdHJva2Utd2lkdGg6IDM7Ii8+Cjwvc3ZnPg==
+```
+
+이 코드의 제일 앞에 `data:image/svg+xml;base64,` 를 붙여서 브라우저에 넣어봅시다.
+
+그러면 해당 이미지가 브라우저에 출력됩니다.
+
+즉 이렇게 base64로 인코딩하는 작업을 온체인상에서 한다고 생각하면 됩니다.
+
+가스를 아끼고 싶다면 당연히 100% 오프체인에서 가능하지만, 온체인에서 어떻게 작동할 수 있는지 한번 알아보겠습니다.
+
+우리는 컨스트럭터에서 받은 lowSvg와 highSvg 파일을 svgToImageURI 에서 base64로 인코딩된 URI로 바꿀겁니다.
+
+하지만 여기서 우리가 직접 base64로 바꾸는 코드를 작성하지느 않을겁니다.
+
+이미 만들어져있는 패키지를 사용할겁니다.
+
+```ps1
+yarn add --dev base64-sol
+```
+
+```solidity
+// DynamicSvgNft.sol
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.7;
+
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "base64-sol/base64.sol";
+
+contract DynamicSvgNft is ERC721 {
+    // mint
+    // sotre our SVG information somewhere
+    // some logic to say "Show X image" or "Show Y image"
+
+    uint256 private s_tokenCounter;
+    string private i_lowImageURI;
+    string private i_highImageURI;
+    string private constant base64encodedSvgPrefix = "data:image/svg+xml;base64,"; 
+
+    constructor(string memory lowSvg, string memory highSvg) ERC721("DynamicSvgNft","DSN") {
+        s_tokenCounter = 0;
+    }
+
+    function svgToImageURI() public pure returns (string memory) {
+        string memory svgBase64Encoded = Base64.encode(bytes(string(abi.encodePacked(svg))));
+        return string(abi.encodePacked(base64encodedSvgPrefix, svgBase64Encoded));
+    }
+    
+    function mintNft() public {
+        _safeMint(msg.sender, s_tokenCounter);
+        s_tokenCounter++;
+    }
+
+}
+```
+
+`base64-sol` 패키지를 import 한 후 svgToImageURI 함수를 작성했습니다.
+
+여기서 처음보는게 나왔는데요, `abi.encodePacked()`은 뭘하는 메소드일까요?
+
+
+## Advanced Section Encoding, Opcodes, and Calls
+
+### abi.encode & abi.encodePacked
+
+`abi.encodePacked`는 아주아주 높은 수준(high-level)에서 문자열(string)을 연결(concatenate)할 수 있는 방법입니다.
+
+즉 이것이 바로 문자열을 합치는 방법입니다.
+
+잠시 다시 Remix로 넘어가서 이 abi.encode 같은것들을 더 배워보기로 합시다.
+
+이 부분에서는 정말 심화과정으로 넘어가서, 정말 저수준(low-level)까지 가볼겁니다.
+
+그리고 솔리디티가 장막 뒤에서 어떻게 작동하는지, 바이너리가 어떻게 작동하는지, 옵코드(opcodes)라 불리는것들, 이러한 정신나간 저수준의 이해하기 까다롭고 어려운것들을 배워볼겁니다. 
+
+대부분의 기본적인 프로젝트라면 이런걸 몰라도 되겠지만, 나중에 언젠가 모두 알게된다면 이것이 여러분을 경이로운 솔리디티 개발자로 만들어줄겁니다.
+
+그리고 이 서브섹션과 EVM,opcodes,coding,calling에 관한 서브레슨에 대해서 처음부터 100% 이해할수 없더라도 괜찮습니다.
+
+이 레슨을 여러번 반복해서 본다면 정말 좋을겁니다.
+
+자 이제 리믹스로 넘어와서, 따라해봅시다.
+
+```solidity
+//SPDX-License-Identifier: MIT
+pragma solidity ^0.8.7;
+
+contract Encoding {
+    function combineStrings() public pure returns(stirng memory) {
+        return string(abi.encodePacked("Hi Mom!", "Miss you"));
+    }
+}
+```
+
+이 함수는 스토리지 같은걸 읽지 않기때문에 pure가 될겁니다.
+
+Javascript VM에 배포한 후에 combineStrings 함수버튼을 클릭하여 호출해봅시다.
+```ps1
+0:
+string: Hi Mom!Miss you
+```
+
+인수로 넣었던 모든 문자열이 붙어서 나옵니다.
+
+`abi.encodePacked("Hi Mom!", "Miss you");`
+
+우리가 여기서 한일은 "Hi Mom!", "Miss you" 문자열을 bytes 형태에 같이 넣은겁니다.
+
+`string(abi.encodePacked("Hi Mom!", "Miss you"));`
+
+abi.encodePacked는 bytes 오브젝트를 반환할것이고, 우리는 이것을 다시 string으로 타입변환(type casting)한 것입니다.
+
+그럼 솔리디티가 "음 바이트를 문자열로? 좋아 그거 완전 가능해" 이렇게 말하는겁니다. 
+
+그리고 이 abi. 메소드들은 전역으로 사용할 수 있습니다.
+
+솔리디티 치트시트를 보면 처음에 연산자가 있고 그다음 전역변수들이 있는데 이곳에 abi에 관련된 수많은 메소드들이 있습니다.
+
+>https://docs.soliditylang.org/en/v0.8.15/cheatsheet.html
+
+msg.value, msg.sender 같은 익숙한 것들도 보입니다.
+
+0.8.12 + 이상의 버전부터는 다음과 같이 가능합니다.
+```solidity
+string.concat(stringA, stringB);
+```
+
+그러나 지금은 encodePacked가 어떻게 작동하는지 깊게 파고들어가보기 전에,
+
+먼저 transaction을 전송(send)할때 일어날때 어떤일이 벌어지는지 다시 한번 짚어보고 넘어가겠습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-06%20014255.png)
+
+EVM (Ethereum Virtual Machine) 이더리움 가상머신은 스마트계약 배포와 실행을 처리하는 연산 엔진입니다.
+
+그래서 우리가 코드를 컴파일할때, 전에 ethers.js를 배울때 했던것 생각나나요? contract.abi 파일과 contract.bin 파일 두가지를 가지게 됩니다. 
+
+ethers-simple-storage 프로젝트로 돌아가서 yarn compile (solc를 이용한 컴파일)로 컴파일해보면 두가지 주요파일을 가지게 됩니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-06%20102302.png)
+
+또 Remix에 Compilation 버튼을 눌러 BYTECODE 항목에 이러한 객체가 있습니다.
+
+```
+{
+	"functionDebugData": {},
+	"generatedSources": [],
+	"linkReferences": {},
+	"object": "608060405234801561001057600080fd5b50610227806100206000396000f3fe608060405234801561001057600080fd5b506004361061002b5760003560e01c8063114a761014610030575b600080fd5b61003861004e565b6040516100459190610112565b60405180910390f35b606060405160200161005f906100f2565b604051602081830303815290604052905090565b600061007e82610134565b610088818561013f565b935061009881856020860161015b565b6100a18161018e565b840191505092915050565b60006100b9600783610150565b91506100c48261019f565b600782019050919050565b60006100dc600883610150565b91506100e7826101c8565b600882019050919050565b60006100fd826100ac565b9150610108826100cf565b9150819050919050565b6000602082019050818103600083015261012c8184610073565b905092915050565b600081519050919050565b600082825260208201905092915050565b600081905092915050565b60005b8381101561017957808201518184015260208101905061015e565b83811115610188576000848401525b50505050565b6000601f19601f8301169050919050565b7f4869204d6f6d2100000000000000000000000000000000000000000000000000600082015250565b7f4d69737320796f7500000000000000000000000000000000000000000000000060008201525056fea2646970667358221220e2c1aa14bef185e9cfda08148a3c0a2605ed18c1fe5248d0a8f344b6ca0db98564736f6c63430008070033",
+	"opcodes": "PUSH1 0x80 PUSH1 0x40 MSTORE CALLVALUE DUP1 ISZERO PUSH2 0x10 JUMPI PUSH1 0x0 DUP1 REVERT JUMPDEST POP PUSH2 0x227 DUP1 PUSH2 0x20 PUSH1 0x0 CODECOPY PUSH1 0x0 RETURN INVALID PUSH1 0x80 PUSH1 0x40 MSTORE CALLVALUE DUP1 ISZERO PUSH2 0x10 JUMPI PUSH1 0x0 DUP1 REVERT JUMPDEST POP PUSH1 0x4 CALLDATASIZE LT PUSH2 0x2B JUMPI PUSH1 0x0 CALLDATALOAD PUSH1 0xE0 SHR DUP1 PUSH4 0x114A7610 EQ PUSH2 0x30 JUMPI JUMPDEST PUSH1 0x0 DUP1 REVERT JUMPDEST PUSH2 0x38 PUSH2 0x4E JUMP JUMPDEST PUSH1 0x40 MLOAD PUSH2 0x45 SWAP2 SWAP1 PUSH2 0x112 JUMP JUMPDEST PUSH1 0x40 MLOAD DUP1 SWAP2 SUB SWAP1 RETURN JUMPDEST PUSH1 0x60 PUSH1 0x40 MLOAD PUSH1 0x20 ADD PUSH2 0x5F SWAP1 PUSH2 0xF2 JUMP JUMPDEST PUSH1 0x40 MLOAD PUSH1 0x20 DUP2 DUP4 SUB SUB DUP2 MSTORE SWAP1 PUSH1 0x40 MSTORE SWAP1 POP SWAP1 JUMP JUMPDEST PUSH1 0x0 PUSH2 0x7E DUP3 PUSH2 0x134 JUMP JUMPDEST PUSH2 0x88 DUP2 DUP6 PUSH2 0x13F JUMP JUMPDEST SWAP4 POP PUSH2 0x98 DUP2 DUP6 PUSH1 0x20 DUP7 ADD PUSH2 0x15B JUMP JUMPDEST PUSH2 0xA1 DUP2 PUSH2 0x18E JUMP JUMPDEST DUP5 ADD SWAP2 POP POP SWAP3 SWAP2 POP POP JUMP JUMPDEST PUSH1 0x0 PUSH2 0xB9 PUSH1 0x7 DUP4 PUSH2 0x150 JUMP JUMPDEST SWAP2 POP PUSH2 0xC4 DUP3 PUSH2 0x19F JUMP JUMPDEST PUSH1 0x7 DUP3 ADD SWAP1 POP SWAP2 SWAP1 POP JUMP JUMPDEST PUSH1 0x0 PUSH2 0xDC PUSH1 0x8 DUP4 PUSH2 0x150 JUMP JUMPDEST SWAP2 POP PUSH2 0xE7 DUP3 PUSH2 0x1C8 JUMP JUMPDEST PUSH1 0x8 DUP3 ADD SWAP1 POP SWAP2 SWAP1 POP JUMP JUMPDEST PUSH1 0x0 PUSH2 0xFD DUP3 PUSH2 0xAC JUMP JUMPDEST SWAP2 POP PUSH2 0x108 DUP3 PUSH2 0xCF JUMP JUMPDEST SWAP2 POP DUP2 SWAP1 POP SWAP2 SWAP1 POP JUMP JUMPDEST PUSH1 0x0 PUSH1 0x20 DUP3 ADD SWAP1 POP DUP2 DUP2 SUB PUSH1 0x0 DUP4 ADD MSTORE PUSH2 0x12C DUP2 DUP5 PUSH2 0x73 JUMP JUMPDEST SWAP1 POP SWAP3 SWAP2 POP POP JUMP JUMPDEST PUSH1 0x0 DUP2 MLOAD SWAP1 POP SWAP2 SWAP1 POP JUMP JUMPDEST PUSH1 0x0 DUP3 DUP3 MSTORE PUSH1 0x20 DUP3 ADD SWAP1 POP SWAP3 SWAP2 POP POP JUMP JUMPDEST PUSH1 0x0 DUP2 SWAP1 POP SWAP3 SWAP2 POP POP JUMP JUMPDEST PUSH1 0x0 JUMPDEST DUP4 DUP2 LT ISZERO PUSH2 0x179 JUMPI DUP1 DUP3 ADD MLOAD DUP2 DUP5 ADD MSTORE PUSH1 0x20 DUP2 ADD SWAP1 POP PUSH2 0x15E JUMP JUMPDEST DUP4 DUP2 GT ISZERO PUSH2 0x188 JUMPI PUSH1 0x0 DUP5 DUP5 ADD MSTORE JUMPDEST POP POP POP POP JUMP JUMPDEST PUSH1 0x0 PUSH1 0x1F NOT PUSH1 0x1F DUP4 ADD AND SWAP1 POP SWAP2 SWAP1 POP JUMP JUMPDEST PUSH32 0x4869204D6F6D2100000000000000000000000000000000000000000000000000 PUSH1 0x0 DUP3 ADD MSTORE POP JUMP JUMPDEST PUSH32 0x4D69737320796F75000000000000000000000000000000000000000000000000 PUSH1 0x0 DUP3 ADD MSTORE POP JUMP INVALID LOG2 PUSH5 0x6970667358 0x22 SLT KECCAK256 0xE2 0xC1 0xAA EQ 0xBE CALL DUP6 0xE9 0xCF 0xDA ADDMOD EQ DUP11 EXTCODECOPY EXP 0x26 SDIV 0xED XOR 0xC1 INVALID MSTORE BASEFEE 0xD0 0xA8 RETURN DIFFICULTY 0xB6 0xCA 0xD 0xB9 DUP6 PUSH5 0x736F6C6343 STOP ADDMOD SMOD STOP CALLER ",
+	"sourceMap": "59:162:0:-:0;;;;;;;;;;;;;;;;;;;"
+}
+```
+
+그 중에 object 필드는 바이너리 코드로 사실상 블록체인에 추가되는 데이터입니다. 낮은수준의 것이죠.
+
+그래서 우리가 블록체인에 트랜잭션을 보낼때(send) 우리는 정확히 이 바이너리 코드를 블록체인으로 전송하는겁니다.
+
+다시 ethers 프로젝트로 돌아가서 우리는 트랜잭션이 무엇인가에 대해 배웠습니다.
+
+Transactions - Fields
+
+- Nonce: tx count for the account
+- Gas Price: price per unit of gas (in wei)
+- Gas Limit: mas gas that this tx can use
+- To: address that the tx is sent to
+- Value: amount of wei to send
+- Data: what to send to the To address
+- v, r, s: components of tx signatures
+
+이러한 객체들을 가지고 있죠.
+v,r,s는 트랜잭션 시그니쳐(서명)의 수학적인 컴포넌트라 설명을 넘어갔습니다.
+
+아무튼 ethers 프로젝트에서 데이터만 가지고 트랜잭션하는 방법을 배웠습니다.
+
+```js
+  console.log("트랜잭션 데이터만 가지고 배포하기!"); // remix DEPLOY 탭에서 수동으로 트랜잭션을 보내는 것과 같음
+  const nonce = await wallet.getTransactionCount();
+  const tx = {
+    nonce: nonce,
+    gasPrice: 20000000000,
+    gasLimit: 6721975,
+    to:null,
+    value:0,
+    data: "0x60806040523....0033",
+    chainId: 1337
+  };
+  // const signedTxResponse = await wallet.signTransaction(tx);
+  const sentTxResponse = await wallet.sendTransaction(tx);
+  await sentTxResponse.wait(1);
+  // console.log(signedTxResponse);
+  console.log(sentTxResponse);
+```
+
+여기서 v,r,s,는 보내지 않았는데 이유는 ehters.js에서 알아서 처리해주기 때문이였습니다.
+
+
+Transactions - Fields
+
+- Nonce: tx count for the account
+- Gas Price: price per unit of gas (in wei)
+- Gas Limit: mas gas that this tx can use
+- To: Empty
+- Value: amount of wei to send
+- Data: contract init code & contract bytecode
+- v, r, s: components of tx signatures
+
+우리는 계약을 생성하는 트랜잭션을 보낼때, `To` 값을 비워서 보냈습니다.
+
+그러나 `Data`에는 계약을 초기화시켜주는 코드와 계약 바이트코드가 들어갔습니다.
+그래서 우리가 이것을 컴파일할때 우리는 계약을 어떻게 초기화시키고 어떻게 생겼는지에 대한 모든 코드를 얻게됩니다.
+
+여러분이 배포한 계약 중 아무것이나 이더스캔에서 찾아보면, 여기에선 예제로 전에 배포했던 raffle을 보겠습니다. Transaction 항목을 보시면 Create Contract라고 되어있는 생성 트랜잭션으로 가봅시다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-06%20111300.png)
+
+여기서도 역시 바이트코드를 보내고 있습니다.
+그래서 트랜잭션 전송이란 말그대로 이러한 컴파일 된 바이트데이터들을 data 오브젝트에 넣어서 블록체인으로 보내는것입니다.
+그리고 data 오브젝트가 미래의 트랜잭션이 어떻게 상호작용할것인지 결정할겁니다.
+
+>https://rinkeby.etherscan.io/tx/0x990e0a432265b59ab165672a8a00cb4eaae6a4cea4bb7e5caf5531b410ed5884
+>rinkeby에 배포한 raffle
+
+자 이제 블록체인이 이 데이터가 무엇을 뜻하는지 이해하기 위해선 특별한 reader가 필요합니다.
+이더리움이나 블록체인은 이 모든것을 읽을 수 있도록 해주는 것이 필요합니다.
+
+이 모든 무작위 숫자와 문자가 무슨일을 하는지 map해야됩니다.  
+
+이더리움 폴리곤 아발렌체 등의 블록체인이 이런것들을 어떻게 알아듣는것일까요.
+
+이렇게 생각해봅시다.
+
+```tsx
+take off your coat!
+```
+
+이 `take off your coat!` 문장은 오직 인간만 알아들을 수 있는 영어입니다.
+우리 모두 영어로 읽고있죠.
+
+솔리디티와 블록체인에게는 영어대신에 이러한 바이트 코드들을 읽습니다. 
+`take off your coat!` 처럼 `계약을 배포하고 다음은 x,y,z ... ` 그리고 나머지 모든것들을 읽습니다.
+
+그래서 이 바이트코드는 계약을 작동시키기 위한 낮은 수준의 컴퓨터 명령어를 나타냅니다.
+
+그리고 이 모든 바이트코드들은 `take off your coat!`의 알파벳처럼 컴퓨터의 알파벳이나 다름없습니다.
+
+이것을 `take off your coats!`처럼 조합하면 뜻이 만들어지는 것처럼 컴퓨터도 그렇습니다.
+
+그리고 이 알파벳을 바로 `opcode`라 불리는것이라 이해하면 됩니다.
+
+>https://evm.codes
+
+이곳으로 가보시면 옵코드 목록과 해당 코드에 대한 자세한 설명들이 나와있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-06%20115910.png)
+
+그리고 가장 왼쪽부터 `OPCODE` `NAME` `MINIMUM GAS` `DESCRIPTION` 항목이 있습니다.
+
+예를 들어
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-06%20120648.png)
+
+OPCODE: 00, NAME: STOP, MINMUMGAS:0, DESCRIPTION: Halts execution 일때
+
+data 오브젝트 안의 바이트코드에 `00`이 있다면 이는 옵코드 `STOP`을 나타내는것이며, 실행을 멈추는(Halts execution) 역할을 합니다.
+
+그럼 이번엔 진짜 배포된 raffle 계약의 바이트코드들을 옵코드로 읽어보겠습니다.
+
+```ps1
+0x6101606040523480156200001257600080fd5b5060405162001838380 ... ... 001e
+```
+
+처음부터 읽어봅시다.
+
+`0x` 뒤의 `61` 은 `PUSH2`을 뜻합니다. Stack에 2bytes 아이템을 넣습니다.
+
+이러한 특정 이더리움 옵코드 혹은 이더리움, EVM 옵코드의 집합으로 컴파일될 수 있는 모든 언어들을 EVM, 즉 이더리움 가상 머신이라 부릅니다.
+그래서 이러한 옵코드를 읽을 수 있는 것은 때때로 추상적으로 EVM이라고 불립니다.
+
+EVM은 기본적으로 이더리움 혹은 이더리움 어플리케이션과 상호작용하기 위해서 컴퓨터가 반드시 읽어야 할 모든 명령어를 나타냅니다.
+
+그리고 이것이 왜 그렇게 많은 블록체인들이 모두 솔리디티로 작동하는 이유입니다. 
+왜냐하면 솔리디티는 이러한 바이트코드로 컴파일 되기 때문입니다.
+
+그리고 폴리곤 아발렌체, 아비트론, 이더리움 모두 정확히 똑같은 타입의 바이너리로 컴파일 되며, 똑같은 reader를 가지고 있습니다.
+
+이 얘기를 왜하는 걸까요?
+
+abi.encodepacked 와는 상관이 없어보이는데요?
+
+사실 abi encodepack은 더 많은 일을 수행할 수 있습니다.
+
+그리고 솔리디티 문서의 Global Variables 항목을 보면 3번째에 위치하고 있는데 왜냐하면
+
+아까 얘기한 바이너리 형식을 encode하기 위한 비표준(non-standard) 방법이기 때문입니다.   
+
+우리는 사실 우리가 원하는 거의 모든걸 인코딩할 수 있습니다. 이 바이너리 코드로 변환할때 말입니다.
+
+`encodeNumber`라는 함수를 만들어봅시다.
+
+```solidity
+//SPDX-License-Identifier: MIT
+pragma solidity ^0.8.7;
+
+contract Encoding {
+    function combineStrings() public pure returns(string memory) {
+        return string(abi.encodePacked("Hi Mom!", "Miss you"));
+    }
+
+    function encodeNumber() public pure return(bytes memory) {
+        bytes memory number = abi.encode(1);
+        return number;
+    }
+
+}
+```
+
+우리는 이제 `1`이란 숫자를 abi 혹은 bytes코드로 인코딩하는것입니다.
+
+우리가 전에 말하고 보았던 ABI는 인간이 읽을 수 있는 ABI였습니다. 다시한번 말하지만 ABI는 application binary interface 입니다. 
+
+우리는 이 숫자를 바이트코드로 인코딩하려하고 있습니다.
+
+여기서 만드는 abi는 compilation data에서 보던 abi와는 다를겁니다.
+
+JSON 형태로 되어있는 것이 abi는 기술적으로 abi라 불리고 기술적으로 계약과 어떻게 상호작용하는지를 나타냅니다. 
+
+그러나 이건 사실 바이너리 버전이 아닙니다. 
+
+그래서 이 코드에서는 이 숫자를 계약이 상호작용할 수 있도로 ㄱbinary 버전으로 인코딩하고 
+
+"좋아 이 1이란 숫자를 기계가 읽을수 있도록 해보자" 이런식으로 진행하고 있는겁니다.
+
+그리고 배포해서 함수를 실행시키면 다음과 같은 값을 얻을 수 있습니다.
+
+```solidity
+0:
+bytes: 0x0000000000000000000000000000000000000000000000000000000000000001
+```
+
+이렇게 하면 컴퓨터가 숫자 `1`을 인식할 수 있습니다. 
+
+다른 여러것들도 인코딩 할 수 있습니다. 
+
+```solidity
+//SPDX-License-Identifier: MIT
+pragma solidity ^0.8.7;
+
+contract Encoding {
+    function combineStrings() public pure returns(string memory) {
+        return string(abi.encodePacked("Hi Mom!", "Miss you"));
+    }
+
+    function encodeNumber() public pure returns(bytes memory) {
+        bytes memory number = abi.encode(1);
+        return number;
+    }
+
+    function encodeString() public pure returns(bytes memory) {
+        bytes memory someString = abi.encode("some string");
+        return someString;
+    }
+}
+```
+```solidity
+0:
+bytes: 0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000b736f6d6520737472696e67000000000000000000000000000000000000000000
+```
+
+보시면, 수많은 0들이 자리를 차지하고 있는걸 볼 수 있습니다. 얘네들이 뭘 하는것도 아닌데 말이죠.
+
+그저 자리만 차지하고 있을뿐입니다.
+
+그래서, 솔리디티에 `abi.encodedPacked(...)` 메소드가 나오게 되었습니다.
+
+건네받은 인수로 `packed encoding` 를 실행하는 메소드입니다. 
+
+>Global available variables
+>https://docs.soliditylang.org/en/v0.6.2/units-and-global-variables.html?highlight=global%20variables
+
+>Non-standard Packed Mode
+>https://docs.soliditylang.org/en/v0.6.2/abi-spec.html#abi-packed-mode
+
+abi.encodedPacked()는 Non-standard Packed Mode 란 불립니다.
+
+32바이트보다 짧은 유형은 0으로 채워지거나 확장되지 않습니다.
+동적 타입(dynamic type)은 길이(length) 없이 제자리에서 인코딩됩니다. 
+배열 요소는 채워지지만 여전히 제자리에서 인코딩됩니다.
+
+encodePacked는 압축하는것이라 생각하면 됩니다. 인코딩 함수인데 압축해서 하는 함수인겁니다.
+
+우리가 문자열을 인코딩하고 싶은데 공간을 절약하고 싶다면 완벽한 로우레벨 바이너리가 필요하진 않을겁니다. 
+
+`encodeStringPacked` 함수를 작성해보겠습니다. 그리고 컴파일하고 인코딩 결과가 어떻게 다른지 비교해보겠습니다.
+
+```solidity
+    function encodeStringPacked() public pure returns(bytes memory) {
+        bytes memory someString = abi.encodePacked("some string");
+        return someString;
+    }
+```
+```solidity
+0:
+bytes: 0x736f6d6520737472696e67
+```
+
+어때요, 전보다 훨씬 더 짧아졌습니다.
+
+이걸로 gas를 절약할 수 있을겁니다.
+
+abi.encodePacked같은 기능은 타입변환으로도 가능합니다.
+
+```solidity
+    function encodeStringPacked() public pure returns(bytes memory) {
+        bytes memory someString = abi.encodePacked("some string");
+        return someString;
+    }
+
+    function encodeStringBytes() public pure returns(bytes memory) {
+        bytes memory someString = bytes("some string");
+        return someString;
+    }
+```
+이 두가지 함수의 정체성은 똑같아 보입니다 맞죠?
+컴파일하고 결과를 봅시다.
+
+```
+0:
+bytes: 0x736f6d6520737472696e67
+0:
+bytes: 0x736f6d6520737472696e67
+```
+
+두가지 함수 모두다 같은 결과를 도출해냅니다.
+
+그러나 그 뒷편에서 이 둘은 다르게 작동합니다.
+
+>https://forum.openzeppelin.com/t/difference-between-abi-encodepacked-string-and-bytes-string/11837
+>
+>The first(abi.encodePacked()) is copying the memory, the second(bytes()) is just casting the pointer type.
+
+그래서 즉, 
+
+```solidity
+    function svgToImageURI() public pure returns (string memory) {
+        string memory svgBase64Encoded = Base64.encode(bytes(string(abi.encodePacked(svg))));
+        return string(abi.encodePacked(base64encodedSvgPrefix, svgBase64Encoded));
+    }
+```
+
+여기서 `string(abi.encodePacked(base64encodedSvgPrefix, svgBase64Encoded));` 이 부분은 `base64encodedSvgPrefix` 에 `svgBase64Encoded` 를 붙여서 압축시켜 0패딩을 없앤 뒤 인코딩 후 이것을 다시 문자열로 타입변환 하겠다는 뜻입니다.
+
+물론 abi에 이런 기능만 있는것이 아닙니다. decode도 가능합니다!
+
+decode에는 몇몇 인수가 필요합니다.
+
+>`abi.decode(bytes memory encodedData, (...)) returns (...)`
+>: ABI-decodes the given data, while the types are given in parentheses as second argument. Example:
+>`(uint a, uint[2] memory b, bytes memory c) = abi.decode(data, (uint, uint[2], bytes))`
+
+첫번째로는 디코딩할 바이트데이터가 들어갑니다.
+두번재로는 디코딩할 타입을 정해주는 튜플이 들어갑니다. (요소마다 형태가 제각각인 배열)
+그리고 returns(...)에 반환받을 값들의 갯수 만큼 인자를 넣어줍니다.
+
+```solidity
+    function decodeString() public pure returns(string memory) {
+        string memory someString = abi.decode(encodeString(), (string));
+        return someString;
+    }
+```
+
+```solidity
+// enocode()
+0:
+bytes: 0x0000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000000b736f6d6520737472696e67000000000000000000000000000000000000000000
+
+// decode()
+0:
+string: some string
+```
+
+멀티 인코딩,디코딩도 됩니다.
+
+```solidity
+
+    function multiEncode() public pure returns(bytes memory) {
+        bytes memory someString = abi.encode("some string", "it's bigger!");
+        return someString;
+    }
+
+    function multiDecode() public pure returns(string memory, string memory) {
+        (string memory someString, string memory someOtherString) = abi.decode(multiEncode(),(string, string));
+        return ( someString, someOtherString);
+    }
+
+```
+
+그렇다면 역시 packed 도 멀티로 가능하겠죠?
+
+하지만 디코딩은 역으로 적용되지 않습니다. Packed encoding이기 때문이죠
+
+```solidity
+    function multiEncodePacked() public pure returns(bytes memory) {
+        bytes memory someString = abi.encodePacked("some String", "it's bigger");
+        return someString;
+    }
+
+    // This dosen't work!
+    function multiDecodePacked() public pure returns(string memory) {
+        string memory someString = abi.decode(multiEncodePacked(), (string));
+        return someString;
+    }
+```
+
+multiDecodePacked를 호출하면 payable 어쩌구 하면서 전혀 상관없는 에러가 나오지만
+
+아무튼 솔리디티가 이것이 바이트문자열이긴 한데 Packed되어있기때문에 어떤값이 되는지 알지 못한다며 에러를 내뿜습니다.
+
+대신에 우리가 할 수 있는 것이 있습니다.
+
+```solidity
+    function multiStringcastPacked() public pure returns(string  memory) {
+        string memory someString = string(multiEncodePacked());
+        return someString;
+    }
+```
+```solidity
+0:
+string: some Stringit's bigger
+```
+
+문자열이 붙어나오긴 하지만 잘 작동되는데요,
+왜냐하면 PackedEncoding이 타입변환과 비슷하기 때문입니다.
+
+### Introduction to Encoding Function Calls Directly
+
+계약 배포시 트랜잭션 객체 구조
+Transactions - Contract Deployment
+
+- Nonce: tx count for the account
+- Gas Price: price per unit of gas (in wei)
+- Gas Limit: mas gas that this tx can use
+- To: Empty
+- Value: amount of wei to send
+- Data: contract init code & contract bytecode
+- v, r, s: components of tx signatures
+
+함수 호출시 트랜잭션 객체 구조
+Transactions - Function Call
+
+- Nonce: tx count for the account
+- Gas Price: price per unit of gas (in wei)
+- Gas Limit: mas gas that this tx can use
+- To: address that the tx is sent to
+- Value: amount of wei to send
+- Data: what to send to the To address
+- v, r, s: components of tx signatures
+
+
+둘을 비교해보면 계약 배포시엔ㄴ 계약의 바이너리 코드를 보내지만
+함수호출시 어떤 함수를 호출하지 데어터에 넣어서 전송합니다.
+
+직접 이더스캔에서 확인해보겠습니다.
+
+Raffle 계약에서 enterRaffle()을 호출한 트랜잭션을 열람해보겠습니다.
+
+>https://rinkeby.etherscan.io/tx/0xffdbfdab0fdc31ef0baeb51ca56ce9907613fec5bd80093ff3788816aafd36c8
+
+Iput Data를 보면
+
+```
+Function: enterRaffle()
+
+MethodID: 0x2cfcc539
+```
+
+이것을 original로 바꿔서 보면
+
+```
+0x2cfcc539
+```
+메소드 아이디를 보여주고 있습니다.
+
+이것이 EVM이 어떤 함수를 호출할지 결정하는 방법입니다.
+이 바이트 코드 혹은 hex코드를 functiond으로 변환하는 겁니다.
+
+우리도 이런방식을 따라해서 코드안에서 함수를 호출할 수 있습니다.
+
+우리가 정확히 할 일은
+
+send the data field of a transaction ourself, in a transaction call.
+
+트랜잭션 호출에서 트랜잭션의 데이터 필드를 직접 보내는겁니다.
+
+```js
+  const tx = {
+    nonce: nonce,
+    gasPrice: 20000000000,
+    gasLimit: 6721975,
+    to:null,
+    value:0,
+    data: "0x60806040523....0033",
+    chainId: 1337
+  };
+```
+
+뒤로 돌아가서 여기서 tx는 계약을 만드는 코드이고
+이것을 함수호출 코드 즉 우리가 계약안에서 정확히 호출하고 싶은 함수를 가리키는 hex 바이너리로 바꿔서 넣을겁니다.
+
+여기서 이런 의문이 들 수 있습니다. 왜 그래야 하죠? ABI나 Interface 같은 걸 사용하면 될텐데요
+
+어쩌면 그것들 모두 없을수도 있으니까요! 어쩌면 함수 이름만 알거나, 보내고 싶은 파라미터만 있거나, 아니면 
+
+당신의 코드를  arbitrary(임의) 함수를 전송할 수 있게 만들고 싶을수도 있습니다. 혹은 임의 호출같은 아주 무작위의 심화된 어떤것들 하고싶을대요
+
+그래서 함수호출을 이 data 필드에 직접 입력해서 전송하는것은 매우 중요합니다.
+
+전부터 항상 말하던 거지만, 함수를 보내기 위해선
+
+1. ABI
+2. Contract Address
+
+가 필요하다고 말했습니다.
+
+저는 항상 ABI가 필요하다고 말했지만, 원래는 이런 종류의 것을 보고 말한것입니다. 사람이 알아볼 수 있는 ABI코드 같은걸요
+
+```json
+[
+  {
+    "inputs": [
+      { "internalType": "string", "name": "_name", "type": "string" },
+      {
+        "internalType": "uint256",
+        "name": "_favoriteNumber",
+        "type": "uint256"
+      }
+    ],
+    "name": "addPerson",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  //...
+  //...
+```
+
+사람이 읽을 수 있는 멋진 ABI입니다.
+그런데 사람이 읽을 수 없는 ABI로도 가능합니다!
+
+추가적으로 저런 json같은 것들도 필요없습니다.
+
+우리는 단지 함수이름만 사용하고 그리고 인풋타입만 사용할겁니다. 함수호출을 전송하기 위해서요
+
+그래서 다시 질문을 해보겠습니다.
+
+1. ABI
+2. Contract Address
+데이터 필드 입력만으로 함수를 호출하기 위해 어떻게 트랜잭션을 전송할까요
+
+데이터 필드를 어떻게 채울까요?
+
+일단 `staic call` 과 `call`이라 불리는것을 알야야합니다.
+
+call: How we call functions to change the state of the blockchain
+static call: This is how (at a low level) we do our "view" or "pure" function calls, and potentially don't change the blockchain state
+
+우린 이전에 한번 call을 리뷰했었습니다. 기억나시나요?
+
+```solidity
+    function fulfillRandomWords(
+        uint256, /*requestId*/
+        uint256[] memory randomWords
+    ) internal override {
+        uint256 indexOfWinner = randomWords[0] % s_players.length;
+        address payable recentWinner = s_players[indexOfWinner];
+        s_recentWinner = recentWinner;
+        s_raffleState = RaffleState.OPEN;
+        s_players = new address payable[](0);
+        s_lastTimeStamp = block.timestamp;
+        (bool success, ) = recentWinner.call{value: address(this).balance}("");
+        // require(success)
+        if (!success) revert Raffle__TransferFailed();
+        emit WinnerPicked(recentWinner);
+    }
+```
+```solidity
+function withdraw(address recentWinner) public {
+        (bool success, ) = recentWinner.call{value: address(this).balance}("");
+        // require(success)
+        if (!success) revert Raffle__TransferFailed();
+}
+```
+Raffle에서 우승자가 정해지면 우승자에게 상금을 전해주는 함수를 작성한적이 있습니다.
+
+우리는 전에도 이 call기능을 사용했지만 돈을 보내는데만 사용했지 실질적으로 아무것도 시키지 않았습니다.
+
+call: How we call functions to change the state of the blockchain
+
+`call`은 블록체인 상태를 변경하기 위해 함수를 호출하는 방법입니다.
+`static call`은 블록체인의 상태를 변경하지 않고 함수를 호출할때 사용합니다. 블록체인의 상태를 변경하지 않고 return값만 return합니다 합니다. 로우레벨에서 view나 pure함수를 호출한다고 보면 됩니다.
+
+`(bool success, ) = recentWinner.call{value: address(this).balance}("");`
+
+이 안에서 {} 안의 것들은 값(value)를 솔리디티에 있는 트랜잭션에 직접 업데이트 하겠다는 뜻입니다.  
+
+```
+Transactions - Function Call
+
+- Nonce: tx count for the account
+- Gas Price: price per unit of gas (in wei)
+- Gas Limit: mas gas that this tx can use
+- To: address that the tx is sent to
+- Value: amount of wei to send
+- Data: what to send to the To address
+- v, r, s: components of tx signatures
+```
+
+다시한번 말하지만 이런 트랜잭션 필드를 가지고 있다면
+우리는 value 필드를 그대로 계약으로 집어넣는것입니다.
+심지어 GasLimit과 GasPrice도 업데이트할 수 있습니다.
+
+그리고 `("")` 이부분이 바로 우리가 데이터를 넣을 수 있는 곳입니다.
+
+전에 했던건 그저 돈을 보냈을 뿐입니다. value필드를 그대로 업데이트한것이죠.
+그러나 어떤 데이터도 보내지 않았습니다 `("")`
+
+왜일까요?
+
+Remix의 Low level interactions 항목의 CALLDATA transaction 버튼 기억나나요?
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-07%20132454.png)
+
+이곳을 비워보냈을때가 바로 `("")` 와 동일한 상태입니다.
+
+## Encoding Recap
+ 생략
+### Encoding Function Calls Directly
+
+이제 bytes binary hex로 블록체인과 상호작용하는 방법에 대해 알아봅시다.
+
+우리가 트랜잭션의 데이터필드만 이용해서 함수를 호출하려면
+
+1. 함수 이름을 인코딩해야하고
+2. 우리가 추가하고싶은 파라미터들을 인코딩해야합니다.
+3. 모두 바이너리 수준으로요
+
+이렇게 해야 솔리디티가 어떻게 해야하는지 알아들을 수 있습니다.
+
+이를 위해 우리는 두가지 개념으로 접근해야합니다.
+
+// The "function selector" is the first 4 bytes of the function signature
+// The "function signature" is a string that defines the function name & parameteres.
+
+// Let's look at this
+
+1. 함수 선택자(function selector) 는 함수 시그니처(function signature)의 처음 4바이트 입니다.
+2. 함수 시그니처(function signature)는 함수의 이름과 파라미터를 정의하는 문자열입니다.
+
+EVM이나 솔리디티가 알아들을 수 있도록 인코딩하려면 우리는 `함수 선택자 function selector`라는 것이 필요합니다.
+
+어떤 의미일까요?
+
+```solidity
+// Function Selector의 예
+0xa9059cbb
+
+// Function Signature의 예
+"transfer(address, uint256)"
+```
+
+자, 우리가 `trasfer` 함수를 하나 가지고 있다고 가정하면, 
+
+`"transfer(address, uint256)"`이 바로 함수 서명(function signature)이 됩니다.
+
+함수이름은 `transfer`일것이고 파리미터로 `address`와 `uint256`을 받을겁니다.
+
+그리고 우리가 이 `transfer`함수를 인코딩해서
+
+```
+0xa9059cbb
+```
+이 문자열 앞의 4바이트를 가리켜 `함수 선택자 (function selector)`라 지칭합니다.
+
+이러한 바이너리, 바이트코드를 통해 솔리디티가 "transfer" 함수를 얘기하는 구나 하고 알아듣습니다.
+
+그래서 함수를 호출하기 위해서 먼저 필요한게 함수 선택자인데 그 방법 중 하나가 인코딩 후 처음 4바이트를 가져오는 것입니다.
+
+```solidity
+contract CallAnything {
+    address public s_someAddress;
+    address public s_amount;
+
+    function transfer (address someAddress, uint256 amount) public {
+        s_someAddress = someAddress;
+        s_amount = amount;
+    }
+
+}
+```
+
+그리고 우리는 이 transfer 함수를 인코딩 한 뒤 처음 4바이트를 가져올겁니다.
+
+그 역할을 하는 함수도 작성해보겠습니다.
+
+```solidity
+contract CallAnything {
+    address public s_someAddress;
+    address public s_amount;
+
+    function transfer (address someAddress, uint256 amount) public {
+        s_someAddress = someAddress;
+        s_amount = amount;
+    }
+
+    function getSelectorOne() public pure returns(bytes4 selector) {
+        selector = bytes4(keccak256(bytes("transfer(address,uint256")));
+    }
+
+}
+```
+
+배포 후 getSelectorOne 함수를 호출하면 다음과 같은 값을 얻을 수 있습니다.
+
+```solidity
+0:
+bytes4: selector 0x30c48a31
+```
+
+솔리디티에게 우리가 이 계약에서 호출을 만들때 만약 `0x30c48a31` 이 보인다면, `0x30c48a31`이 address와 uint256을 인풋 파라미터로 가지고있는 `trnasfer` 함수를 참조하고 있다고 말해주는 것입니다. 
+
+여기서 transfer 함수를 호출하면 어떻게 될까요? 이 계약의 주소와 보낼 금액을 입력해봅시다.
+
+```
+address : 0xddaAd340b0f1Ef65169Ae5E41A8b10776a75482d
+amount : 777
+```
+
+
+s_amount와 s_someAddress를 호출하면 이렇게 값이 나옵니다.
+
+```
+0:
+uint256: 777
+0:
+address: 0xddaAd340b0f1Ef65169Ae5E41A8b10776a75482d
+```
+
+이제 저 파라미터들을 함수 선택자들과 함께 인코딩하는 함수를 만들어보겠습니다.
+
+지금까진 encoding을 abi.encode 로 해왔지만, 함수선택자를 가졌을 경우 다른 메소드를 사용할겁니다.
+
+`abi.encodeWithSelector(bytes4 selector, ...) returns (bytes memory)`: ABI-encodes the given arguments starting from the second and prepends the given four-byte selector
+
+여기서 하는 일은 selecotr 값을 우리가 보내려는 data에 붙이는것입니다.
+
+```solidity
+contract CallAnything {
+    address public s_someAddress;
+    uint256 public s_amount;
+
+    function transfer (address someAddress, uint256 amount) public {
+        s_someAddress = someAddress;
+        s_amount = amount;
+    }
+
+    function getSelectorOne() public pure returns(bytes4 selector) {
+        selector = bytes4(keccak256(bytes("transfer(address,uint256")));
+    }
+
+    function getDataToCallTransfer(address someAddress, uint256 amount) public pure returns(bytes memory) {
+        return abi.encodeWithSelector(getSelectorOne(), someAddress, amount);
+    }
+
+}
+```
+
+이 함수는 그야말로 트랜잭션의 data 필드에 들어갈 selector가 가리키는 함수를 호출하고 someAddress와 amount 파라미터를 넘기라는 정보입니다.
+
+아까처럼 이 계약 주소와 777을 넣어보겠습니다.
+
+```solidity
+0:
+bytes: 0x30c48a31000000000000000000000000b27a31f1b0af2946b7f582768f03239b1ec07c2c0000000000000000000000000000000000000000000000000000000000000309
+```
+
+그리고 이게 바로 `transfer` 함수를 아무곳에서나 호출할때 트랜잭션 객체의 data 필드에 넣어보내는 코드가 될겁니다.
+
+이것은 인코딩된 바이너리 데이터로 이 함수(transfer)를 불러 someAddress와 amount를 파라미터로 넣고 말이야 라는 뜻이 됩니다.
+
+그리고 마지막으로 할것은 직접호출(directly calling) 대신 데이터를 이용해 함수를 호출해볼것입니다.
+
+그리고 우리는 라플 앱에서 당첨금을 보낼때와 같은 코드를 작성할겁니다.
+
+```solidity
+    function callTransferFunctionDirectly(address someAddress, uint256 amount) pulbic returns(bytes4, bool) {
+        address(this).call( 
+            /* getDataToCallTransfer(someAddress, amount) */
+            abi.encodeWithSelector(getSelectorOne(),someAddress,amount)    
+        )
+    }
+
+```
+그리고 이 함수는 전에것과 똑같은걸 반환할겁니다.
+
+```solidity
+    function callTransferFunctionDirectly(address someAddress, uint256 amount) pulbic returns(bytes4, bool) {
+        (bool success, bytes memory returnData) = address(this).call( 
+            /* getDataToCallTransfer(someAddress, amount) */
+            abi.encodeWithSelector(getSelectorOne(),someAddress,amount)    
+        );
+        return (bytes4(returnData), success);
+    }
+```
+
+그래서 결국 이 함수는 contract.transfer() 처럼 직접 함수를 호출하지 않고 직접(directly) transfer 함수를 호출하는 것입니다. 
+
+또한 이 호출을 다수의 , 다른 계약에서도 사용할 수 있습니다. 어디에서 호출할건지 정해주는 address 파라미터만 바꿔서 말이죠
+
+한번 배포하고 확인해보겠습니다.
+
+```
+[vm]from: 0x5B3...eddC4to: CallAnything.callTransferFunctionDirectly(address,uint256) 0xcD6...99Df9value: 0 weidata: 0xa56...00309logs: 0hash: 0x863...6cab1
+status	true Transaction mined and execution succeed
+transaction hash	0x863dc20f727f559d5c6b9f7558fb306aca51aebbfc004c92a2f47e1e6c36cab1
+from	0x5B38Da6a701c568545dCfcB03FcB875f56beddC4
+to	CallAnything.callTransferFunctionDirectly(address,uint256) 0xcD6a42782d230D7c13A74ddec5dD140e55499Df9
+gas	28155 gas
+transaction cost	24482 gas 
+execution cost	24482 gas 
+input	0xa56...00309
+decoded input	{
+	"address someAddress": "0xcD6a42782d230D7c13A74ddec5dD140e55499Df9",
+	"uint256 amount": "777"
+}
+decoded output	{
+	"0": "bytes4: 0x00000000",
+	"1": "bool: false"
+}
+logs	[]
+val	0 wei
+```
+
+decoded output을 보면
+
+returnData인 "0"은 0x00000000을 받아왔습니다. 왜냐하면 trasnsfer 함수가 아무것도 반환하지 않는 함수이기 때문입니다.
+uint256에는 입력값대로 777이 들어왔습니다.
+
+그리고 bool : false 는 실패했다는 뜻입니다.
+
+왜냐, 셀렉터를 만들어주는 인코딩 함수가 오타났기때문입니다.
+
+```solidity
+    function getSelectorOne() public pure returns(bytes4 selector) {
+        selector = bytes4(keccak256(bytes("transfer(address,uint256"))); /* <- ""오타 */
+    }
+```
+
+```solidity
+    function getSelectorOne() public pure returns(bytes4 selector) {
+        selector = bytes4(keccak256(bytes("transfer(address,uint256)")); /* <- 수정됨 */
+    }
+```
+
+```
+
+[vm]from: 0x5B3...eddC4to: CallAnything.(constructor)value: 0 weidata: 0x608...70033logs: 0hash: 0xd11...b0338
+transact to CallAnything.callTransferFunctionDirectly pending ... 
+[vm]from: 0x5B3...eddC4to: CallAnything.callTransferFunctionDirectly(address,uint256) 0xD4F...2cbeevalue: 0 weidata: 0xa56...00309logs: 0hash: 0x7e3...c663a
+status	true Transaction mined and execution succeed
+transaction hash	0x7e328cdade05dad3afc66ac74951aa5e10db2eb430ef5f24ccbd0fc8858c663a
+from	0x5B38Da6a701c568545dCfcB03FcB875f56beddC4
+to	CallAnything.callTransferFunctionDirectly(address,uint256) 0xD4Fc541236927E2EAf8F27606bD7309C1Fc2cbee
+gas	79605 gas
+transaction cost	69221 gas 
+execution cost	69221 gas 
+input	0xa56...00309
+decoded input	{
+	"address someAddress": "0xD4Fc541236927E2EAf8F27606bD7309C1Fc2cbee",
+	"uint256 amount": "777"
+}
+decoded output	{
+	"0": "bytes4: 0x00000000",
+	"1": "bool: true"
+}
+logs	[]
+val	0 wei
+
+```
+
+이번엔 다행이 true가 보입니다.
+
+그래서 우리는 transfer 함수 자체를 호출하지 않고 호출할 수 있게 되었습니다.
+
+우리는 심지어 셀렉터 대신 시그니처를 인코딩해서 사용할 수 도 있습니다.
+
+문서에 가보시면 이런 메소드가 있습니다.
+
+> 지금까지 0.6.5 버전의 문서를 보고 있었습니다...
+> 최신버전(0.8.15) 이상 문서로 보겠습니다. https://docs.soliditylang.org/en/latest/units-and-global-variables.html
+>
+>`abi.encodeWithSignature(string memory signature, ...) returns (bytes memory)`: Equivalent to abi.encodeWithSelector(bytes4(keccak256(bytes(signature))), ...)
+
+보시면 우리가 위에서 했던 것(encodeWithSelectir)랑 동일(equivalent)하다고 나와있습니다.
+
+대신 메소드에 들어가는 인수만 조금 다릅니다.
+
+```solidity
+    function callTransferFunctionDirectlySig(address someAddress, uint256 amount) public returns(bytes4, bool) {
+        (bool success, bytes memory returnData) = address(this).call(
+            abi.encodeWithSignature("transfer(address,uint256)", someAddress, amount)
+        );
+        return (bytes4(returnData), success);
+    }
+```
+
+그러면 똑같이 작동하는걸 알 수 있습니다.
+
+signature를 selector로 바꿔주는 것밖에 차이는 없습니다.
+
+우리가 직접 인코딩 하는것처럼요. `bytes4(keccak256(bytes("transfer(address,uint256")));`
+
+그리고 셀렉터를 얻는 방법은 별별 방법이 다 있습니다.
+
+이 방법은 직접코딩해보진 않고 깃허브 리포지토리를 제공해드릴테니 알아서 분석해보십쇼
+
+>
+
+이제 서로 다른 계약이 완전하 코드를 가지고 있지 않아도 서로가 가진 함수를 사용할 수 있는지 알아볼겁니다.
+
+transfer 함수를 부르기 위한 바이너리 정보들이 담겨있는 두번째 더룬 계약을 만들겁니다.
+
+이제 이 계약에서 오직 주소만 가지고 다른 계약의 함수를 실행시킬겁니다.
+
+```solidity
+
+contract CallFunctionWithoutContract {
+    address public s_selectorsAndSignaturesAddress;
+
+    constructor(address selectorsAndSignaturesAddress) {
+        s_selectorsAndSignaturesAddress = selectorsAndSignaturesAddress;
+    }
+
+    // pass in 0xa9059cbb000000000000000000000000d7acd2a9fd159e69bb102a1ca21c9a3e3a5f771b000000000000000000000000000000000000000000000000000000000000007b
+    // you could use this to change state
+    function callFunctionDirectly(bytes calldata callData) public returns (bytes4, bool) {
+        (bool success, bytes memory returnData) = s_selectorsAndSignaturesAddress.call(
+            abi.encodeWithSignature("getSelectorThree(bytes)", callData)
+        );
+        return (bytes4(returnData), success);
+    }
+
+    // with a staticcall, we can have this be a view function!
+    function staticCallFunctionDirectly() public view returns (bytes4, bool) {
+        (bool success, bytes memory returnData) = s_selectorsAndSignaturesAddress.staticcall(
+            abi.encodeWithSignature("getSelectorOne()")
+        );
+        return (bytes4(returnData), success);
+    }
+
+    function callTransferFunctionDirectlyThree(address someAddress, uint256 amount)
+        public
+        returns (bytes4, bool)
+    {
+        (bool success, bytes memory returnData) = s_selectorsAndSignaturesAddress.call(
+            abi.encodeWithSignature("transfer(address,uint256)", someAddress, amount)
+        );
+        return (bytes4(returnData), success);
+    }
+}
+```
+
+배포할때 컨스트럭터 인수로 아까 배포한 callAnyting.sol의 주소를 넣습니다.
+
+그리고 callTransferFunctionDirectlyThree 함수에 CallFunctionWithoutContract이 배포된 주소를 인수로 넣고 호출해봅시다.
+
+
+
+
+그러나 이런 로우레벨을 사용하는 패턴은 되도록 피하는것이 좋습니다. 왠만하면 인터페이스를 import해서 사용하세요.
+
+컴파일러가 있어서 타입매칭등 다른 장점들이 많습니다.
+
+보통 이런 저수준 호출은 보안 감사자들이 조금 모났다고 말
+
+Deconstructing Solidity by Open Zeplien
+
+## Dynamic SVG On-Chain NFT Part V
+
+### Creating an NFT Token URI On-Chain
+
+자 이제 abi.encodedPacked가 뭔지 알았죠? 그리고 바로 여기서 문자열을 합치고 인코딩하는데 사용하고 있습니다.
+
+```solidity
+// DynamicSvgNft.sol
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.7;
+
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "base64-sol/base64.sol";
+
+contract DynamicSvgNft is ERC721 {
+    // mint
+    // sotre our SVG information somewhere
+    // some logic to say "Show X image" or "Show Y image"
+
+    uint256 private s_tokenCounter;
+    string private i_lowImageURI;
+    string private i_highImageURI;
+    string private constant base64encodedSvgPrefix = "data:image/svg+xml;base64,"; 
+
+    constructor(string memory lowSvg, string memory highSvg) ERC721("DynamicSvgNft","DSN") {
+        s_tokenCounter = 0;
+    }
+
+    function svgToImageURI() public pure returns (string memory) {
+        string memory svgBase64Encoded = Base64.encode(bytes(string(abi.encodePacked(svg))));
+        return string(abi.encodePacked(base64encodedSvgPrefix, svgBase64Encoded));
+    }
+    
+    function mintNft() public {
+        _safeMint(msg.sender, s_tokenCounter);
+        s_tokenCounter++;
+    }
+
+}
+```
+
+svgToImageURI함수에서 SVG파일은 처음엔 인수로서 string 형태로 들어왔다가 base64 형태로 변환됩니다.
+
+이건 나중에 한번 테스트해보겠습니다.
+
+이제 이것뿐만 아니라 메타데이터 JSON도 필요합니다.
+
+우리는 base64로 인코딩 된 이미지 자체를 메타데이터에 붙여넣을겁니다.
+
+ERC721 는 tokenURI를 포함하고 있습니다. tokenURI는 해당 토큰이 어떻게 생겼는지 정해줍니다.
+
+메타데이터 또한 JSON토큰URI로 변환하기 위해 base64로 변환할 수 있습니다!
+
+그러니 이미지를 base64로 인코딩 후 메타데이터의 image 필드에 넣고, 다시 메타데이터를 base64로 인코딩할겁니다.
+
+우리는 계약에게 base64 인코딩된 메타데이터를 tokenURI로 제공할겁니다
+
+```solidity
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        require(_exists(tokenId), "URI Query for nonexistent token");
+    }
+```
+
+tokenId가 존재하면 통과하고 아니라면 에러메세지를 반환합니다.
+
+`_exist` 함수 또한 오픈제플린 ERC721애 동봉된 함수입니다.
+
+이제 base64 인코딩된 JSON 메타데이터를 반환시켜봅시다.
+
+먼저 해야할 것은 문자열을 결합(concatenate)해야합니다.
+
+메타데이터의 첫번째 프로퍼티는 name이기 때문에 객체모양 그대로 '{"name":"}'을 입력해줍니다. 그리고 `name()`함수와 이어줍니다.
+
+```
+{"name":"some name"}
+```
+이렇게 만들어줄겁니다.
+
+`name()`함수 역시 오픈제플린 ERC721에 포함되어있습니다.
+
+name역시 객체모양으로 만들어주기 위해 다음과 같이 끝에 따옴표를 추가해줍니다.
+
+```solidity
+abi.encodePacked('{"name":"}',name(),'"')
+```
+
+이제 이어서 description 프로퍼티를 작성해줍시다. 
+
+```solidity
+abi.encodePacked('{"name":"}',name(),'", "description":"An NFT thaht changes based on chainlink Feed!","')
+```
+
+```solidity
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        require(_exists(tokenId), "URI Query for nonexistent token");
+        string memory imageURI = "hi";
+
+        abi.encodePacked('{"name":"}',name(),'", "description":"An NFT thaht changes based on chainlink Feed!","',
+        '"attribute":"[{"trait_type": "coolness", "value":100}], "image":"',
+        imageURI,
+        '"}');
+    }
+```
+
+그래서 encodePacked는 이렇게 연결된 모든 문장을 붙여주는 역할을 합니다.
+
+기본적으로 string으로 보일겁니다. json처럼요
+
+그럼 이제 base64로 변환된 토큰URI로 바꿔줘야합니다. 바로 btyes()안에 넣어서 타입변환시켜줍시다/
+
+```solidity
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        require(_exists(tokenId), "URI Query for nonexistent token");
+        string memory imageURI = "hi";
+
+        bytes(
+            abi.encodePacked('{"name":"}',name(),'", "description":"An NFT thaht changes based on chainlink Feed!","',
+            '"attribute":"[{"trait_type": "coolness", "value":100}], "image":"',
+            imageURI,
+            '"}')
+        );
+    }
+```
+
+그리고 이제 base64 인코딩을 진행하면됩니다.
+
+```solidity
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        require(_exists(tokenId), "URI Query for nonexistent token");
+        string memory imageURI = "hi";
+
+        Base64.encode(
+            bytes(
+                abi.encodePacked(
+                    '{"name":"}',name(),'", "description":"An NFT thaht changes based on chainlink Feed!","',
+                    '"attribute":"[{"trait_type": "coolness", "value":100}], "image":"',
+                    imageURI,
+                    '"}'
+                )
+            )
+        );
+    }
+```
+
+문제는 여기있는것들이 
+
+```base64
+PHN2ZyB2aWV3Qm94PSIwIDAgMjAwIDIwMCIgd2lkdGg9IjQwMCIgIGhlaWdodD0iNDAwIiB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciPgogIDxjaXJjbGUgY3g9IjEwMCIgY3k9IjEwMCIgZmlsbD0ieWVsbG93IiByPSI3OCIgc3Ryb2tlPSJibGFjayIgc3Ryb2tlLXdpZHRoPSIzIi8+CiAgPGcgY2xhc3M9ImV5ZXMiPgogICAgPGNpcmNsZSBjeD0iNjEiIGN5PSI4MiIgcj0iMTIiLz4KICAgIDxjaXJjbGUgY3g9IjEyNyIgY3k9IjgyIiByPSIxMiIvPgogIDwvZz4KICA8cGF0aCBkPSJtMTM2LjgxIDExNi41M2MuNjkgMjYuMTctNjQuMTEgNDItODEuNTItLjczIiBzdHlsZT0iZmlsbDpub25lOyBzdHJva2U6IGJsYWNrOyBzdHJva2Utd2lkdGg6IDM7Ii8+Cjwvc3ZnPg==
+```
+만 줄 뿐이지
+
+이 코드의 제일 앞에 `data:image/svg+xml;base64,` 이것까지 주지는 않습니다.
+
+이 프리픽스(prefix)를 추가해봅시다.
+
+그리고 JSON은 이렇게 표현됩니다.
+
+`data:application/json;base64,`
+
+ERC721에는 _baseURI라는 함수가 있습니다 이것을 덮어씌워 사용할겁니다.
+
+```solidity
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        require(_exists(tokenId), "URI Query for nonexistent token");
+        string memory imageURI = "hi";
+
+        abi.encodePacked(
+            _baseURI(),
+                Base64.encode(
+                    bytes(
+                        abi.encodePacked(
+                            '{"name":"}',name(),'", "description":"An NFT thaht changes based on chainlink Feed!","',
+                            '"attribute":"[{"trait_type": "coolness", "value":100}], "image":"',
+                            imageURI,
+                            '"}'
+                        )
+                    )
+                )
+        );
+
+```
+
+### Making the NFT Dynamic
+
+컨스트럭터에 보면 lowSvg와 highSvg를 전달하고 있습니다.
+
+자산의 가치가 낮을때는 frwon.svg(시무룩한 표정)인 lowSvg, 높을때는 happy.svg -> highSvg 로 변경되도록 할겁니다.
+
+다만 온체인에 string 형태로 보관할겁니다. 
+
+이것을 컨스트럭터에서 구현해봅시다.
+
+```solidity
+    constructor(string memory lowSvg, string memory highSvg) ERC721("DynamicSvgNft","DSN") {
+        s_tokenCounter = 0;
+        i_lowImageURI = svgToImageURI(lowSvg) ;
+        i_highImageURI = svgToImageURI(highSvg);
+    }
+```
+
+이제 방금 만든 tokenURI 함수를 이용해봅시다.
+
+tokenId로 0번이 들어왔다면 imageURI가 highImgUri든 lowImgUri가 되었든 서로 붙어서 메타데이터로 만들어질겁니다.
+
+그리고 highImgUri인지 lowImgUri인지 결정하는것을 chainlink price feed에서 받은 가격을 기준으로 정하도록 만들어볼겁니다.
+
+
+일단 체인링크 계약을 설치해줍시다.
+```
+yarn add --dev @chainlink/contracts
+```
+
+그리고 `AggregatorV3Interface`를 import 해준뒤 컨스트럭터에 프라이피드주소를 넣어줍니다.
+
+```solidity
+import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+
+//...
+//...
+
+    AggregatorV3Interface internal immutable i_priceFeed;
+
+    constructor(address priceFeedAddress, string memory lowSvg, string memory highSvg) ERC721("DynamicSvgNft","DSN") {
+        s_tokenCounter = 0;
+        i_lowImageURI = svgToImageURI(lowSvg) ;
+        i_highImageURI = svgToImageURI(highSvg);
+        i_priceFeed = AggregatorV3Interface(priceFeedAddress);
+    }
+
+
+```
+tokenURI 함수를 다시 봅시다.
+
+```solidity
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        require(_exists(tokenId), "URI Query for nonexistent token");
+        // string memory imageURI = "hi";
+
+        ( , int256 price, , , ) = i_priceFeed.latestRoundData();
+        string memory imageURI = i_lowImageURI;
+        if(price >= ??) {
+            imageURI = i_highImageURI
+        }
+
+        return
+            string(
+                abi.encodePacked( // 두가지를 합쳐서 인코딩
+                    _baseURI(), //<-  여기까지가 data:application/json;base64,(프리팩스) |  여기서부터 base64인코딩된 이미지 ->
+                        Base64.encode(
+                            bytes(
+                                abi.encodePacked(
+                                    '{"name":"}',name(),'", "description":"An NFT thaht changes based on chainlink Feed!","',
+                                    '"attribute":"[{"trait_type": "coolness", "value":100}], "image":"',
+                                    imageURI,
+                                    '"}'
+                                )
+                            )
+                        )
+                )
+            );
+
+    }
+```
+
+이제 비교식 ?? 을 작성할겁니다.
+minter들이 자기가 사용할 값을 정해서 선택할 수 있도록
+
+minter들이 각자의 highvalue를 할당받을 수 있또록 할겁니다.,
+
+```solidity
+    function mintNft(int256 highValue) public {
+        _safeMint(msg.sender, s_tokenCounter);
+        ++s_tokenCounter;
+    }
+```
+
+토큰아이디를 키로 가지고 highValue를 값으로 가지는 매핑을 만들어줍니다.
+
+```solidity
+mapping(uint256 => uint256) public s_tokenIdToHighValue
+```
+
+그리고 나서 사용자들이 Mint할때 원하는 HighValue를 정할 수 있게 만들어줍니다.
+
+```solidity
+    function mintNft(int256 highValue) public {
+        s_tokenIdToHighValue[s_tokenCounter] = highValue;
+        _safeMint(msg.sender, s_tokenCounter);
+        ++s_tokenCounter;
+    }
+```
+
+그럼 다시 비교식으로가서 ?? 부분을 해당 토큰아이디를 가진사람이 정한 highValue를 넣어줍니다.
+
+```solidity
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        require(_exists(tokenId), "URI Query for nonexistent token");
+        // string memory imageURI = "hi";
+
+        ( , int256 price, , , ) = i_priceFeed.latestRoundData();
+        string memory imageURI = i_lowImageURI;
+        if(price >= s_tokenIdToHighValue[tokenId]) {
+            imageURI = i_highImageURI
+        }
+
+        return
+            string(
+                abi.encodePacked( // 두가지를 합쳐서 인코딩
+                    _baseURI(), //<-  여기까지가 data:application/json;base64,(프리팩스) |  여기서부터 base64인코딩된 이미지 ->
+                        Base64.encode(
+                            bytes(
+                                abi.encodePacked(
+                                    '{"name":"}',name(),'", "description":"An NFT thaht changes based on chainlink Feed!","',
+                                    '"attribute":"[{"trait_type": "coolness", "value":100}], "image":"',
+                                    imageURI,
+                                    '"}'
+                                )
+                            )
+                        )
+                )
+            );
+
+    }
+```
+
+`price >= s_tokenIdToHighValue[tokenId]` 이 부분이 에러가 날 텐데
+
+price가 int256이고 `s_tokenIdToHighValue[tokenId]`이 uint256 이라 그렇습니다.
+
+따라서 매핑을 (uint256 => uint256)에서 (uint256 => int256)으로 바꿔줘야합니다.
+```solidity
+mapping (uint256 => int256) public s_tokenIdToHighValue;
+```
+
+이제 더 추가할 건 이벤트입니다.
+
+```solidity
+
+events CreateNFT(uint256 tokenId, uint256 highValue);
+
+//...
+    function mintNft(int256 highValue) public {
+        s_tokenIdToHighValue[s_tokenCounter] = highValue;
+        _safeMint(msg.sender, s_tokenCounter);
+        emit CreatedNFT(s_tokenCounter, highValue);
+        s_tokenCounter++;
+    }
+```
+
+이제 남은건 배포스크립트를 작성하는겁니다.
+
+베이직 NFT, 랜덤NFT는 모두 IPFS에 배포했습니다.
+
+하지만 이번에는 100% 온체인에 배포하고, pricefeed에 따라 달라지는 NFT를 발행하는 계약을 배포할것입니다.
+
+## Dynamic SVG On-Chain NFT Part VI
+
+### Dynamic SVG On-Chain NFT Deploy Script
+
+`deploy/03-deploy-dynamic-svg-nft.js` 파일을 생성합니다.
+
+컨스트럭터 인자는 priceFeedAddress와 lowSvg, HighSvg 세가지입니다.
+
+먼저 프라이스피드 주소부터 가져오겠습니다.
+
+>https://docs.chain.link/docs/ethereum-addresses/
+
+ETH/USD - 0x8A753747A1Fa494EC906cE90E9f37563A8AF630e
+
+이걸 사용할 겁니다.
+
+helper-hardhat-config.js 파일에서 4번 링크비네트워크에 `ethUsdPriceFeed` 프로퍼티를 추가해줍니다.
+
+```js
+    4: {
+        name: "rinkeby",
+        vrfCoordinatorV2: "0x6168499c0cFfCaCD319c818142124B7A15E857ab",
+        entranceFee: ethers.utils.parseEther("0.01"),
+        keyHash: "0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc",
+        subscriptionId: "7276",
+        callbackGasLimit: "500000", // 500,000
+        interval: "30",
+        mintFee: ethers.utils.parseEther("0.01"),
+        ethUsdPriceFeed: "0x8A753747A1Fa494EC906cE90E9f37563A8AF630e",
+    },
+```
+
+그리고 로컬호스트를 위한 Mock 계약도 마련해줍니다.
+
+`contracts/mocks/MockV3Aggregator.sol` 파일을 만들고 안에서 MockV3Aggregator.sol을 import 해줍니다.
+```solidity
+import "@chainlink/contracts/src/v0.6/tests/MockV3Aggregator.sol"
+```
+현재 Mock 계약이 0.6.0 버전을 사용하므로 hardhat.config.js에서 해당 버전도 명시해줍니다.
+
+`00-deploy-mocks.js`로 가서 mock계약을 배포해줍니다.
+```js
+const { developmentChains } = require("../helper-hardhat-config");
+
+const DECIMALS = "18";
+const INITIAL_PRICE = ethers.utils.parseEther("2000", "eth");
+
+module.exports = async function (hre) {
+  const { deployments, getNamedAccounts, network, ethers } = hre;
+
+  const BASE_FEE = ethers.utils.parseEther("0.25"); // 0.25는 프리미엄, 리퀘스트당 0.25 LINK토큰이 필요
+  const GAS_PRICE_LINK = 1e9; // 가스당 LINK, 링크토큰의 가스 가격에 기반해 계산된 값
+
+  const { deploy, log } = deployments;
+  const { deployer } = await getNamedAccounts();
+  const args = [BASE_FEE, GAS_PRICE_LINK];
+
+  if (developmentChains.includes(network.name)) {
+    await deploy("VRFCoordinatorV2Mock", {
+      from: deployer,
+      log: true,
+      args: args,
+    });
+    await deploy("MockV3Aggregator",{
+      from: deployer,
+      log: true,
+      args: [DECIMALS ,INITIAL_PRICE]
+    })
+    log("---------------모의계약이 배포되었습니다.---------------");
+  }
+};
+
+module.exports.tags = ["all", "mocks"];
+
+```
+
+다시 03배포스크릷트로 돌아와서 mocks가 배포되길 기다립니다.
+그리고 네트워크에 따라 ethusdPriceFeed 주소를 얻을 수 있도로 작성합니다.
+
+```js
+const { network, ethers } = require("hardhat");
+const {
+  developmentChains,
+  networkConfig,
+} = require("../helper-hardhat-config");
+const { verify } = require("../utils/verify");
+
+module.exports = async function ({ deployments, getNamedAccounts }) {
+  const { deploy, log } = deployments;
+  const { deployer } = await getNamedAccounts();
+
+  const chainId = network.config.chainId;
+  let ethUsdPriceFeedAddress;
+
+  if (developmentChains.includes(network.name)) {
+    const EthUsdAggregator = await ethers.getContract("MockV3Aggregator");
+    ethUsdPriceFeedAddress = EthUsdAggregator.address;
+  } else {
+    ethUsdPriceFeedAddress = networkConfig[chainId].ethUsdPriceFeed;
+  }
+
+  const args = [];
+  const dynamicSvgNft = await deploy("DynamicSvgNft", {
+    from: deployer,
+    args: args,
+    log: true,
+    blockConfirmations: network.config.blockConfirmations || 1,
+  });
+
+  if (
+    developmentChains.includes(network.name) &&
+    process.env.ETHERSCAN_API_KEY
+  ) {
+    console.log("계약을 검증하고 있습니다 ... ");
+    await verify(dynamicSvgNft.address, args);
+  }
+};
+
+```
+이제 나머지 두 인수인 lowSvg와 highSvg만 남았습니다.
+
+`images/dynamicNft` 폴더를 만듭니다.
+
+그리고 happy 그림과 frown 그림 두가지를 집어넣습니다.
+
+03배포스크립트로 돌아와서 lowSvg 파일과 highSvg 파일을 가져오게습니다.
+```js
+const { network, ethers } = require("hardhat");
+const {
+  developmentChains,
+  networkConfig,
+} = require("../helper-hardhat-config");
+const { verify } = require("../utils/verify");
+const fs = require("fs");
+
+module.exports = async function ({ deployments, getNamedAccounts }) {
+  const { deploy, log } = deployments;
+  const { deployer } = await getNamedAccounts();
+
+  const chainId = network.config.chainId;
+  let ethUsdPriceFeedAddress;
+
+  if (developmentChains.includes(network.name)) {
+    const EthUsdAggregator = await ethers.getContract("MockV3Aggregator");
+    ethUsdPriceFeedAddress = EthUsdAggregator.address;
+  } else {
+    ethUsdPriceFeedAddress = networkConfig[chainId].ethUsdPriceFeed;
+  }
+  log("---------------------")
+  const lowSVG = await fs.readFileSync("./images/dynamicNft/frown.svg", { encoding: "utf8"});
+  const highSVG = await fs.readFileSync("./images/dynamicNft/happy.svg", {encoding: "utf8"});
+
+  const args = [ethUsdPriceFeedAddress, lowSVG, highSVG];
+  const dynamicSvgNft = await deploy("DynamicSvgNft", {
+    from: deployer,
+    args: args,
+    log: true,
+    waitConfirmations: network.config.blockConfirmations || 1,
+  });
+
+  if (
+    !developmentChains.includes(network.name) &&
+    process.env.ETHERSCAN_API_KEY
+  ) {
+    console.log("계약을 검증하고 있습니다 ... ");
+    await verify(dynamicSvgNft.address, args);
+  }
+};
+
+module.exports.tags = ["all", "dynamicsvg","main"];
+```
+
+배포해보겠습니다.
+
+```ps1
+hh deploy --tag dynamicsvg,mocks
+```
+```ps1
+Nothing to compile
+deploying "VRFCoordinatorV2Mock" (tx: 0x12925340c9bd03dbda39b85b0c207149c2bc46f19e3a0c825e92642eb0713167)...: deployed at 0x5FbDB2315678afecb367f032d93F642f64180aa3 with 2539340 gas
+deploying "MockV3Aggregator" (tx: 0xe676d0d76bfd54e18d337c8485165cc796a2048b108d979b1020704156fe9378)...: deployed at 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512 with 558433 gas
+---------------모의계약이 배포되었습니다.---------------
+---------------------
+deploying "DynamicSvgNft" (tx: 0x6304ab407d8f799d80553dff6ee574ac314212827f1e1edc4f6b3ba168adf6b6)...: deployed at 0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0 with 4293053 gas
+계약을 검증하고 있습니다 ...
+계약 검증을 시도하는중입니다...
+NomicLabsHardhatPluginError: The selected network is hardhat. Please select a network supported by Etherscan.
+    at getEtherscanEndpoints (C:\Users\ESO\Desktop\Dev\web3\hardhat-nft\node_modules\@nomiclabs\hardhat-etherscan\src\network\prober.ts:18:11)
+    at SimpleTaskDefinition.action (C:\Users\ESO\Desktop\Dev\web3\hardhat-nft\node_modules\@nomiclabs\hardhat-etherscan\src\index.ts:616:26)
+    at Environment._runTaskDefinition (C:\Users\ESO\Desktop\Dev\web3\hardhat-nft\node_modules\hardhat\src\internal\core\runtime-environment.ts:219:35)
+    at Environment.run (C:\Users\ESO\Desktop\Dev\web3\hardhat-nft\node_modules\hardhat\src\internal\core\runtime-environment.ts:131:25)
+    at SimpleTaskDefinition.verifySubtask [as action] (C:\Users\ESO\Desktop\Dev\web3\hardhat-nft\node_modules\@nomiclabs\hardhat-etherscan\src\index.ts:209:36)
+    at processTicksAndRejections (node:internal/process/task_queues:96:5)
+    at runNextTicks (node:internal/process/task_queues:65:3)
+    at listOnTimeout (node:internal/timers:528:9)
+    at processTimers (node:internal/timers:502:7)
+    at Environment._runTaskDefinition (C:\Users\ESO\Desktop\Dev\web3\hardhat-nft\node_modules\hardhat\src\internal\core\runtime-environment.ts:219:14)
+Done in 4.37s.
+```
+
+이런, developmentChains 앞에 !를 붙이지 않아서 검증을 해버렸습니다 다음과 같이 !를 붙여줍시다.
+
+```js
+ if (
+    !developmentChains.includes(network.name) &&
+    process.env.ETHERSCAN_API_KEY
+  ) {
+    console.log("계약을 검증하고 있습니다 ... ");
+    await verify(dynamicSvgNft.address, args);
+  }
+```
+
+## Dynamic SVG On-Chain NFT Part VII
+
+### Writing Tests
+
+혼자서해보시고 모르겠으면 깃허브 리포지토리를 참고하세요.
+
+// Buffer.from(str, 'base64') and buf.toString('base64').
+
+## Deploying the NFTs to a Testnet
+
+이제 실제로 테스트넷에 배포해서 OpenSea 같은 마켓플레이스에서 실제로 어떻게 보이는지 테스트해보겠습니다.
+
+`deploy/04-mint.js`파일을 생성합니다.
+
+각각의 컨트랙트들이 mint하도록 만들겁니다.
+
+```js
+const {ethers, network} = require("hardhat");
+
+module.exports = async function({deployments, getNamedAccounts}) {
+    const {deploy, log} = deployments;
+    const {deployer} = await getNamedAccounts();
+    
+    // Basic NFT
+    const basicNft = await ethers.getContract("BasicNft",deployer);
+    const basicMintTx = await basicNft.mintNft();
+    await basicMintTx.wait(1);
+    console.log(`Basic NFT index 0 has tokenURI: ${await basicNft.tokenURI(0)}`);
+
+    // Random IPFS NFT
+    const randomIpfsNft = await ethers.getContract("RandomIpfsNft", deployer);
+    const mintFee = await randomIpfsNft.getMintFee();
+    const randomIpfsNftMintTx = await randomIpfsNft.requestNft({value: mintFee.toString()});
+    
+}
+```
+
+여기서 RadnomIPFSNFT 는 테스트에서와 같이 Promise를 이용해 리스너를 생성해야합니다.
+
+```js
+const {ethers, network} = require("hardhat");
+const { developmentChains } = require("../helper-hardhat-config");
+module.exports = async function({deployments, getNamedAccounts}) {
+    const {deploy, log} = deployments;
+    const {deployer} = await getNamedAccounts();
+    
+    // Basic NFT
+    const basicNft = await ethers.getContract("BasicNft",deployer);
+    const basicMintTx = await basicNft.mintNft();
+    await basicMintTx.wait(1);
+    console.log(`Basic NFT index 0 has tokenURI: ${await basicNft.tokenURI(0)}`);
+
+    // Random IPFS NFT
+    const randomIpfsNft = await ethers.getContract("RandomIpfsNft", deployer);
+    const mintFee = await randomIpfsNft.getMintFee();
+
+    await new Promise(async (resolve,reject) => {
+        setTimeout(resolve, 300000) // 타임아웃 5 분
+        randomIpfsNft.once("NftMinted", async() => {
+            resolve();
+        })
+        let vrfCoordinatorV2Mock;
+        if (developmentChains.includes(network.name)) {
+            vrfCoordinatorV2Mock = await ethers.getContract("VRFCoordinatorV2Mock", deployer);
+            const subscriptionId = await randomIpfsNft.getSubscriptionId();
+            await vrfCoordinatorV2Mock.addConsumer(subscriptionId, randomIpfsNft.address);
+        }
+
+        const randomIpfsNftMintTx = await randomIpfsNft.requestNft({value: mintFee.toString()});
+        const randomIpfsNftMintTxReceipt = await randomIpfsNftMintTx.wait(1);
+
+        if (developmentChains.includes(network.name)) {
+            const requestId = randomIpfsNftMintTxReceipt.events[1].args.requestId.toString();
+            await vrfCoordinatorV2Mock.fulfillRandomWords(requestId, randomIpfsNft.address);
+        }
+    })
+    console.log(`Random IPFS NFT index 0 tokenURI: ${await randomIpfsNft.tokenURI(0)}`)
+
+    //Dynamic SVG NFT
+    const highValue = ethers.utils.parseEther("4000"); // $4000
+    const dynamicSvgNft = await ethers.getContract("DynamicSvgNft", deployer);
+    const dynamicSvgNftMintTx = await dynamicSvgNft.mintNft(highValue.toString());
+    await dynamicSvgNftMintTx.wait(1);
+    console.log(`Daynamic SVG NFT index 0 tokenURI: ${await dynamicSvgNft.tokenURI(0)}`)
+}
+```
+
+`yarn hardhat deploy` 로 모든 deploy 스크립트를 실행시켜보겠습니다.
+
+```ps1
+deploying "VRFCoordinatorV2Mock" (tx: 0x12925340c9bd03dbda39b85b0c207149c2bc46f19e3a0c825e92642eb0713167)...: deployed at 0x5FbDB2315678afecb367f032d93F642f64180aa3 with 2539340 gas
+deploying "MockV3Aggregator" (tx: 0xe676d0d76bfd54e18d337c8485165cc796a2048b108d979b1020704156fe9378)...: deployed at 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512 with 558433 gas
+---------------모의계약이 배포되었습니다.---------------
+---------------------------------------------------
+deploying "BasicNft" (tx: 0x724e7d946b7d76142c80cbf9cef1d253f4cbcfcfef19d3f892dcb461cae0557e)...: deployed at 0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0 with 2013545 gas
+---------------------------------------------------
+개발체인입니다. subscriptionId를 생성합니다.
+subscriptionId 생성을 완료했습니다. 1
+----------------------------------------
+deploying "RandomIpfsNft" (tx: 0x186c9f462501be0c7ec81adae0d3706929d0503df1aefe12d5577bb182b7c3de)...: deployed at 0x5FC8d32690cc91D4c39d9d3abcBD16989F875707 with 3777518 gas
+--------------
+---------------------
+deploying "DynamicSvgNft" (tx: 0x84f71db8c7cbb9c70acfc652b91bebf014ed5f2ddd4de83730ef01bb16286eb8)...: deployed at 0x0165878A594ca255338adfa4d48449f69242Eb8F with 4285186 gas
+Basic NFT index 0 has tokenURI: ipfs://QmXH46oJifnKUDDemeixJZF9afH2yBPjCW5g8bqVqX6m9w
+fulfillRandomWords in RandomIpfsNft.sol
+Random IPFS NFT index 0 tokenURI: ipfs://Qmds3ajTncEs2RaA5gE8pbPkaQ9G2ehQWwd2bwCH75xXFE
+Daynamic SVG NFT index 0 tokenURI: data:application/json;base64,eyJuYW1lIjoiRHluYW1pY1N2Z05mdCIsICJkZXNjcmlwdGlvbiI6IkFuIE5GVCB0aGFodCBjaGFuZ2VzIGJhc2VkIG9uIGNoYWlubGluayBGZWVkISIsImF0dHJpYnV0ZSI6W3sidHJhaXRfdHlwZSI6ICJjb29sbmVzcyIsICJ2YWx1ZSI6MTAwfV0sICJpbWFnZSI6ImRhdGE6aW1hZ2Uvc3ZnK3htbDtiYXNlNjQsUEQ5NGJXd2dkbVZ5YzJsdmJqMGlNUzR3SWlCemRHRnVaR0ZzYjI1bFBTSnVieUkvUGdvOGMzWm5JSGRwWkhSb1BTSXhNREkwY0hnaUlHaGxhV2RvZEQwaU1UQXlOSEI0SWlCMmFXVjNRbTk0UFNJd0lEQWdNVEF5TkNBeE1ESTBJaUI0Yld4dWN6MGlhSFIwY0RvdkwzZDNkeTUzTXk1dmNtY3ZNakF3TUM5emRtY2lQZ29nSUR4d1lYUm9JR1pwYkd3OUlpTXpNek1pSUdROUlrMDFNVElnTmpSRE1qWTBMallnTmpRZ05qUWdNalkwTGpZZ05qUWdOVEV5Y3pJd01DNDJJRFEwT0NBME5EZ2dORFE0SURRME9DMHlNREF1TmlBME5EZ3RORFE0VXpjMU9TNDBJRFkwSURVeE1pQTJOSHB0TUNBNE1qQmpMVEl3TlM0MElEQXRNemN5TFRFMk5pNDJMVE0zTWkwek56SnpNVFkyTGpZdE16Y3lJRE0zTWkwek56SWdNemN5SURFMk5pNDJJRE0zTWlBek56SXRNVFkyTGpZZ016Y3lMVE0zTWlBek56SjZJaTgrQ2lBZ1BIQmhkR2dnWm1sc2JEMGlJMFUyUlRaRk5pSWdaRDBpVFRVeE1pQXhOREJqTFRJd05TNDBJREF0TXpjeUlERTJOaTQyTFRNM01pQXpOekp6TVRZMkxqWWdNemN5SURNM01pQXpOeklnTXpjeUxURTJOaTQySURNM01pMHpOekl0TVRZMkxqWXRNemN5TFRNM01pMHpOeko2VFRJNE9DQTBNakZoTkRndU1ERWdORGd1TURFZ01DQXdJREVnT1RZZ01DQTBPQzR3TVNBME9DNHdNU0F3SURBZ01TMDVOaUF3ZW0wek56WWdNamN5YUMwME9DNHhZeTAwTGpJZ01DMDNMamd0TXk0eUxUZ3VNUzAzTGpSRE5qQTBJRFl6Tmk0eElEVTJNaTQxSURVNU55QTFNVElnTlRrM2N5MDVNaTR4SURNNUxqRXRPVFV1T0NBNE9DNDJZeTB1TXlBMExqSXRNeTQ1SURjdU5DMDRMakVnTnk0MFNETTJNR0U0SURnZ01DQXdJREV0T0MwNExqUmpOQzQwTFRnMExqTWdOelF1TlMweE5URXVOaUF4TmpBdE1UVXhMalp6TVRVMUxqWWdOamN1TXlBeE5qQWdNVFV4TGpaaE9DQTRJREFnTUNBeExUZ2dPQzQwZW0weU5DMHlNalJoTkRndU1ERWdORGd1TURFZ01DQXdJREVnTUMwNU5pQTBPQzR3TVNBME9DNHdNU0F3SURBZ01TQXdJRGsyZWlJdlBnb2dJRHh3WVhSb0lHWnBiR3c5SWlNek16TWlJR1E5SWsweU9EZ2dOREl4WVRRNElEUTRJREFnTVNBd0lEazJJREFnTkRnZ05EZ2dNQ0F4SURBdE9UWWdNSHB0TWpJMElERXhNbU10T0RVdU5TQXdMVEUxTlM0MklEWTNMak10TVRZd0lERTFNUzQyWVRnZ09DQXdJREFnTUNBNElEZ3VOR2cwT0M0eFl6UXVNaUF3SURjdU9DMHpMaklnT0M0eExUY3VOQ0F6TGpjdE5Ea3VOU0EwTlM0ekxUZzRMallnT1RVdU9DMDRPQzQyY3preUlETTVMakVnT1RVdU9DQTRPQzQyWXk0eklEUXVNaUF6TGprZ055NDBJRGd1TVNBM0xqUklOalkwWVRnZ09DQXdJREFnTUNBNExUZ3VORU0yTmpjdU5pQTJNREF1TXlBMU9UY3VOU0ExTXpNZ05URXlJRFV6TTNwdE1USTRMVEV4TW1FME9DQTBPQ0F3SURFZ01DQTVOaUF3SURRNElEUTRJREFnTVNBd0xUazJJREI2SWk4K0Nqd3ZjM1puUGdvPSJ9
+Done in 8.88s.
+
+```
+
+로컬에 deploy되는걸 확인했습니다.
+
+이제 다음과 같이 tags를 붙여줍니다.
+
+```js
+const {ethers, network} = require("hardhat");
+const { developmentChains } = require("../helper-hardhat-config");
+module.exports = async function({deployments, getNamedAccounts}) {
+    const {deploy, log} = deployments;
+    const {deployer} = await getNamedAccounts();
+    
+    // Basic NFT
+    const basicNft = await ethers.getContract("BasicNft",deployer);
+    const basicMintTx = await basicNft.mintNft();
+    await basicMintTx.wait(1);
+    console.log(`Basic NFT index 0 has tokenURI: ${await basicNft.tokenURI(0)}`);
+
+    // Random IPFS NFT
+    const randomIpfsNft = await ethers.getContract("RandomIpfsNft", deployer);
+    const mintFee = await randomIpfsNft.getMintFee();
+
+    await new Promise(async (resolve,reject) => {
+        setTimeout(resolve, 300000) // 타임아웃 5 분
+        randomIpfsNft.once("NftMinted", async() => {
+            resolve();
+        })
+        let vrfCoordinatorV2Mock;
+        if (developmentChains.includes(network.name)) {
+            vrfCoordinatorV2Mock = await ethers.getContract("VRFCoordinatorV2Mock", deployer);
+            const subscriptionId = await randomIpfsNft.getSubscriptionId();
+            await vrfCoordinatorV2Mock.addConsumer(subscriptionId, randomIpfsNft.address);
+        }
+
+        const randomIpfsNftMintTx = await randomIpfsNft.requestNft({value: mintFee.toString()});
+        const randomIpfsNftMintTxReceipt = await randomIpfsNftMintTx.wait(1);
+
+        if (developmentChains.includes(network.name)) {
+            const requestId = randomIpfsNftMintTxReceipt.events[1].args.requestId.toString();
+            await vrfCoordinatorV2Mock.fulfillRandomWords(requestId, randomIpfsNft.address);
+        }
+    })
+    console.log(`Random IPFS NFT index 0 tokenURI: ${await randomIpfsNft.tokenURI(0)}`)
+
+    //Dynamic SVG NFT
+    const highValue = ethers.utils.parseEther("4000"); // $4000
+    const dynamicSvgNft = await ethers.getContract("DynamicSvgNft", deployer);
+    const dynamicSvgNftMintTx = await dynamicSvgNft.mintNft(highValue.toString());
+    await dynamicSvgNftMintTx.wait(1);
+    console.log(`Daynamic SVG NFT index 0 tokenURI: ${await dynamicSvgNft.tokenURI(0)}`)
+}
+
+module.exports.tags = ["all","mint"];
+```
+
+```ps1
+yarn hardhat deploy --network rinkeby --tags main
+```
+
+이 명령은 NFT를 발행하는것이 아니라 단지 계약을 배포하는것 뿐입니다.
+
+이 과정은 오래걸리니 참고하세요
+
+배포가 완료되었다면 chainlink vrf 페이지로 가서 (https://vrf.chain.link/)
+
+배포된 RandomIpfsNft 의 주소를 복사해서 Consumer로 추가해줍니다.
+
+그리고 다시 돌아와서 이번에는 mint만 실행시킵니다,
+
+```ps1
+yarn hardhat deploy --tags mint --netwrok rinkeby 
+```
+
+이제 mint된 주소중에 dynamicSvgNft 주소를 복사해서
+
+Open Sea 테스트넷 검색창에 해당 주소를 검색하면 해당 계약의 NFT가 뜹니다.
+
+오픈씨는 등록되는데 굉장히 오래걸릴수도 있기때문에 기다려보시기바랍니다.
+
+계약이 정상인지 확인하는 또 한가지 방법은 해당 계약주소로 간 다음 직접 tokenURI에 0을 입력하여 IPFS URI를 얻은 후 브라우저에서 확인해보는겁니다.
+
+배포로그
+```ps1
+Nothing to compile
+----------------------------------------
+deploying "RandomIpfsNft" (tx: 0xf53912f0b22e9c1977ea4d300f3dbf9245dc22d1ac852bffe25eba277efd9dc1)...: deployed at 0x680e7bD42C6F0101Db3784033b2841111Df8350B with 3777530 gas
+--------------
+계약을 검증하고 있습니다...    
+계약 검증을 시도하는중입니다...
+Nothing to compile
+Successfully submitted source code for contract
+contracts/RandomIpfsNft.sol:RandomIpfsNft at 0x680e7bD42C6F0101Db3784033b2841111Df8350B
+for verification on the block explorer. Waiting for verification result...
+
+Successfully verified contract RandomIpfsNft on Etherscan.
+https://rinkeby.etherscan.io/address/0x680e7bD42C6F0101Db3784033b2841111Df8350B#code
+계약이 검증되었습니다.
+--------------------- 
+deploying "DynamicSvgNft" (tx: 0x0fb2e31bc52918935a5868977b2bb2cc1328d323ecc3a780c7020240a9c14a26)...: deployed at 0xAd5Fc4e9e1805Ac34970f21508F2d1337c6439E4 with 4285186 gas
+계약을 검증하고 있습니다 ...   
+계약 검증을 시도하는중입니다...
+Warning: Unused function parameter. Remove or comment out the variable name to silence this warning.        
+   --> @chainlink/contracts/src/v0.8/mocks/VRFCoordinatorV2Mock.sol:306:45:
+    |
+306 |   function requestSubscriptionOwnerTransfer(uint64 _subId, address _newOwner) external pure override {
+    |                                             ^^^^^^^^^^^^^
+
+
+Warning: Unused function parameter. Remove or comment out the variable name to silence this warning.
+   --> @chainlink/contracts/src/v0.8/mocks/VRFCoordinatorV2Mock.sol:306:60:
+    |
+306 |   function requestSubscriptionOwnerTransfer(uint64 _subId, address _newOwner) external pure override {     
+    |                                                            ^^^^^^^^^^^^^^^^^
+
+
+Warning: Unused function parameter. Remove or comment out the variable name to silence this warning.
+   --> @chainlink/contracts/src/v0.8/mocks/VRFCoordinatorV2Mock.sol:310:44:
+    |
+310 |   function acceptSubscriptionOwnerTransfer(uint64 _subId) external pure override {
+    |                                            ^^^^^^^^^^^^^
+
+
+Warning: Unused function parameter. Remove or comment out the variable name to silence this warning.
+   --> @chainlink/contracts/src/v0.8/mocks/VRFCoordinatorV2Mock.sol:314:33:
+    |
+314 |   function pendingRequestExists(uint64 subId) public view override returns (bool) {
+    |                                 ^^^^^^^^^^^^
+
+
+Warning: Function state mutability can be restricted to pure
+   --> @chainlink/contracts/src/v0.8/mocks/VRFCoordinatorV2Mock.sol:261:3:
+    |
+261 |   function getConfig()
+    |   ^ (Relevant source part starts here and spans across multiple lines).
+
+
+Warning: Function state mutability can be restricted to pure
+   --> @chainlink/contracts/src/v0.8/mocks/VRFCoordinatorV2Mock.sol:274:3:
+    |
+274 |   function getFeeConfig()
+    |   ^ (Relevant source part starts here and spans across multiple lines).
+
+
+Warning: Function state mutability can be restricted to pure
+   --> @chainlink/contracts/src/v0.8/mocks/VRFCoordinatorV2Mock.sol:302:3:
+    |
+302 |   function getFallbackWeiPerUnitLink() external view returns (int256) {
+    |   ^ (Relevant source part starts here and spans across multiple lines).
+
+
+Warning: Function state mutability can be restricted to pure
+   --> @chainlink/contracts/src/v0.8/mocks/VRFCoordinatorV2Mock.sol:314:3:
+    |
+314 |   function pendingRequestExists(uint64 subId) public view override returns (bool) {
+    |   ^ (Relevant source part starts here and spans across multiple lines).
+
+
+Warning: Function state mutability can be restricted to pure
+  --> contracts/BasicNft.sol:19:5:
+   |
+19 |     function tokenURI(uint256 /* tokenId */) public view override returns(string memory) {
+   |     ^ (Relevant source part starts here and spans across multiple lines).
+
+
+Compiled 22 Solidity files successfully
+Successfully submitted source code for contract
+contracts/DynamicSvgNft.sol:DynamicSvgNft at 0xAd5Fc4e9e1805Ac34970f21508F2d1337c6439E4
+for verification on the block explorer. Waiting for verification result...
+
+Successfully verified contract DynamicSvgNft on Etherscan.
+https://rinkeby.etherscan.io/address/0xAd5Fc4e9e1805Ac34970f21508F2d1337c6439E4#code
+계약이 검증되었습니다.
+Done in 237.49s.
+```
+
+BasicNft tags에 main을 빼먹어서 따로 배포해보겠습니다.
+```ps1
+Nothing to compile
+---------------------------------------------------
+deploying "BasicNft" (tx: 0x837707d7a1c1db9e2db5330775bd1479b2e5c838a5da733b7d967db7a33b6017)...: deployed at 0x8299E3C9786De603ff695db158B1510FA770e363 with 2013545 gas
+계약 검증을 시작합니다.
+계약 검증을 시도하는중입니다...
+Nothing to compile
+Warning: Function state mutability can be restricted to pure
+  --> contracts/BasicNft.sol:19:5:
+   |
+19 |     function tokenURI(uint256 /* tokenId */) public view override returns(string memory) {
+   |     ^ (Relevant source part starts here and spans across multiple lines).
+
+
+Successfully submitted source code for contract
+contracts/BasicNft.sol:BasicNft at 0x8299E3C9786De603ff695db158B1510FA770e363
+for verification on the block explorer. Waiting for verification result...
+
+Successfully verified contract BasicNft on Etherscan.
+https://rinkeby.etherscan.io/address/0x8299E3C9786De603ff695db158B1510FA770e363#code
+계약이 검증되었습니다.
+---------------------------------------------------
+Done in 124.67s.
+```
+
+vrf에 가서 consumer로 randomIpfsNft 주소를 등록해줍니다.
+
+```ps1
+Nothing to compile
+Basic NFT index 0 has tokenURI: ipfs://QmXH46oJifnKUDDemeixJZF9afH2yBPjCW5g8bqVqX6m9w
+Random IPFS NFT index 0 tokenURI: ipfs://QmaMLaa4VwpPtBkmNi76hg6jnJ5vqANn3iaWRCztgS5e91
+Daynamic SVG NFT index 0 tokenURI: data:application/json;base64,eyJuYW1lIjoiRHluYW1pY1N2Z05mdCIsICJkZXNjcmlwdGlvbiI6IkFuIE5GVCB0aGFodCBjaGFuZ2VzIGJhc2VkIG9uIGNoYWlubGluayBGZWVkISIsImF0dHJpYnV0ZSI6W3sidHJhaXRfdHlwZSI6ICJjb29sbmVzcyIsICJ2YWx1ZSI6MTAwfV0sICJpbWFnZSI6ImRhdGE6aW1hZ2Uvc3ZnK3htbDtiYXNlNjQsUEQ5NGJXd2dkbVZ5YzJsdmJqMGlNUzR3SWlCemRHRnVaR0ZzYjI1bFBTSnVieUkvUGdvOGMzWm5JSGRwWkhSb1BTSXhNREkwY0hnaUlHaGxhV2RvZEQwaU1UQXlOSEI0SWlCMmFXVjNRbTk0UFNJd0lEQWdNVEF5TkNBeE1ESTBJaUI0Yld4dWN6MGlhSFIwY0RvdkwzZDNkeTUzTXk1dmNtY3ZNakF3TUM5emRtY2lQZ29nSUR4d1lYUm9JR1pwYkd3OUlpTXpNek1pSUdROUlrMDFNVElnTmpSRE1qWTBMallnTmpRZ05qUWdNalkwTGpZZ05qUWdOVEV5Y3pJd01DNDJJRFEwT0NBME5EZ2dORFE0SURRME9DMHlNREF1TmlBME5EZ3RORFE0VXpjMU9TNDBJRFkwSURVeE1pQTJOSHB0TUNBNE1qQmpMVEl3TlM0MElEQXRNemN5TFRFMk5pNDJMVE0zTWkwek56SnpNVFkyTGpZdE16Y3lJRE0zTWkwek56SWdNemN5SURFMk5pNDJJRE0zTWlBek56SXRNVFkyTGpZZ016Y3lMVE0zTWlBek56SjZJaTgrQ2lBZ1BIQmhkR2dnWm1sc2JEMGlJMFUyUlRaRk5pSWdaRDBpVFRVeE1pQXhOREJqTFRJd05TNDBJREF0TXpjeUlERTJOaTQyTFRNM01pQXpOekp6TVRZMkxqWWdNemN5SURNM01pQXpOeklnTXpjeUxURTJOaTQySURNM01pMHpOekl0TVRZMkxqWXRNemN5TFRNM01pMHpOeko2VFRJNE9DQTBNakZoTkRndU1ERWdORGd1TURFZ01DQXdJREVnT1RZZ01DQTBPQzR3TVNBME9DNHdNU0F3SURBZ01TMDVOaUF3ZW0wek56WWdNamN5YUMwME9DNHhZeTAwTGpJZ01DMDNMamd0TXk0eUxUZ3VNUzAzTGpSRE5qQTBJRFl6Tmk0eElEVTJNaTQxSURVNU55QTFNVElnTlRrM2N5MDVNaTR4SURNNUxqRXRPVFV1T0NBNE9DNDJZeTB1TXlBMExqSXRNeTQ1SURjdU5DMDRMakVnTnk0MFNETTJNR0U0SURnZ01DQXdJREV0T0MwNExqUmpOQzQwTFRnMExqTWdOelF1TlMweE5URXVOaUF4TmpBdE1UVXhMalp6TVRVMUxqWWdOamN1TXlBeE5qQWdNVFV4TGpaaE9DQTRJREFnTUNBeExUZ2dPQzQwZW0weU5DMHlNalJoTkRndU1ERWdORGd1TURFZ01DQXdJREVnTUMwNU5pQTBPQzR3TVNBME9DNHdNU0F3SURBZ01TQXdJRGsyZWlJdlBnb2dJRHh3WVhSb0lHWnBiR3c5SWlNek16TWlJR1E5SWsweU9EZ2dOREl4WVRRNElEUTRJREFnTVNBd0lEazJJREFnTkRnZ05EZ2dNQ0F4SURBdE9UWWdNSHB0TWpJMElERXhNbU10T0RVdU5TQXdMVEUxTlM0MklEWTNMak10TVRZd0lERTFNUzQyWVRnZ09DQXdJREFnTUNBNElEZ3VOR2cwT0M0eFl6UXVNaUF3SURjdU9DMHpMaklnT0M0eExUY3VOQ0F6TGpjdE5Ea3VOU0EwTlM0ekxUZzRMallnT1RVdU9DMDRPQzQyY3preUlETTVMakVnT1RVdU9DQTRPQzQyWXk0eklEUXVNaUF6TGprZ055NDBJRGd1TVNBM0xqUklOalkwWVRnZ09DQXdJREFnTUNBNExUZ3VORU0yTmpjdU5pQTJNREF1TXlBMU9UY3VOU0ExTXpNZ05URXlJRFV6TTNwdE1USTRMVEV4TW1FME9DQTBPQ0F3SURFZ01DQTVOaUF3SURRNElEUTRJREFnTVNBd0xUazJJREI2SWk4K0Nqd3ZjM1puUGdvPSJ9
+Done in 122.88s.
+```
+
+내 지갑 주소를 복사 한 후 트랜잭션 내역을 확인해보면 Mint라 되있는 항목이 있을겁니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-12%20180036.png)
+
+여기서 Dynamic SVG NFT 계약의 주소를 복사해서 testnet Opensea에서 검색해봅시다.,
+
+
+
+## Lesson 15 Recap
+
+ERC721 표준을 사용한다는것을 알았습니다.
+
+이는  name, tokenURI 같은 함수를 갖는다는 말입니다.
+
+NFT는 tokenURI를 통해 토큰의 생김새를 니타냅니다.
+
+tokenURI는 name, description, images attributes 같은 프로퍼티로 구성되어있습니다.
+
+그리고 이런것들을 NFT의 metadata라고 합니다. 그리고 메타데이터는 NFT를 설명해주고있습니다.
+
+온체인에 이러한 메타데이터를 보관할수도 있습니다.
+
+온체인상에서 변화하는 인터렉티브 NFT를 만들수도 있습니다.
+
+uploadToPinata 함수를 작성했습니다. 프로그램 방식으로 IPFS 피닝서비스에 업로드할 수 있습니다.
+
+또한 랜덤확률로 추첨하여 다른 이미지를 갖는 랜덤 NFT를 만들었습니다.
+
+function selector에 대해 배웠습니다.
+
+abi.encode 에 대해 배웠습니다.
+
+# Lesson 15 Full Stack NFT Marketplace
+
+이 프로젝트가 끝나면 3가지 레포지토리가 만들어질겁니다.
+
+하드햇 백엔드 리포 하나 프론트엔드 리포 2개 입니다.
+
+이번시간에는 2개의 프론트엔드 리포를 생성하게 될겁니다.
+
+그리고 오프체인환경에서 왜 이벤트가 중요한지에 대해 중점적으로 다룰겁니다.
+
+두 가지 방식으로 작업할겁니다.
+
+하나는 모랄리스같은 중앙화된 데이터베이스를 통해서 작업할 것이고,
+
+두번째는 `graph`를 이용할겁니다.
+
+두가지를 모두 보여주는 이유는
+
+중앙화된 요소를 끌어오는것이 더 많은 기능을 추가할 수 있기 때문입니다.
+
+얘를 들어 OpenSea가 있습니다. OpenSea에는 NFT에 좋아요 표시를 할 수 있습니다. 사실 이 행위는 가스를 소모하지는 않습니다만, 사람들이 이 기능을 이용하기 위해서는 어딘가에 데이터를 저장해야만 합니다. 
+
+그래서 먼저 이 프론트엔드 빌드방법을 먼저 소개할겁니다. 모든 로직은 100% 온체인에서 작동되자만 프론트엔드의 온체인 비율을 조금 줄일겁니다. 왜냐하면 누구나 온체인에 있는 계약과 상호작용 할 수 있어야 하기 때문입니다.
+
+그러나 web3에서는 우리는 그곳에 안주하지 않을겁니다. 작은 프로젝트를 많이 만들어보는것은 굉장히 중요합니다.
+
+그러니 모랄리스같은 중앙화된 서비스나 중앙화된 프로젝트는 우리가 더 빠르게 작업할 수 있게 해줍니다.
+
+사실 우리는 중앙화된 서비스를 자주 이용합니다. Alchemy 같은 것 말이죠.
+
+하지만 당연히, 분산화된 방법으로 프론트엔드를 만드는 방법을 배울겁니다.
+
+그러니 모랄리스 프로젝트가 끝난 후에 그래프(graph)를 이용해 이벤트를 인덱싱하는 방법에 대해 알아볼겁니다. 
+
+그래프는 프론트엔드와 이벤트를 분산화할 수 있는 방법입니다. 
+
+그리고 그래프는 항상 이 그래프 전용 레포지토리가 함께 딸려올겁니다.
+
+>https://github.com/PatrickAlphaC/graph-nft-marketplace-fcc
+
+이제 우리는 NFT 마켓 플레이스를 만들겁니다.
+
+이 과정은 프론트엔드 툴에 대ㅐ해 정말 딥다이브하는 시간이 될겁니다.
+
+NFT를 장터에 올릴수 있고 가격을 변경할 수 있습니다. 또한 해당 NFT를 다른 계정이 사갈 수 있습니다.
+
+NFT 장터는 수익을 기록하며, 실제로 판매 결과를 유지할겁니다.
+
+50eth 가치의 NFT를 팔았다면 50eth의 수익을 표시할 것이며 withdraw도 가능하게 할겁니다.
+
+이 프로젝트를 완성하고 나면 많은 블록체인 툴들을 다룰 수 있게 될겁니다.
+
+준비되셨나요?
+
+먼저 이 프로젝트는 Artion 프로젝트를 기반으로 진행합니다.
+
+오픈소스 완전 분산화 NFT 마켓플레이스입니다.
+
+>https://github.com/Fantom-foundation/Artion-Contracts
+
+우리 프로젝트는 이 프로젝트의 간소화 버전으로 만들겁니다.
+
+## NFT Marketplace Contracts
+
+### Hardhat Setup
+
+`hardhat-nft-marketplace` 폴더를 만들겠습니다.
+
+```json
+{
+  "devDependencies": {
+    "@aave/protocol-v2": "^1.0.1",
+    "@chainlink/contracts": "^0.4.2",
+    "@nomiclabs/hardhat-ethers": "npm:hardhat-deploy-ethers",
+    "@nomiclabs/hardhat-etherscan": "^3.1.0",
+    "@nomiclabs/hardhat-waffle": "^2.0.3",
+    "@openzeppelin/contracts": "^4.7.2",
+    "@pinata/sdk": "^1.1.26",
+    "base64-sol": "^1.1.0",
+    "chai": "^4.3.6",
+    "dotenv": "^16.0.1",
+    "ethereum-waffle": "^3.4.4",
+    "ethers": "^5.6.9",
+    "hardhat": "^2.10.1",
+    "hardhat-contract-sizer": "^2.6.1",
+    "hardhat-deploy": "^0.11.12",
+    "hardhat-gas-reporter": "^1.0.8",
+    "path": "^0.12.7",
+    "solidity-coverage": "^0.7.21"
+  }
+}
+```
+
+```ps1
+yarn add --dev hardhat
+yarn add --dev hardhat-deploy
+yarn add --dev @nomiclabs/hardhat-ethers@npm:hardhat-deploy-ethers ethers
+yarn add --dev @nomiclabs/hardhat-etherscan
+yarn add --dev @nomiclabs/hardhat-waffle
+yarn add --dev @openzeppelin/contracts
+yarn add --dev chai
+yarn add --dev dotenv
+yarn add --dev ethereum-waffle
+yarn add --dev hardhat-contract-sizer
+yarn add --dev hardhat-gas-reporter
+yarn add --dev solidity-coverage
+```
+
+```ps1
+yarn add --dev hardhat hardhat-deploy @nomiclabs/hardhat-ethers@npm:hardhat-deploy-ethers ethers @nomiclabs/hardhat-etherscan @nomiclabs/hardhat-waffle @openzeppelin/contracts chai dotenv ethereum-waffle hardhat-contract-sizer hardhat-gas-reporter solidity-coverage
+```
+
+
+이외에 `.gitignore` 파일과 `hardhat.config.js` 파일, `.env`, 파일 `utils` 폴더를 가져오겠습니다. 
+
+무엇을 할건지 README.md를 작성해봅시다.
+```md
+1. Create decentralied NFT Marketplace
+    1. `listitem`: List NFTs on the marketplace
+    2. `bytItem`: Buy the NFts
+    3. `cancelItem`: Cancel a listing
+    4. `updateListing`: Update Price
+    5. `withdrawProceeds`: Withdraw payment for my bought NFTs
+```
+
+`contracts/NftMarketPlace.sol` 파일을 생성합니다.
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.7;
+
+contract NftMarketPlace {
+    
+    ////////////////////
+    // Main Functions //
+    ////////////////////
+
+    function listItem(address nftAddress, uint256 tokenId, uint256 price) external {
+        
+    }
+
+}
+```
+
+uint256은 0보다 작지 않도록 require문을 작성해줍니다.
+
+이제 아이템 목록(listItem)을 가져올 수 있는 두가지 방법이 있습니다.
+
+// 1. Send the NFT to the contract. Transfer -> Contract "hold" the NFT.
+
+계약에 NFT를 전송해서 계약이 NFT를 `들고` 있게 만듭니다.
+
+NFT 목록을 나열하는데 가스요금이 비싸지만, NFT의 소유자가 NFT 마켓플레이스가 될 수 있도록 할 수 도 있습니다. 
+
+그러나 이것의 문제점은 마켓플레이스 자체가 NFT를 소유하게 된다는 점입니다. 유저들은 NFT 마켓에 있는 저 NFT는 내 소유권이야! 라고 주장하고 싶을겁니다. NFT는 기술적으로 그렇게 될 수 있어야 하고 또한 취소할(withdraw) 수도 있어야 합니다.
+
+우리는 이것을 아주 다른 관점에서 접근할 것입니다.
+
+// 2. Owners can still hold their NFT, and give the marketplace approval to sell the NFT for them
+
+바로 소유자가 계속 소유권을 가지고 있는겁니다. 거기에 마켓플레이스 승인/권한(approval)을 줘서 팔 수 도 있게 할겁니다.
+
+그리고 지금 당연히 이 실체(entity)의 소유자는 권한(승인)을 어느때나 취소(withdraw)하여 마켓플레이스가 더이상 해당 NFT를 판매할 수 없도록 할 수 있어야합니다.
+
+하지만 마치 "마켓플레이스에 승인되었음"이란 문장을 읽는것처럼 사람들이 읽기에 매우 쉬어야 합니다. 그리고 아이템의 등재여부도 알수 있어야 합니다.
+
+그래서 우리는 2번 방법으로 갈겁니다.
+
+And this is the least intrusive way to have this marketplace
+
+이것이 Artian이 선택한 방식이며 마켓플레이스를 만들기 위해 가장 거슬리지 않는 방법입니다.
+
+사람들은 자신의 NFT 소유권을 유지하면서 마켓플레이스는 단지 가격이 맞는경우에 그들이 거래하여 팔 수 있도록 하는 승인권한만 가지고 있는 것 뿐입니다.
+
+그래서 마켓플레이스가 approval을 가질 수 있도록 마켓플레이스가 approval을 가질 수 있게 해줍시다.
+
+우리는 `EIP-721`의 `getApprove`함수를 이용할 수 있습니다.
+
+```solidity
+
+    /// @notice Get the approved address for a single NFT
+    /// @dev Throws if `_tokenId` is not a valid NFT.
+    /// @param _tokenId The NFT to find the approved address for
+    /// @return The approved address for this NFT, or the zero address if there is none
+    function getApproved(uint256 _tokenId) external view returns (address);
+```
+
+우리는 토큰 아이디를 이용해 getApprove 함수를 호출하여 이 마켓플레이스가 NFT를 다룰 수 있도록 허락되어있는지 알 수 있습니다.
+
+이것을 하기 위해 `IERC-721` 인터페이스가 필요합니다.
+
+그리고 역시나 오픈제플린에서 가져올 수 있습니다.
+
+```solidity
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol"
+```
+
+이제 IERC721을 nft라는 변수로 불러와 IERC721에 nftAddress를 전달해줍니다.
+
+```solidity
+    function listItem(address nftAddress, uint256 tokenId, uint256 price) external {
+        if(price <= 0) {
+            revert NftMarketPlace__PriceMustBeAboveZero();
+        }
+        // 1. Send the NFT to the contract. Transfer -> Contract "hold" the NFT.
+        // 2. Owners can still hold their NFT, and give the marketplace approval to sell the NFT for them
+        IERC721 nft = IERC721(nftAddress);
+
+    }
+```
+
+그리고 다음과 같이 tokenId를 넘겨줬을때 승인이 되지 않았다면 revert 되는 에러를 작성해줍니다.
+
+```solidity
+    function listItem(address nftAddress, uint256 tokenId, uint256 price) external {
+        if(price <= 0) {
+            revert NftMarketPlace__PriceMustBeAboveZero();
+        }
+        // 1. Send the NFT to the contract. Transfer -> Contract "hold" the NFT.
+        // 2. Owners can still hold their NFT, and give the marketplace approval to sell the NFT for them
+        IERC721 nft = IERC721(nftAddress);
+        if(nft.getApproved(tokenId) != address(this)) {
+            revert NftMarketPlace__NotApprovedForMarketplace();
+        }
+
+    }
+```
+
+그리고 이 NFT 목록을 저장할 데이터스트럭쳐를 구현해야할겁니다. 어떤걸 사용해야할까요?
+
+배열? 매핑?
+
+잠시 멈추고 생각해봅시다.
+
+Question: NFT를 배열에 넣는게 말이 될까요 매핑에 넣는게 말이될까요?
+
+answer: 아마도 사람들이 이것으로 거래가 가능해야 하고 소유권도 인정받기 위해서는 address와 연결되어 있는 mapping이 필요할것같습니다.
+
+그렇습니다. 탐색 할 수 있는 mapping이 필요합니다. array도 불가능한건 아니지만 배열을 가로질러야 할 경우 우리는 매우 복잡한 배열을 가지게 될겁니다. 그리고 배열이 정말 커질수록 약간 까다로워질 수 있습니다
+
+그렇다면 NFT 계약 주소와 NFT 토큰아이디로 해당 NFT의 가격과 판매자를 가지고 있는 목록을 볼 수 있도록 만들겁니다.
+
+NFT Contract address -> NFT TokenID -> Listing
+```solidity
+mapping(address => mapping(uint256 => uint256)) // NFT 가격
+mapping(address => mapping(uint256 => seller))  // NFT 판매자
+mapping(address => mapping(uint256 => Listing)) // 위 둘을 합친 타입
+```
+
+Listing이라는 struct를 만들어줍시다.
+
+```solidity
+    struct Listing {
+        uint256 price;
+        address seller;
+    }
+
+    // NFT Contract address -> NFT TokenID -> Listing
+    mapping (address => mapping(uint256 => Listing)) private s_listings;
+```
+
+그리고 아래로 내려와서 s_listing을 업데이트 해줄겁니다.
+
+```solidity
+    function listItem(address nftAddress, uint256 tokenId, uint256 price) external {
+        if(price <= 0) {
+            revert NftMarketPlace__PriceMustBeAboveZero();
+        }
+        // 1. Send the NFT to the contract. Transfer -> Contract "hold" the NFT.
+        // 2. Owners can still hold their NFT, and give the marketplace approval to sell the NFT for them
+        IERC721 nft = IERC721(nftAddress);
+        if(nft.getApproved(tokenId) != address(this)) {
+            revert NftMarketPlace__NotApprovedForMarketplace();
+        }
+        // array? mapping?
+        // mapping
+        s_listings[nftAddress][tokenId] = Listing(price, msg.sender);
+    }
+
+}
+```
+다음과 같이 price와 전송자를 Listing에 등록해줍니다.
+
+그리고 업데이트를 했으니 할게 있겠죠, 맞습니다. event를 emit해야겠죠
+
+특히 이 프로젝트의 경우, 이벤트를 내보내는 것(emit)이 왜 이 프로젝트에 도움이 되는지 알 수 있을 것입니다.
+
+** indexed 는 최대 3개까지만 가능합니다!!
+
+```solidity
+    event ItemList(
+        address indexed seller,
+        address indexed nftAddress,
+        uint256 indexed tokenId,
+        uint256 price
+    );
+    //...
+
+s_listings[nftAddress][tokenId] = Listing(price, msg.sender);
+emit ItemList(msg.sender, nftAddress, tokenId, price);
+```
+
+여기까진 아주 좋아보입니다.
+
+하지만 여기서 오직 등록된 NFT만 목록을 작성하도록 하고 싶습니다.
+
+그래서 if로 revert 문을 만들어주기도 했지만, 확실히 하기 위해 modifier를 하나 만들어주겠습니다.
+
+`notListed`라는 modifier를 만들겁니다, 바로 리스트에 중복으로 등재 되지 않도록 하기 위해서 말입니다.
+
+```solidity
+error NftMarketPlace__AlreadyListed(address, uint256);
+//...
+    modifier notListed(address nftAddress, uint256 tokenId, address owner) {
+        Listing memory listing = s_listings[nftAddress][tokenId];
+        if(listing.price > 0) {
+            revert NftMarketPlace__AlreadyListed(nftAddress, tokenId);
+        }
+        _;
+    }
+```
+nftAddress와 tokenId를 넘겨받아 s_listings에서 해당 값의 price가 0 이상일 경우 revert 시켜줍니다.
+
+그리고 해당 모디파이어를 listItem 함수에 추가해줍니다.
+
+```solidity
+    function listItem(address nftAddress, uint256 tokenId, uint256 price) external notListed(nftAddress, tokenId, msg.sender){
+        if(price <= 0) {
+            revert NftMarketPlace__PriceMustBeAboveZero();
+        }
+        // 1. Send the NFT to the contract. Transfer -> Contract "hold" the NFT.
+        // 2. Owners can still hold their NFT, and give the marketplace approval to sell the NFT for them
+        IERC721 nft = IERC721(nftAddress);
+        if(nft.getApproved(tokenId) != address(this)) {
+            revert NftMarketPlace__NotApprovedForMarketplace();
+        }
+        // array? mapping?
+        // mapping
+        s_listings[nftAddress][tokenId] = Listing(price, msg.sender);
+        emit ItemList(msg.sender, nftAddress, tokenId, price);
+    }
+```
+
+또 한가지 체크할 수 있는게 또 뭐있을까요?
+
+바로, NFT가 owner(msg.sender)에 의해 등재 되었는지 체크하는 겁니다.
+
+오직 NFT 소유자만이 그것을 리스트에 등록할 수 있어야 합니다.
+
+`isOwner` modifier를 만들어봅시다.
+
+```solidity
+error NftMarketPlace__NotOwner();
+
+//...
+    modifier isOwner(
+        address nftAddress,
+        uint256 tokenId,
+        address spender
+    ) {
+        IERC721 nft = IERC721(nftAddress);
+        address owner = nft.ownerOf(tokenId);
+        if (spender != owner) {
+            revert NftMarketPlace__NotOwner();
+        }
+        _;
+    }
+```
+해당 nft주소로 IERC721 계약을 활성화해서 ownerOf 함수에 tokenId를 전달하여 owner 주소를 가져온 뒤
+전송자 주소인 spender와 일치하는지 확인 한 후 아닐 시 revert 합니다.
+
+이 역시 listItem 함수에 모디파이어로 추가해줍니다.
+
+```solidity
+    function listItem(
+        address nftAddress,
+        uint256 tokenId,
+        uint256 price
+    )
+        external
+        notListed(nftAddress, tokenId, msg.sender)
+        isOwner(nftAddress, tokenId, msg.sender)
+    {
+        if (price <= 0) {
+            revert NftMarketPlace__PriceMustBeAboveZero();
+        }
+        // 1. Send the NFT to the contract. Transfer -> Contract "hold" the NFT.
+        // 2. Owners can still hold their NFT, and give the marketplace approval to sell the NFT for them
+        IERC721 nft = IERC721(nftAddress);
+        if (nft.getApproved(tokenId) != address(this)) {
+            revert NftMarketPlace__NotApprovedForMarketplace();
+        }
+        // array? mapping?
+        // mapping
+        s_listings[nftAddress][tokenId] = Listing(price, msg.sender);
+        emit ItemList(msg.sender, nftAddress, tokenId, price);
+    }
+}
+```
+
+이제 리스트 아이템이 이미 등록되어있는 아이템인지 확인 한 후 (`notListed`)
+리스트 등록을 하려는 사람이 해당 NFT의 소유자인지를 확인합니다 (`isOwner`)
+
+이것으로 listItem 함수 작성이 끝났습니다.
+이제 자신만의 natSpec을 한번 입력해보세요!
+
+이제 NFT를 살 수 있는 `butItem` 함수를 작성해보겠습니다.
+
+> 참고: 이런식으로 체인링크 프라이스 피드도 얼마든지 넣을 수 있습니다.
+>```solidity
+>    function listItem(
+>        address nftAddress,
+>        uint256 tokenId,
+>        uint256 price,
+>        address tokenPayment // chainlink price feeds
+>    )
+>```
+
+
+```solidity
+    function buyItem (uint256 nftAddress, uint256 tokenId) external payable {
+
+    }
+```
+
+구매할 nft의 주소와 tokenId를 인수로 받게 합니다.
+
+그리고 NFT를 구매하려면 실제로 목록에 등록되어 있어야 할겁니다.
+
+새 modifier `isListed`를 만들어보겠습니다.
+
+먼저 nftAddress와 tokenId를 통해 Listing에 접근합니다.
+
+```solidity
+    modifier isListed (address nftAddress, uint256 tokenId) {
+        Listing memory listing = s_listings[nftAddress][tokenId];
+        _;
+    }
+```
+
+그리고 `listing.price <= 0` 인상태 즉 가격이 정해지지 않은 상태라면 리스트에 등록이 되지 않은 상태이므로 revert 시킵니다.
+
+```solidity
+    modifier isListed (address nftAddress, uint256 tokenId) {
+        Listing memory listing = s_listings[nftAddress][tokenId];
+        if(listing.price <= 0) {
+            revert NftMarketplace__NotListed(nftAddress, tokenId);
+        }
+        _;
+    }
+```
+
+이제 아이템이 리스트에 등록되어있는지 확인할 수 있게 되었습니다.
+
+buyItem 함수에 모디파이어로 넣어줍니다.
+
+```solidity
+    function buyItem(uint256 nftAddress, uint256 tokenId)
+        external
+        payable
+        isListed(nftAddress, tokenId)
+    {
+        Listing memory listedItem = s_listings[nftAddress][tokenId];
+        if (msg.value < listedItem.price) {
+            revert NftMarketplace__PriceNotMet(
+                nftAddress,
+                tokenId,
+                listedItem.price
+            );
+        }
+    }
+```
+
+보낸 금액이 가격보다 적으면 revert 시킵니다.
+
+그리고 한가지 더 사람들이 NFT를 판매하여 얻은 수익을 추적할 수 있는 자료형을 하나 더 만들겠습니다.
+
+`proceeds`라는 매핑을 만들겠습니다.
+
+```solidity
+    // Seller address -> Amount earned
+    mapping(address => uint256) private s_proceeds;
+```
+
+누군가 아이템을 구매하면 구매한 NFT 소유자의 proceeds(수익)을 업데이트합니다.
+
+```solidity
+    function buyItem(uint256 nftAddress, uint256 tokenId)
+        external
+        payable
+        isListed(nftAddress, tokenId)
+    {
+        Listing memory listedItem = s_listings[nftAddress][tokenId];
+        if (msg.value < listedItem.price) {
+            revert NftMarketplace__PriceNotMet(
+                nftAddress,
+                tokenId,
+                listedItem.price
+            );
+        }
+        s_proceeds[listedItem.seller] = s_proceeds[listedItem.seller] + msg.value;
+    }
+```
+
+이제 아이템이 구매되었기때문에 리스트에서 해당 NFT를 지워야합니다.
+
+`delete`메소드로 프로퍼티를 지울 수 있습니다.
+
+```solidity
+    function buyItem(uint256 nftAddress, uint256 tokenId)
+        external
+        payable
+        isListed(nftAddress, tokenId)
+    {
+        Listing memory listedItem = s_listings[nftAddress][tokenId];
+        if (msg.value < listedItem.price) {
+            revert NftMarketplace__PriceNotMet(
+                nftAddress,
+                tokenId,
+                listedItem.price
+            );
+        }
+        s_proceeds[listedItem.seller] = s_proceeds[listedItem.seller] + msg.value;
+        delete (s_listings[nftAddress][tokenId]);
+    }
+```
+
+마지막으로 transfer 하면 됩니다.
+
+```solidity
+    function buyItem(uint256 nftAddress, uint256 tokenId)
+        external
+        payable
+        isListed(nftAddress, tokenId)
+    {
+        Listing memory listedItem = s_listings[nftAddress][tokenId];
+        if (msg.value < listedItem.price) {
+            revert NftMarketplace__PriceNotMet(
+                nftAddress,
+                tokenId,
+                listedItem.price
+            );
+        }
+        s_proceeds[listedItem.seller] = s_proceeds[listedItem.seller] + msg.value;
+        delete (s_listings[nftAddress][tokenId]);
+        IERC721(nftAddress).transferFrom(listedItem.seller, msg.sender, tokenId);
+    }
+```
+
+그런데 여기서 왜 판매자에게 돈만 보내지 않을까요
+
+솔리디티는 `Pull over Push` 라는 개념이 있습니다.
+
+>https://fravoll.github.io/solidity-patterns/pull_over_push.html
+
+Shift the risk associated with transferring ether to the user.
+
+사용자에게 이더를 전송하는 것과 관련된 리스크를 전가합니다.
+
+우리는 "유저에게 돈을 보내려는 목적"이 아니라, "그들이 돈을 인출할 수 있도록" 만드는 것이 목적입니다.
+
+돈에 관련된 권한과 리스크를 유저에게 넘기는것입니다.
+
+우리는 단지 proceeds 에 수익을 기록해놓고, 사용자들이 수시로 돈을 인출할 수 있도록 만들겁니다.
+
+이제 NFT가 제대로 전달되었는지 확인할 겁니다.
+
+IERC721 계약의 transferFrom 함수를 살펴보면 아무값도 리턴하지 않는것을 알 수 있습니다.
+
+EIP721 페이지를 보면 해당 transfer 함수들 중 어느 것도 return값이 없는걸 확인 할 수 있습니다.
+
+하지만 safeTransferFrom 함수를 보면 그나마 좀 낫습니다.
+
+safeTransferFrom 는 CALLER 가 그 행위를 승인한 것에 대한 책임을 지게 되어있습니다.
+
+_to 가 NFT를 받을 수 있음을 확인하고, 영구적으로 소실될 수 있는 가능성에 대한 책임을 CALLER 가 지게 되어있습니다.
+
+@notice NFT 소유권 이전 -- 호출자는 `_to`가 NFTS를 수신할 수 있는지 확인하거나 NFTS가 영구적으로 손실될 수 있는지 확인할 책임이 있습니다.
+
+```solidity
+//EIP-721
+    function safeTransferFrom(address _from, address _to, uint256 _tokenId) external payable;
+
+    /// @notice Transfer ownership of an NFT -- THE CALLER IS RESPONSIBLE
+    ///  TO CONFIRM THAT `_to` IS CAPABLE OF RECEIVING NFTS OR ELSE
+    ///  THEY MAY BE PERMANENTLY LOST
+    /// @dev Throws unless `msg.sender` is the current owner, an authorized
+    ///  operator, or the approved address for this NFT. Throws if `_from` is
+    ///  not the current owner. Throws if `_to` is the zero address. Throws if
+    ///  `_tokenId` is not a valid NFT.
+    /// @param _from The current owner of the NFT
+    /// @param _to The new owner
+    /// @param _tokenId The NFT to transfer
+```
+
+따라서 에러를 발생시키는 trasnferFrom 보다 safeTransferFrom 을 사용하겠습니다.
+
+```solidity
+    function buyItem(uint256 nftAddress, uint256 tokenId)
+        external
+        payable
+        isListed(nftAddress, tokenId)
+    {
+        Listing memory listedItem = s_listings[nftAddress][tokenId];
+        if (msg.value < listedItem.price) {
+            revert NftMarketplace__PriceNotMet(
+                nftAddress,
+                tokenId,
+                listedItem.price
+            );
+        }
+
+        // Sending the money to the user X
+        // Have them withdraw the money  O
+        s_proceeds[listedItem.seller] = s_proceeds[listedItem.seller] + msg.value;
+        delete (s_listings[nftAddress][tokenId]);
+        IERC721(nftAddress).safeTransferFrom(listedItem.seller, msg.sender, tokenId);
+        // check to make sure the NFT was transfered
+        
+    }
+```
+
+마지막으로 이벤트를 emit 시켜줍니다.
+
+```solidity
+    event ItemBought(
+        address indexed buyer,
+        address indexed nftAddress,
+        uint256 indexed tokenId,
+        uint256 price
+    );
+//...
+            emit ItemBought(msg.sender, nftAddress, tokenId, listedItem.price);
+```
+
+
+완성코드
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.7;
+
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+
+error NftMarketPlace__PriceMustBeAboveZero();
+error NftMarketPlace__NotApprovedForMarketplace();
+error NftMarketPlace__AlreadyListed(address nftAddress, uint256 tokenId);
+error NftMarketPlace__NotOwner();
+error NftMarketplace__NotListed(address nftAddress, uint256 tokenId);
+error NftMarketplace__PriceNotMet(
+    address nftAddress,
+    uint256 tokenId,
+    uint256 price
+);
+
+contract NftMarketPlace {
+    struct Listing {
+        uint256 price;
+        address seller;
+    }
+
+    event ItemList(
+        address indexed seller,
+        address indexed nftAddress,
+        uint256 indexed tokenId,
+        uint256 price
+    );
+
+    event ItemBought(
+        address indexed buyer,
+        address indexed nftAddress,
+        uint256 indexed tokenId,
+        uint256 price
+    );
+
+    // NFT Contract address -> NFT TokenID -> Listing
+    mapping(address => mapping(uint256 => Listing)) private s_listings;
+
+    // Seller address -> Amount earned
+    mapping(address => uint256) private s_proceeds;
+
+    ////////////////////
+    //    Modifier    //
+    ////////////////////
+
+    modifier notListed(
+        address nftAddress,
+        uint256 tokenId,
+        address owner
+    ) {
+        Listing memory listing = s_listings[nftAddress][tokenId];
+        if (listing.price > 0) {
+            revert NftMarketPlace__AlreadyListed(nftAddress, tokenId);
+        }
+        _;
+    }
+
+    modifier isOwner(
+        address nftAddress,
+        uint256 tokenId,
+        address spender
+    ) {
+        IERC721 nft = IERC721(nftAddress);
+        address owner = nft.ownerOf(tokenId);
+        if (spender != owner) {
+            revert NftMarketPlace__NotOwner();
+        }
+        _;
+    }
+
+    modifier isListed(address nftAddress, uint256 tokenId) {
+        Listing memory listing = s_listings[nftAddress][tokenId];
+        if (listing.price <= 0) {
+            revert NftMarketplace__NotListed(nftAddress, tokenId);
+        }
+        _;
+    }
+
+    ////////////////////
+    // Main Functions //
+    ////////////////////
+
+    /*
+     * @notice 사용자소유의 NFT를 리스트에 등록해주는 함수입니다.
+     * @param nftAddress: 사용자(소유자)의 NFT 주소
+     * @param tokenId: 해당 NFT의 tokenID
+     * @param price: 등록 후 판매할 가격
+     * @dev 기술적으로, 이 계약을 NFT의 에스크로(조건부 날인 증서/ 즉, 이 계약이 임시로 소유권을 가집니다.) 계약으로 만들 수 도 있지만,
+     * 이 방식으로 하면 사람들은 상장되어(listed)도 자신의 NFT 소유권을 보유할 수 있습니다.
+     */
+    function listItem(
+        address nftAddress,
+        uint256 tokenId,
+        uint256 price
+    )
+        external
+        // address tokenPayment // chainlink price feeds
+        // Challenge: Have this contract accept payment in a subset of tokens as well
+        // Hint: Use Chainlink Price Feeds to convert the price of the tokens between each other
+        notListed(nftAddress, tokenId, msg.sender)
+        isOwner(nftAddress, tokenId, msg.sender)
+    {
+        if (price <= 0) {
+            revert NftMarketPlace__PriceMustBeAboveZero();
+        }
+        // 1. Send the NFT to the contract. Transfer -> Contract "hold" the NFT.
+        // 2. Owners can still hold their NFT, and give the marketplace approval to sell the NFT for them
+        IERC721 nft = IERC721(nftAddress);
+        if (nft.getApproved(tokenId) != address(this)) {
+            revert NftMarketPlace__NotApprovedForMarketplace();
+        }
+        // array? mapping?
+        // mapping
+        s_listings[nftAddress][tokenId] = Listing(price, msg.sender);
+        emit ItemList(msg.sender, nftAddress, tokenId, price);
+    }
+
+    function buyItem(uint256 nftAddress, uint256 tokenId)
+        external
+        payable
+        isListed(nftAddress, tokenId)
+    {
+        Listing memory listedItem = s_listings[nftAddress][tokenId];
+        if (msg.value < listedItem.price) {
+            revert NftMarketplace__PriceNotMet(
+                nftAddress,
+                tokenId,
+                listedItem.price
+            );
+        }
+
+        // Sending the money to the user X
+        // Have them withdraw the money  O
+        s_proceeds[listedItem.seller] =
+            s_proceeds[listedItem.seller] +
+            msg.value;
+        delete (s_listings[nftAddress][tokenId]);
+        IERC721(nftAddress).safeTransferFrom(
+            listedItem.seller,
+            msg.sender,
+            tokenId
+        );
+        // check to make sure the NFT was transfered
+        emit ItemBought(msg.sender, nftAddress, tokenId, listedItem.price);
+    }
+}
+
+// 1. Create decentralied NFT Marketplace
+// 1. `listitem`: List NFTs on the marketplace
+// 2. `bytItem`: Buy the NFts
+// 3. `cancelItem`: Cancel a listing
+// 4. `updateListing`: Update Price
+// 5. `withdrawProceeds`: Withdraw payment for my bought NFTs
+
+```
+
+## Reentrancy Attacks
+
+우리가 transfer를 할때 safe 하다는 건 Reentrancy Attacks(재진입 공격) 로 부터 안전하다는 뜻입니다.
+
+--기술적으로는 이벤트가 전송되지 않습니다.
+
+우리는 상태를 먼저 변경한 후에 transfer를 통해 NFT토큰과 기타등등을 전송했습니다.
+
+근데 왜 이렇게 작업하는 걸까요?
+
+우리는 인지적으로는 이렇게 해도 말이 된다고 생각합니다.
+
+"그래, 먼저 실제로 NFT를 보내야겠지, 우리는 NFT 실체(entity)를 먼저 보내야 할거야"
+
+```solidity
+        Listing listedIem = s_listedItem[nftAddress][tokenId];
+        IERC721(nftAddress).safeTransferFrom(
+            listedItem.seller,
+            msg.sender,
+            tokenId
+        );
+
+                if (msg.value < listedItem.price) {
+            revert NftMarketplace__PriceNotMet(
+                nftAddress,
+                tokenId,
+                listedItem.price
+            );
+        }
+
+        // Sending the money to the user X
+        // Have them withdraw the money  O
+        s_proceeds[listedItem.seller] =
+            s_proceeds[listedItem.seller] +
+            msg.value;
+        delete (s_listings[nftAddress][tokenId]);
+```
+
+이것은 실제로 엄청난 보안 취약점(security vulnerability)입니다.
+
+이로인해 일어나는 블록체인에서 가장 흔한 해킹 중 하나인 재진입(Reentrancy)에 대해 알아봅시다.
+
+>https://solidity-by-example.org/hacks/re-entrancy/
+
+먼저 이 계약을 한번 살펴보겠습니다.
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.7;
+
+// Based on https://solidity-by-example.org/hacks/re-entrancy
+
+/*
+ReentrantVulnerable is a contract where you can deposit and withdraw ETH.
+This contract is vulnerable to re-entrancy attack.
+Let's see why.
+1. Deploy ReentrantVulnerable
+2. Deposit 1 Ether each from Account 1 (Alice) and Account 2 (Bob) into ReentrantVulnerable
+3. Deploy Attack with address of ReentrantVulnerable
+4. Call Attack.attack sending 1 ether (using Account 3 (Eve)).
+   You will get 3 Ethers back (2 Ether stolen from Alice and Bob,
+   plus 1 Ether sent from this contract).
+What happened?
+Attack was able to call ReentrantVulnerable.withdraw multiple times before
+ReentrantVulnerable.withdraw finished executing.
+Here is how the functions were called
+- Attack.attack
+- ReentrantVulnerable.deposit
+- ReentrantVulnerable.withdraw
+- Attack fallback (receives 1 Ether)
+- ReentrantVulnerable.withdraw
+- Attack.fallback (receives 1 Ether)
+- ReentrantVulnerable.withdraw
+- Attack fallback (receives 1 Ether)
+*/
+
+contract ReentrantVulnerable {
+    mapping(address => uint256) public balances;
+
+    function deposit() public payable {
+        balances[msg.sender] += msg.value;
+    }
+
+    function withdraw() public {
+        uint256 bal = balances[msg.sender];
+        require(bal > 0);
+
+        (bool sent, ) = msg.sender.call{value: bal}("");
+        require(sent, "Failed to send Ether");
+
+        balances[msg.sender] = 0;
+    }
+
+    // Helper function to check the balance of this contract
+    function getBalance() public view returns (uint256) {
+        return address(this).balance;
+    }
+}
+
+contract Attack {
+    ReentrantVulnerable public reentrantVulnerable;
+
+    constructor(address _reentrantVulnerableAddress) {
+        reentrantVulnerable = ReentrantVulnerable(_reentrantVulnerableAddress);
+    }
+
+    // Fallback is called when EtherStore sends Ether to this contract.
+    fallback() external payable {
+        if (address(reentrantVulnerable).balance >= 1 ether) {
+            reentrantVulnerable.withdraw();
+        }
+    }
+
+    function attack() external payable {
+        require(msg.value >= 1 ether);
+        reentrantVulnerable.deposit{value: 1 ether}();
+        reentrantVulnerable.withdraw();
+    }
+
+    // Helper function to check the balance of this contract
+    function getBalance() public view returns (uint256) {
+        return address(this).balance;
+    }
+}
+```
+
+첫번째 부분부터 보겠습니다.
+
+ReentrantVulneable 계약은 balances 매핑에 주소와 자금을 저장하고 있습니다.
+
+deposit 함수를 통해 deposit을 호출한 사람의 balances에 돈을 보낼 수 있습니다.
+
+그리고 withdraw 인출 함수도 있습니다.
+
+인출함수에서는 먼저 호출자의 balance를 bal에 할당한 뒤
+0보다 큰지 확인해서 자금이 있는지 확인 후
+call을 이용해서 bal만큼의 자금을 호출자에게 보내고 있습니다.
+
+그리고 마지막으로 balances[msg.sender] 호출자 자금을 0으로 바꾸는데, 이 부분이 바로 굉장히 위험한 부분입니다.
+
+```solidity
+contract ReentrantVulnerable {
+    mapping(address => uint256) public balances;
+
+    function deposit() public payable {
+        balances[msg.sender] += msg.value;
+    }
+
+    function withdraw() public {
+        uint256 bal = balances[msg.sender];
+        require(bal > 0);
+
+        (bool sent, ) = msg.sender.call{value: bal}("");
+        require(sent, "Failed to send Ether");
+
+        balances[msg.sender] = 0;
+    }
+
+    // Helper function to check the balance of this contract
+    function getBalance() public view returns (uint256) {
+        return address(this).balance;
+    }
+}
+```
+
+리믹스에서 직접 실행해봅시다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-14%20161936.png)
+
+해당 계정을 인수로 넣고 getBlance를 실행해보겠습니다.
+
+0으로 나옵니다.
+
+이제 deposit 함수를 이용해서 2ETH만큼 예금해보겠습니다.
+
+value에 2ether 만큼 넣고 deposit 버튼을 클릭합니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-14%20162108.png)
+
+withdraw 도 호출해보고 balance가 0으로 되는지 확인합니다.
+
+모두 잘 실행되는 것 같습니다.
+
+그러나 이 계약을 공격해서 모든 자금을 가져갈 수 있는 공격방법이 있습니다.
+
+그것이 바로 재진입 공격(Reentrancy Attack) 입니다.
+
+흔히 발생하는 해킹 공격 사례는 두가지가 있습니다.
+
+Reentrancy Attack과 Oracle Attack 입니다.
+
+그리고 오라클 공격은 프로토콜이 분산화된 오라클을 사용하지 않을 경우 발생합니다.
+
+다행히 우리는 체인링크 사용법을 알기때문에 이것으로부터는 보호받을 수 있습니다.
+
+>https://rekt.news/leaderboard/
+
+rekt.news 에서는 가장 손실이 많이 난 DeFi 해킹 사건을 추적해 리더보드를 갱신하고 있습니다.
+
+이 중 대부분이 오라클 어택이나 리엔트리 어택을 받아 일어난 사건입니다.
+
+이게 NFT랑은 어떤 관계일까요? 잠시 후에 알아보겠습니다.
+
+지금은 먼저 공격 함수를 만들어볼겁니다.
+
+```solidity
+pragma solidity ^0.8.7;
+
+contract Attack {
+    ReentrantVulnerable public reentrantVulnerable;
+
+    constructor(address _reentrantVulnerableAddress) {
+        reentrantVulnerable = ReentrantVulnerable(_reentrantVulnerableAddress);
+    }
+}
+```
+
+그리고 이제 할 것은 Attack 함수를 만든느 것입니다.
+
+이 함수는 withdraw 함수를 악의적인 방법으로 호출할겁니다.
+
+먼저 자금을 0 이상으로 만들기 위해 deposit 을 호출합니다.
+
+그리고 바로 withdraw로 입금했던 금액을 모두 인출하겠습니다.
+```solidity
+pragma solidity ^0.8.7;
+
+contract Attack {
+    ReentrantVulnerable public reentrantVulnerable;
+
+    constructor(address _reentrantVulnerableAddress) {
+        reentrantVulnerable = ReentrantVulnerable(_reentrantVulnerableAddress);
+    }
+
+    function attack() external payable {
+        reentrantVulnerable.deposit{value: 1 ether}();
+        reentrantVulnerable.withdraw();
+    }
+}
+```
+
+겉으로 보기에는 아무런 해가 없어보입니다만, 기억하세요
+
+msg.sender.call 처럼 이런식으로 호출하는것은 attack 계약을 호출하는 것이나 다름없습니다. (msg.sender === attack 계약주소)
+
+자 이 attack계약을 호출했을때 attack 계약내의 다른 함수를 호출하는 방법이 있었나요?
+
+우리가 전에 배웠던 fallback 함수에 대해 기억나시나요?
+
+만약 attack 계약에 fallback 이나 receive 함수를 추가하면,
+
+```solidity
+pragma solidity ^0.8.7;
+
+contract Attack {
+    ReentrantVulnerable public reentrantVulnerable;
+
+    constructor(address _reentrantVulnerableAddress) {
+        reentrantVulnerable = ReentrantVulnerable(_reentrantVulnerableAddress);
+    }
+
+    function attack() external payable {
+        reentrantVulnerable.deposit{value: 1 ether}();
+        reentrantVulnerable.withdraw();
+    }
+
+    fallback() external payable {
+
+    }
+}
+```
+
+다른 계약에서 call로 attack 계약에 ether를 보낼 때, 우리는 fallback이 withdraw를 다시 한번 호출할 수 있게 만들 수 있습니다. 우리가 `balance[msg.sender] = 0;`으로 자금을 업데이트 하기 전에 여러번 더 많은 자금을 인출할 수 있다는 뜻이죠.
+
+```solidity
+pragma solidity ^0.8.7;
+
+contract Attack {
+    ReentrantVulnerable public reentrantVulnerable;
+
+    constructor(address _reentrantVulnerableAddress) {
+        reentrantVulnerable = ReentrantVulnerable(_reentrantVulnerableAddress);
+    }
+
+    function attack() external payable {
+        reentrantVulnerable.deposit{value: 1 ether}();
+        reentrantVulnerable.withdraw();
+    }
+
+    fallback() external payable {
+        if(address(reentrantVulnerable).balancce >= 1 ether) {
+            reentrantVulnerable.withdraw();
+        }
+    }
+
+    // Helper function to check the balnace of this contract
+    function getBalance() public view returns(uint256) {
+        return address(this).balance;
+    }
+}
+```
+
+우리는 withdraw를 호출해서 ReentrantVulnerable 공격할겁니다. 
+
+그리고 withdraw의 send 항목에 도달했을때,
+```
+        (bool sent, ) = msg.sender.call{value: bal}("");
+        require(sent, "Failed to send Ether");
+```
+우리는 withdraw를 한번 더 호출하는 fallback 함수를 가지고 있습니다.
+
+그리고 우리가 다시 withdraw 함수를 호출하면
+
+balance[msg.sender] = 0; 은 아직 실행이 되지 않았으므로 자금은 아직도 0이 아닌 상태입니다.
+
+그럼 ReentrantVulnerable 계약은 자금이 아직 남아있다고 판단하고 돈을 보내게 됩니다. 
+
+그리고 또 sent 하게 되면서 또다시 withdraw를 부르게 되죠.
+
+그래서 이것이 끝날때까지 계속 withdraw를 호출하게 됩니다.
+
+실제로 어떻게 이루어지는지 실행해보겠습니다.
+
+이번에도 ReentrantVulnerable 계약을 배포한뒤 다량의 ehter를 입금해봅시다.
+
+그리고 다른 계정으로 withdraw를 누르면 error가 뜨면서 revert 하는지 정상적으로 작동하는지 확인합니다.
+
+이번에는 다른 계정으로 Attack 계약을 배포해보겠습니다.
+
+ReentrantVulnerable계약주소를 인수로 넣어 배포합니다.
+
+이제 attack을 호춣해볼겁니다.
+
+심지어 이 계정은 ReentrantVulnerable 계약에 deposit을 하지도 않았습니다.
+
+자 이제 attack을 눌러봅시다.
+
+그러면 ReentrantVulnerable이 가지고 있던 모든 금액에 + 우리가 attack을 실행할때 deposit 한 금액이 합쳐져 이 계약의 자금으로 들어왔습니다.
+
+그리고 ReentrantVulnerable의 잔금은 0이 되었죠. 이것이 바로 재진입 공격입니다.
+
+우리가 withdraw함수 한가운데서 call로 호출하는 것은 코드가 다른계약에서도 실행되게 허락하는 것입니다.
+
+그리고 Attack에서 실행된 코드들은 withdraw를 재호출하게 됩니다. balnace에 0이 할당되기 전에 말이에요.
+
+이것을 방지하는 2가지 방법이 있습니다.
+
+하나는 쉬운방법 하나는 mutex 방법입니다.
+
+따라서 보안 도구에서 항상 보게 되는 것 중 하나는 항상 외부 계약을 함수의 마지막 단계 또는 트랜잭션의 마지막 단계로 호출하기를 원한다는 것입니다.
+
+그리고 외부 계약을 부르기 전에 balance를 0으로 업데이트 할것입니다. 이렇게 되면 withdraw가 다시 불려지더라도 자금이 0이기 때문에 빼갈 수 없을 겁니다.
+
+다음 방법은 mutex lock 이라 불리는 방법입니다.
+
+오픈제플린이 가지고 있는 modifier들이 이런방식을 사용합니다. 
+
+mutex lock 방식으로 해보겠습니다.
+
+먼저 bool 타입을 하나 만들어줍니다.
+
+```solidity
+    //mutex lock
+    bool locked;
+
+    function withdraw() public {
+        require(!locked, "revert");
+        locked = true;
+        uint256 bal = balances[msg.sender];
+        require(bal > 0);
+
+        (bool sent, ) = msg.sender.call{value: bal}("");
+        require(sent, "Failed to send Ether");
+
+        balances[msg.sender] = 0;
+        locked = false;
+    }
+```
+
+그리고 locked을 이용해 한 번에 하나의 코드만 여기에서 실행할 수 있도록 허용하고 코드가 완료된 후에만 잠금을 해제합니다.
+
+오픈제플린에는 이와 관련된 코드가 있습니다.
+
+>https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/security/ReentrancyGuard.sol
+>https://docs.openzeppelin.com/contracts/4.x/api/security
+
+```solidity
+// SPDX-License-Identifier: MIT
+// OpenZeppelin Contracts v4.4.1 (security/ReentrancyGuard.sol)
+
+pragma solidity ^0.8.0;
+
+/**
+ * @dev Contract module that helps prevent reentrant calls to a function.
+ *
+ * Inheriting from `ReentrancyGuard` will make the {nonReentrant} modifier
+ * available, which can be applied to functions to make sure there are no nested
+ * (reentrant) calls to them.
+ *
+ * Note that because there is a single `nonReentrant` guard, functions marked as
+ * `nonReentrant` may not call one another. This can be worked around by making
+ * those functions `private`, and then adding `external` `nonReentrant` entry
+ * points to them.
+ *
+ * TIP: If you would like to learn more about reentrancy and alternative ways
+ * to protect against it, check out our blog post
+ * https://blog.openzeppelin.com/reentrancy-after-istanbul/[Reentrancy After Istanbul].
+ */
+abstract contract ReentrancyGuard {
+    // Booleans are more expensive than uint256 or any type that takes up a full
+    // word because each write operation emits an extra SLOAD to first read the
+    // slot's contents, replace the bits taken up by the boolean, and then write
+    // back. This is the compiler's defense against contract upgrades and
+    // pointer aliasing, and it cannot be disabled.
+
+    // The values being non-zero value makes deployment a bit more expensive,
+    // but in exchange the refund on every call to nonReentrant will be lower in
+    // amount. Since refunds are capped to a percentage of the total
+    // transaction's gas, it is best to keep them low in cases like this one, to
+    // increase the likelihood of the full refund coming into effect.
+    uint256 private constant _NOT_ENTERED = 1;
+    uint256 private constant _ENTERED = 2;
+
+    uint256 private _status;
+
+    constructor() {
+        _status = _NOT_ENTERED;
+    }
+
+    /**
+     * @dev Prevents a contract from calling itself, directly or indirectly.
+     * Calling a `nonReentrant` function from another `nonReentrant`
+     * function is not supported. It is possible to prevent this from happening
+     * by making the `nonReentrant` function external, and making it call a
+     * `private` function that does the actual work.
+     */
+    modifier nonReentrant() {
+        _nonReentrantBefore();
+        _;
+        _nonReentrantAfter();
+    }
+
+    function _nonReentrantBefore() private {
+        // On the first call to nonReentrant, _notEntered will be true
+        require(_status != _ENTERED, "ReentrancyGuard: reentrant call");
+
+        // Any calls to nonReentrant after this point will fail
+        _status = _ENTERED;
+    }
+
+    function _nonReentrantAfter() private {
+        // By storing the original value once again, a refund is triggered (see
+        // https://eips.ethereum.org/EIPS/eip-2200)
+        _status = _NOT_ENTERED;
+    }
+}
+```
+
+이 계약을 마켓플레이스 계약에서도 사용하겠습니다.
+
+`ReentrancyGuard.sol` 파일을 불러온 뒤 계약에 상속시켜주고 재진입 공격이 우려되는 함수에 모디파이어로 넣어주면 됩니다.
+
+```solidity
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+//...
+contract NftMarketPlace is ReentrancyGuard {
+  //...
+  //...
+    function buyItem(uint256 nftAddress, uint256 tokenId)
+        external
+        payable
+        nonReentrant
+        isListed(nftAddress, tokenId)
+```
+
+이제 뮤텍스 방식이 보안에 좀더 명시적입니다. locked 나 not_entered 등으로 확실히 나타내어주고 있기 때문입니다.
+
+그리고 여전히 좋은 예시는 외부계약에 접촉하기 전에 모든 상태변경을 마치는 것입니다.
+
+그래서 이것이 NFT와 어떤 상관일까요?
+
+ReentrantVulnerable 계약에서 sent 부분을
+
+```solidity
+bool success = nft.transferFrom(abcasdfsa);
+```
+로 고치고 생각해봅시다.
+
+우리가 다른 외부계약을 호출했을때 
+
+Attack 계약에서 transferFrom 함수에 악의적인 코드를 담고 있다면
+```solidity
+function transferFrom () {
+  // malicious code
+}
+```
+
+이 함수가 우리 계약에 다시 재진입하려 시도할 수도 있습니다.
+
+가장 좋은 방법은 역시나 통제 불가능한 외부 계약을 호출하기 전에 모든 상태변경을 마치는 것입니다.
+
+이러한 코드로 조금 더 여러가지 시도해보시는 걸 추천드립니다. 왜냐하면 seeing is believing 이기 때문이죠.
+
+## NftMarketplace.sol - Continued
+
+이제 등록 취소(cancel listing) 함수를 작성해보겠습니다.
+
+먼저 소유자만 가능해야하며(isOwner) 그리고 취소하려는 아이템이 등록되어있어야 할겁니다(isListed).
+
+두 조건을 모디파이어로 추가해 준 후 해당 NFT를 delete 메소드를 이용해 삭제합니다.
+
+마지막으로 이벤트를 emit 시킵니다.
+
+```solidity
+    event ItemCanceled(
+        address indexed seller,
+        address indexed nftAddress,
+        uint256 indexed tokenId
+    );
+    //...
+
+    function cancelListing(address nftAddress, uint256 tokenId)
+        external
+        isOwner(nftAddress, tokenId, msg.sender)
+        isListed(nftAddress, tokenId)
+    {
+        delete (s_listings[nftAddress][tokenId]);
+        emit ItemCanceled(msg.sender, nftAddress, tokenId);
+    }
+```
+
+이제 가격 업데이트 함수를 만들어보겠습니다.
+
+업데이트는 근본적으로 단지 다시 목록을 갱신(relisting) 하는것 뿐입니다.
+
+따라서 이벤트 이름을 ItemListed로 하겠습니다.
+
+```solidity
+    function updateListing(
+        address nftAddress,
+        uint256 tokenId,
+        uint256 newPrice
+    )
+        external
+        isListed(nftAddress, tokenId)
+        isOwner(nftAddress, tokenId, msg.sender)
+    {
+        s_listings[nftAddress][tokenId].price = newPrice;
+        emit ItemListed(msg.sender, nftAddress, tokenId, newPrice);
+    }
+```
+
+다음은 수익을 인출하는 함수입니다.
+
+이번엔 msg.sender만 이용해서 인출을 진행할겁니다.
+
+그리고 당연히 배운것처럼 call 로 다른 계약을 부르기 전에 모든 상태변화를 완료할겁니다.
+
+먼저 proceeds 에 s_proceeds 매핑에서 msg.sender의 수익을 찾아 할당합니다.
+
+그리고 해당 수익이 0 이하일 경우 수익이 없다는 에러와 함께 revert 시킵니다.
+
+그리고 call 전에 미리 s_proceeds[msg.sender]의 수익을 0으로 세팅합니다.
+
+그런 다음 call로 `payable(address)`형태로 판매자에게 proceeds만큼 금액을 보냅니다.
+
+마지막으로 실패할 경우 에러를 처리해줍니다.
+
+```solidity
+    function withdrawProceeds() external {
+        uint256 proceeds = s_proceeds[msg.sender];
+        if (proceeds >= 0) {
+            revert NftMarketplace__NoProceeds();
+        }
+        s_proceeds[msg.sender] = 0;
+        (bool success, ) = payable(msg.sender).call{value:proceeds}("");
+        if (!success) {
+            revert NftMarketplace__TransferFailed();
+        }
+    }
+```
+
+이제 몇가지 getter 함수를 만들어보겠습니다.
+
+```solidity
+    function getListing(address nftAddress, uint256 tokenId) external view returns(Listing memory) {
+        return s_listings[nftAddress][tokenId];
+    }
+
+    function getProceeds(address seller) external view returns(uint256) {
+        return s_proceeds[seller];
+    }
+```
+
+## deploy & test
+
+알아서 해보세요
+
+```js
+const { network } = require("hardhat");
+const { developmentChains } = require("../helper-hardhat-config");
+const { verify } = require("../utils/verify");
+
+module.exports = async function ({deployments, getNamedAccounts}) {
+    const { deploy, log } = deployments;
+    const { deployer } = await getNamedAccounts();
+    const args = [];
+    const nftMarketPlace = await deploy("NftMarketplace", {
+        from: deployer,
+        args: args,
+        log: true,
+        waitConfirmations: network.config.blockConfirmations || 1,
+    })
+    log(`${network.name} 체인에 배포되었습니다.`)
+    if(!developmentChains.includes(network.name) && process.env.ETHERSCAN_API_KEY) {
+        await verify(nftMarketPlace.address, args);
+    }
+}
+
+module.exports.tags = ["all", "nftmarketplace"];
+```
+
+마켓플레이스를 테스트해보려면 당연히 NFT가 필요하겠죠??
+
+`contracts/test/BasicNft.sol` 파일을 생성하고 저번에 만든 BasicNft를 복사해옵니다.
+
+```js
+const { network } = require("hardhat");
+const { developmentChains } = require("../helper-hardhat-config");
+const { verify } = require("../utils/verify");
+
+module.exports = async function({deployments, getNamedAccounts}) {
+    const { deploy, log} = deployments;
+    const { deployer} = await getNamedAccounts();
+    const args = [];
+    const basicNft = await deploy("BasicNft", {
+        from: deployer,
+        args: args,
+        log: true,
+        waitConfirmations: network.config.blockConfirmations || 1,
+    })
+    log(`${network.name} 에 배포됨`)
+    if(!developmentChains.includes(network.name) && process.env.ETHERSCAN_API_KEY) {
+        await verify(basicNft.address, args);
+    }
+}
+
+module.exports.tags = ["all","basicnft"];
+```
+
+## NftMarketplace.sol Tests
+
+딱 하나만 같이 해보고 나머지 테스트는 스스로 작성하여 100% 커버리지율을 달성해봅시다.
+
+`test/uint/NftMarketplace.test.js` 파일을 만들어줍니다.
+
+`hardhat.config.js` 에서 다음과 같이 설정했었습니다.
+
+```js
+  namedAccounts: {
+    deployer: {
+      default: 0,
+    },
+    user: {
+      default: 1,
+    },
+  },
+```
+
+두번째 계정(1)을 user로 설정했었죠. 이걸 활용할겁니다. deployer 처럼 getNamedAccounts를 이용해 잡아주고 두번째 계정으로 설정해줍니다.
+
+```js
+let user;
+beforeEach(async() => {
+  user = (await getNamedAccounts()).user;
+})
+```
+
+```js
+const { ethers, deployments, getNamedAccounts } = require("hardhat");
+const { developmentChains } = require("../../helper-hardhat-config");
+
+!developmentChains.includes(network.name)
+  ? describe.skip
+  : describe("Nft Marketplace test", function () {
+    let nftMarketplace, basicNft, deployer, user;
+    const PRICE = ethers.utils.parseEther("0.1");
+    const TOKEN_ID = 0;
+    beforeEach(async function () {
+        deployer = (await getNamedAccounts()).deployer;
+        user = (await getNamedAccounts()).user;
+        await deployments.fixture(["all"]);
+        nftMarketplace = await ethers.getContract("NftMarketplace");
+        basicNft = await ethers.getContract("BasicNft");
+    })
+  });
+```
+
+nftMarketplace는 장터운영자(deployer)에 의해 배포되고
+
+NFT를 소유하고 있는 사용자(user)는 장터 계약에 연결되어야 거래를 할 수 있습니다.
+
+`connect()`를 이용해 마켓플레이스 계약에 계정을 연동시켜줍니다.
+
+```js
+let nftMarketplace, nftMarketplaceContract;
+beforeEach(async() => {
+  nftMarketplaceContract = await ethers.getContract("NftMarketplace");
+  nftMarketplace = await nftMarketplaceContract.connect(user);
+})
+```
+
+connect 대신 getContract로 계정을 자동으로 연결시키는 것도 가능합니다.
+
+```js
+nftMarketplace = await ethers.getContract("NftMarketplace",user);
+```
+
+하지만 지금은 다시 원래대로 아무 singer도 전달하지 않고 getContract 하겠습니다.
+```js
+        nftMarketplace = await ethers.getContract("NftMarketplace");
+        nftMarketplace = await nftMarketplace.connect(user);
+        basicNft = await ethers.getContract("BasicNft");
+```
+
+그리고 BaiscNFT에서 approve 를 호출합니다.
+```js
+        await basicNft.mintNft();
+        await basicNft.approve(nftMarketplace.address, TOKEN_ID);
+```
+
+왜냐하면 nftMarketplace이 approve를 호출할 수 없기 때문입니다. 사용자의 NFT를 소유하고 있지 않기때문이죠.
+
+현재 BasicNft의 getContract는 아무 singer도 전달되지 않았습니다.
+
+getContract에 signer를 연결하지 않을 경우 자동으로 0번계정인 deployer에 연결되게 됩니다.
+
+따라서 현재 deployer가 BasicNFT를 배포하고 Mint한 후에 deployer가 approve 한것입니다.
+
+**오직 approve 함수가 호출된 후에만 Nft Marketplace의 transferFrom 을 호출할 수 있습니다.**
+
+```js
+const { ethers, deployments, getNamedAccounts } = require("hardhat");
+const { developmentChains } = require("../../helper-hardhat-config");
+
+!developmentChains.includes(network.name)
+  ? describe.skip
+  : describe("Nft Marketplace test", function () {
+    let nftMarketplace, basicNft, deployer, user;
+    const PRICE = ethers.utils.parseEther("0.1");
+    const TOKEN_ID = 0;
+    beforeEach(async function () {
+        deployer = (await getNamedAccounts()).deployer;
+        user = (await getNamedAccounts()).user;
+        await deployments.fixture(["all"]);
+        nftMarketplace = await ethers.getContract("NftMarketplace");
+        nftMarketplace = await nftMarketplace.connect(user);
+        basicNft = await ethers.getContract("BasicNft");
+        await basicNft.mintNft();
+        await basicNft.approve(nftMarketplace.address, TOKEN_ID);
+    })
+  });
+
+```
+
+그리고 바로 테스트를 하나 해볼겁니다.
+```js
+    it("리스트에 등록 후 구매 가능", async function () {
+        await nftMarketplace.listItem(basicNft.address, TOKEN_ID, PRICE);
+    })
+```
+이렇게 하면 nft 하나가 리스트에 등록되게 됩니다.
+
+그리고 이제 다른 계정을 연결해서 등록된 NFT를 구매해볼겁니다.
+
+```js
+    it("리스트에 등록 후 구매 가능", async function () {
+        await nftMarketplace.listItem(basicNft.address, TOKEN_ID, PRICE);
+        const userConnectedNftMarketplace = nftMarketplace.connect(user);
+        await userConnectedNftMarketplace.buyItem(basicNft.address, TOKEN_ID);
+        // function buyItem(address nftAddress, uint256 tokenId)
+    })
+```
+
+이후에 반드시 해야할것은 바로 user가 해당 NFT를 소유권을 가지고 있는지를 확인하는겁니다.
+
+```js
+    it("리스트에 등록 후 구매 가능", async function () {
+        await nftMarketplace.listItem(basicNft.address, TOKEN_ID, PRICE);
+        const userConnectedNftMarketplace = nftMarketplace.connect(user);
+        await userConnectedNftMarketplace.buyItem(basicNft.address, TOKEN_ID);
+        // function buyItem(address nftAddress, uint256 tokenId)
+        const newOwner = basicNft.ownerOf(TOKEN_ID);
+        const deployerProceeds = await nftMarketplace.getProceeds(deployer);
+        assert(newOwner.toString() == user.address);
+        assert(deployerProceeds.toString() == PRICE.toString());
+    })
+```
+
+해당 NFT를 user가 소유권을 넘겨받았는지 확인합니다.
+그리고 deployer의 수익이 PRICE와 일치하는지 확인합니다.
+
+그리고 여기서 더 확실한 테스트를 위해 `getSinger()` 메소드로 가계정을 가져온 후 user에 할당하는 걸로 수정하겠습니다.
+
+```js
+    beforeEach(async function () {
+        deployer = (await getNamedAccounts()).deployer;
+        accounts = await ethers.getSigners();
+        // user = (await getNamedAccounts()).user;
+        user = accounts[1];
+    })
+```
+
+그리고 buyItem 함수에 value도 같이 인수로 넣어 보내줍니다.
+
+```js
+await userConnectedNftMarketplace.buyItem(basicNft.address, TOKEN_ID, {value: PRICE});
+```
+
+```js
+const { assert } = require("chai");
+const { ethers, deployments, getNamedAccounts } = require("hardhat");
+const { developmentChains } = require("../../helper-hardhat-config");
+
+!developmentChains.includes(network.name)
+  ? describe.skip
+  : describe("Nft Marketplace test", function () {
+    let nftMarketplace, basicNft, deployer, user;
+    const PRICE = ethers.utils.parseEther("0.1");
+    const TOKEN_ID = 0;
+    beforeEach(async function () {
+        deployer = (await getNamedAccounts()).deployer;
+        accounts = await ethers.getSigners();
+        // user = (await getNamedAccounts()).user;
+        user = accounts[1];
+        await deployments.fixture(["all"]);
+        nftMarketplace = await ethers.getContract("NftMarketplace");
+        basicNft = await ethers.getContract("BasicNft");
+        await basicNft.mintNft();
+        await basicNft.approve(nftMarketplace.address, TOKEN_ID);
+    })
+
+    it("리스트에 등록 후 구매 가능", async function () {
+        await nftMarketplace.listItem(basicNft.address, TOKEN_ID, PRICE);
+        const userConnectedNftMarketplace = nftMarketplace.connect(user);
+        await userConnectedNftMarketplace.buyItem(basicNft.address, TOKEN_ID, {value: PRICE});
+        // function buyItem(address nftAddress, uint256 tokenId)
+        const newOwner = await basicNft.ownerOf(TOKEN_ID);
+        const deployerProceeds = await nftMarketplace.getProceeds(deployer);
+        assert(newOwner.toString() == user.address);
+        assert(deployerProceeds.toString() == PRICE.toString());
+    })
+  });
+
+```
+
+테스트를 해봅시다.
+
+```ps1
+
+  Nft Marketplace test
+    √ 리스트에 등록 후 구매 가능
+
+
+  1 passing (809ms)
+
+Done in 5.69s.
+```
+
+NFT 마켓플레이스에서 구입/판매가 가능함을 알았습니다.
+
+```js
+const { assert, expect } = require("chai");
+const { ethers, deployments, getNamedAccounts } = require("hardhat");
+const { developmentChains } = require("../../helper-hardhat-config");
+
+!developmentChains.includes(network.name)
+  ? describe.skip
+  : describe("Nft Marketplace test", function () {
+    let nftMarketplace, basicNft, deployer, user;
+    const PRICE = ethers.utils.parseEther("0.1");
+    const TOKEN_ID = 0;
+    beforeEach(async function () {
+        deployer = (await getNamedAccounts()).deployer;
+        accounts = await ethers.getSigners();
+        // user = (await getNamedAccounts()).user;
+        user = accounts[1];
+        await deployments.fixture(["all"]);
+        nftMarketplace = await ethers.getContract("NftMarketplace");
+        basicNft = await ethers.getContract("BasicNft");
+        await basicNft.mintNft();
+        await basicNft.approve(nftMarketplace.address, TOKEN_ID);
+    })
+
+    it("리스트에 등록 후 구매 가능", async function () {
+        await nftMarketplace.listItem(basicNft.address, TOKEN_ID, PRICE);
+        const userConnectedNftMarketplace = nftMarketplace.connect(user);
+        await userConnectedNftMarketplace.buyItem(basicNft.address, TOKEN_ID, {value: PRICE});
+        // function buyItem(address nftAddress, uint256 tokenId)
+        const newOwner = await basicNft.ownerOf(TOKEN_ID);
+        const deployerProceeds = await nftMarketplace.getProceeds(deployer);
+        assert(newOwner.toString() == user.address);
+        assert(deployerProceeds.toString() == PRICE.toString());
+    })
+    describe("listItem", function() {
+        it("price가 0이거나 0보다 작을때 revert", async function() {
+            await expect(nftMarketplace.listItem(basicNft.address, TOKEN_ID, 0)).to.be.revertedWith("NftMarketplace__PriceMustBeAboveZero()");
+        })
+        it("NFT 소유자가 아닌사람이 등록하려할때 revert", async function() {
+            const userConnectedMarketplace = nftMarketplace.connect(user);
+            const nonApporvedNftListing = userConnectedMarketplace.listItem(basicNft.address, TOKEN_ID, PRICE);
+            await expect(nonApporvedNftListing).to.be.revertedWith("NftMarketplace__NotOwner()");
+        })
+        it("거래가 승인(Approve) 되지 않은 NFT일때 revert", async function() {
+            // ERC721.sol _burn() 메소드 참조 - 빈주소에 승인해버리기
+            const addressZero = ethers.constants.AddressZero;
+            await basicNft.approve(addressZero, TOKEN_ID);
+            const nonApporvedNftListing = nftMarketplace.listItem(basicNft.address, TOKEN_ID, PRICE);
+            await expect(nonApporvedNftListing).to.be.revertedWith("NftMarketplace__NotApprovedForMarketplace()");
+        })
+        it("이미 등록된 NFT일때 notListed 모디파이어에서 NftMarketplace__AlreadyListed(nftAddress, tokenId)와 함께 revert", async function() {
+            await nftMarketplace.listItem(basicNft.address, TOKEN_ID, PRICE);
+            await expect(nftMarketplace.listItem(basicNft.address, TOKEN_ID, PRICE)).to.be.revertedWith(`NftMarketplace__AlreadyListed("${basicNft.address}", ${TOKEN_ID})`)
+        })
+    })
+    describe("buyItem", function() {
+        it("보내는 금액이 가격보다 적을 경우 revert", async function () {
+            await nftMarketplace.listItem(basicNft.address, TOKEN_ID, PRICE);
+            const userConnectedNftMarketplace = nftMarketplace.connect(user);
+            const notEnoughPrice = ethers.utils.parseEther("0.05");
+            const sendValueLessThanPrice = userConnectedNftMarketplace.buyItem(basicNft.address, TOKEN_ID, {value: notEnoughPrice});
+            await expect(sendValueLessThanPrice).to.be.revertedWith(`NftMarketplace__PriceNotMet("${basicNft.address}", ${TOKEN_ID}, ${PRICE})`)
+        })
+        it("장터에 등록되지 않은 NFT를 사려할때 isListed 모디파이어에서 revert", async function() {
+            const userConnectedNftMarketplace = nftMarketplace.connect(user);
+            const buyingNonListedItem = userConnectedNftMarketplace.buyItem(basicNft.address, TOKEN_ID);
+            await expect(buyingNonListedItem).to.be.revertedWith(`NftMarketplace__NotListed("${basicNft.address}", ${TOKEN_ID})`)
+        })
+    })
+    describe("cancelListing", function() {
+        it("리스트 등록 취소", async function () {
+            await nftMarketplace.listItem(basicNft.address, TOKEN_ID, PRICE);
+            await nftMarketplace.cancelListing(basicNft.address, TOKEN_ID);
+            const {price, seller} = await nftMarketplace.getListing(basicNft.address, TOKEN_ID);
+            console.log(price.toString());
+            console.log(seller.toString());
+            console.log(price); // BigNumber { _hex: '0x00', _isBigNumber: true }
+            console.log(seller); // 0x0000000000000000000000000000000000000000
+            console.log(parseInt(price)); // 0
+            console.log(parseInt(seller, 16)); // 0
+            console.log(parseInt(seller)); // 0
+            assert(price == 0);
+            assert(seller == 0);
+            assert.equal(price, 0);
+            assert.equal(seller, 0);
+        })
+    })
+    describe("updateListing", function() {
+        it("Listing.price가 newPrice로 업데이트 됨", async function () {
+            await nftMarketplace.listItem(basicNft.address, TOKEN_ID, PRICE);
+            const {price: startPrice} = await nftMarketplace.getListing(basicNft.address, TOKEN_ID);
+            assert(startPrice.toString() == PRICE.toString());
+
+            const newPrice = ethers.utils.parseEther("0.2");
+            await nftMarketplace.updateListing(basicNft.address, TOKEN_ID, newPrice);
+            const {price: endingPrice} = await nftMarketplace.getListing(basicNft.address, TOKEN_ID);
+            assert(endingPrice.toString() == newPrice.toString());
+            assert.equal(endingPrice.toString(), newPrice.toString());
+        })
+    })
+    describe("withdrawProceeds", function() {
+        it("NFT를 판매한 수익 인출하기", async function () {
+            await nftMarketplace.listItem(basicNft.address, TOKEN_ID, PRICE);
+            const deployerSigner = await ethers.getSigner(deployer);
+            const deployerStartingBalance = await deployerSigner.getBalance();
+            const buyerConnectedNftMarketpalce = nftMarketplace.connect(user);
+            await buyerConnectedNftMarketpalce.buyItem(basicNft.address, TOKEN_ID, {value: PRICE});
+            const sellerProceed = await nftMarketplace.getProceeds(deployer);
+            console.log(sellerProceed.toString());
+            // console.log(sellerProceed);
+            // console.log(parseInt(sellerProceed));
+            // console.log(parseInt(PRICE));
+            assert(parseInt(sellerProceed) == parseInt(PRICE));
+            const tx = await nftMarketplace.withdrawProceeds();
+            const txReceipt = await tx.wait(1);
+            // console.log(txReceipt);
+            const { gasUsed,cumulativeGasUsed,effectiveGasPrice} = txReceipt;
+            console.log(gasUsed.toString()) // 28747
+            console.log(cumulativeGasUsed.toString()) // 28747
+            console.log(effectiveGasPrice.toString()) // 1406605605
+            // 1406605605 * 28747 = 40435691326935
+            const gasPrice = cumulativeGasUsed.mul(effectiveGasPrice);
+            expect((await nftMarketplace.getProceeds(deployer)).toString()).to.equal("0")
+            const deployerEndingBalance = await deployerSigner.getBalance();
+            console.log(deployerStartingBalance.toString());
+            assert.equal(deployerEndingBalance.toString(), deployerStartingBalance.add(PRICE).sub(gasPrice).toString());
+            // expected '10000093485271577358426' to equal '10000093525707268685361' 
+            // gas 0.000040435691028480 ether, 40435691028480 gwei
+            //     0.100000000000000000
+            // BigNumber로 계산하는것과 자바스크립트 숫자로 계산하는것과 차이가 있음,
+            // BigNumber로 계산해야 정확히 나옴
+            // 40435691326935(big) : 40435691028480 (js)
+        })
+        it("수익이 없을때 NftMarketplace__NoProceeds()와 함께 revert", async function() {
+            await expect(nftMarketplace.withdrawProceeds()).to.be.revertedWith("NftMarketplace__NoProceeds()");
+        })
+    })
+  });
+
+```
