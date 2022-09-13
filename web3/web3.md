@@ -38093,3 +38093,9179 @@ const { developmentChains } = require("../../helper-hardhat-config");
   });
 
 ```
+
+## MarketPlace.sol Scripts
+
+이제 스크립트를 몇가지 작성할겁니다. 나중에 프론트엔드에서 필요하기 때문이죠.
+
+`scripts`폴더를 만들어줍니다.
+
+`mint-and-list.js` 파일을 만들어줍니다. NFT를 발행하고 마켓플레이스에 등록해주는 역할을 할 겁니다.
+
+```js
+const { ethers } = require("hardhat");
+
+async function mintAndList() {
+    const PRICE = ethers.utils.parseEther("0.1")
+    const nftMarketplace = await ethers.getContract("NftMarketplace");
+    const basicNft = await ethers.getContract("BasicNft");
+    console.log("발행중...");
+    const mintTx = await basicNft.mintNft();
+    const mintTxReceipt = await mintTx.wait(1);
+    const tokenId = mintTxReceipt.events[0].args.tokenId;
+    console.log("NFT 승인중...");
+
+    const approvalTx = await basicNft.approve(nftMarketplace.address, tokenId);
+    await approvalTx.wait(1);
+    console.log("NFT 마켓에 등록중...");
+    const tx = await nftMarketplace.listItem(basicNft.address, tokenId, PRICE)
+    await tx.wait(1);
+    console.log("마켓에 등록되었습니다.");
+}
+
+mintAndList()
+  .then(() => {
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.log(error);
+    process.exit(1);
+  });
+```
+
+터미널을 하나 더 열고 `yarn hardhat node` 로 하드햇 노드를 활성화합니다.
+
+해당 스크립트를 실행시켜보겠습니다.
+
+```
+yarn hardhat run scripts/mint-and-list.js --network localhost
+```
+
+```ps1
+network localhost
+발행중...
+NFT 승인중...
+NFT 마켓에 등록중...
+등록되었습니다.
+Done in 3.29s.
+```
+
+```ps1
+WARNING: These accounts, and their private keys, are publicly known.
+Any funds sent to them on Mainnet or any other live network WILL BE LOST.
+
+eth_chainId
+  Contract deployment: <UnrecognizedContract>
+  Contract address:    0x5fbdb2315678afecb367f032d93f642f64180aa3
+  Transaction:         0xa83c5b6dc9f9c1ff42990a8f1888e27478e5052e19ad393f61995e98331a72f1
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  Value:               0 ETH
+  Gas used:            1355991 of 1355991
+  Block #1:            0x60d6c4ed7b2552e92fa486352375808ee3e17c4120d21e3ca3a6a024efa06ec9
+  Contract deployment: <UnrecognizedContract>
+  Contract address:    0xe7f1725e7734ce288f8367e1bb143e90bb3f0512
+  Transaction:         0x8f3c8a827d5716745525e36acd9da9fdb15c58e9394336c188c119a5e3632db7
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  Value:               0 ETH
+  Gas used:            2023705 of 2023705
+  Block #2:            0x7cb8891bb05c9899d207108f2e24faac8a4606b787eb8bfc9621deea866a4b33
+
+eth_chainId
+eth_accounts (2)
+eth_blockNumber
+eth_chainId (2)
+eth_estimateGas
+eth_getBlockByNumber
+eth_feeHistory
+eth_sendTransaction
+  Contract call:       <UnrecognizedContract>
+  Transaction:         0xfa7eabbaeb12964921a4278d8ed334fd7bc33a28208dff392699b515e63492df
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0xe7f1725e7734ce288f8367e1bb143e90bb3f0512
+  Value:               0 ETH
+  Gas used:            92599 of 92599
+  Block #3:            0xcbdb577c906ca8d044dde1d7ddaa9d739d00b144159bac464abad58f0744c28f
+
+eth_chainId
+eth_getTransactionByHash
+eth_chainId
+eth_getTransactionReceipt
+eth_chainId
+eth_estimateGas
+eth_feeHistory
+eth_sendTransaction
+  Contract call:       <UnrecognizedContract>
+  Transaction:         0xbed5b1c1f096c054e0c0af9158112dc0f2a1f7c3c8042f5f20d435c3bd9c7722
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0xe7f1725e7734ce288f8367e1bb143e90bb3f0512
+  Value:               0 ETH
+  Gas used:            49233 of 49233
+  Block #4:            0x36e51b003a5249addb13c0ba54b602e0fbcd49045d41ab36d5ffa39744d5158b
+
+eth_chainId
+eth_getTransactionByHash
+eth_chainId
+eth_getTransactionReceipt
+eth_chainId
+eth_estimateGas
+eth_feeHistory
+eth_sendTransaction
+  Contract call:       <UnrecognizedContract>
+  Transaction:         0x62887fead6c58f687e7fae20a75d157b1056db12177e9c2536683cc277fccb8d
+  From:                0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266
+  To:                  0x5fbdb2315678afecb367f032d93f642f64180aa3
+  Value:               0 ETH
+  Gas used:            80463 of 80463
+  Block #5:            0xc4e931aa31b16cf46580b70dd3b49dd8eb7347ca363d99a123fe3f65371ff960
+
+eth_chainId
+eth_getTransactionByHash
+eth_chainId
+eth_getTransactionReceipt
+
+```
+
+좋습니다. 완벽히 탈중앙화한 마켓플레이스를 가진 든든한 레포지토리가 완성되었습니다.
+
+## Part 2 Moralis Front End
+
+### Introduction
+
+물론 솔리디티 코드만 가지고 상호작용을 할 수 있을겁니다. 단, 개발자일 경우에만 말이죠.
+
+우리는 더 많은 사람들이 쉽게 이용할 수 있도록 프론트엔드를 개발할겁니다.
+
+먼저 모랄레스를 이용한 방법과 그 후에 그래프를 이용해서 실습해볼겁니다.
+
+다시한번 우리가 만들 앱을 구상해보겠습니다.
+
+먼저 월렛에 연결을 해야합니다.
+
+월렛에 연결되면 내가 등록한 NFT가 화면에 보여야합니다.
+
+NFT에 커서를 올리면 내가 소유했다는 툴팁이 나와야합니다.
+
+그리고 월렛의 계정을 바꾸면 해당 NFT에 누가 소유하고 있는지 나와야합니다.
+
+툴팁에는 buy me 가 뜨도록 해야합니다.
+
+등록한 NFT의 가격을 바꿀 수 있어야 합니다.
+
+가격을 업데이트하면 새로고침을 해달라는 팝업이 뜨게 만들어야 합니다.
+
+새로고침하면 블록을 캐고 새 가격으로 등록됩니다.
+
+다른 계정으로 로그인해서 NFT를 구매하면 `아이템 구매됨`을 알리는 팝업이 떠야합니다.
+
+그리고 다시 판매자 계정으로 로그인하면 해당 NFT는 리스트에 없어야 합니다.
+
+그리고 Withdraw 섹션에서 해당 NFT를 팔아서 생긴 수익을 인출할 수 있어야 합니다.
+
+구매자가 자신이 구매한 NFT를 다시 마켓에 등록할(re-list) 수 있어야 합니다.
+
+인풋에 NFT address, NFT TokenId 그리고 Price 를 입력하면 메타마스크 창이 뜨면서 
+
+NFT마켓이 해당 NFT에 접근하도록 허락할까요? 라는 메세지가 뜨도록 해야합니다. (Approve)
+
+Confirm을 누르면 등록을 계속진행합니다.
+
+등록 후 등록되었다는 팝업이 뜨도록 만들어야 합니다.
+
+마켓 리스트로 돌아오면 등록된 NFT가 보여야 합니다.
+
+## Nextjs Setup
+
+```ps1
+yarn create next-app .
+```
+
+테스트 라이브 서버를 열 수 있습니다.
+```
+yarn dev
+```
+
+pages/index.js 에서 Head 만 남기고 내용을 다 지워줍니다.
+
+그 전에 README.md 에서 해야할 것들을 적고 가봅시다.
+
+TODO List
+```md
+1. Home Page :
+    1. show recently listed NFTs
+        1. If you own the NFT, you can update the listing
+        2. If not, you can buy the listing
+2. Sell Page:
+    1. You can list your NFT on the marketplace
+
+```
+
+많은 컴포넌트들이 필요하겠지만 확실한건 페이지가 홈페이지, 판매페이지 둘로 나뉠것이라는 점입니다.
+
+pages 폴더로 가서 `sell-nft.js` 라는 이름으로 판매페이지를 만들어줍니다.
+내용은 index.js에서 복붙해왔습니다.
+
+```jsx
+import Head from 'next/head'
+import Image from 'next/image'
+import styles from '../styles/Home.module.css'
+
+export default function Home() {
+  return (
+    <div className={styles.container}>
+      <Head>
+        <title>Create Next App</title>
+        <meta name="description" content="Generated by create next app" />
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
+      pages/sell-nft.js
+    </div>
+  )
+}
+```
+
+`localhost:3000/sell-nft`로 접속해서 페이지가 보이는지 확인합니다.
+
+이제 메인페이지가 될 `index.js` 부터 작업을 시작합니다.
+
+헤더 부분을 알맞게 수정해줍니다.
+
+```jsx
+import Head from 'next/head'
+import Image from 'next/image'
+import styles from '../styles/Home.module.css'
+
+export default function Home() {
+  return (
+    <div className={styles.container}>
+      <Head>
+        <title>NFT 마켓플레이스</title>
+        <meta name="description" content="NFT 마켓플레이스" />
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
+      pages/sell-nft.js
+    </div>
+  )
+}
+```
+
+가장 먼저 필요한 건 월렛을 페이지에 연결하는 버튼입니다.
+
+컴포넌트 폴더를 만듭시다.
+
+`components/Header.js`를 작성합니다.
+
+기억이 나지않는다면 전에 만들었던 smart-lottery 프로젝트를 참고합시다.
+
+저번시간에 메뉴얼 헤더를 작성하는 법을 배웠죠. 이번에는 web3uikit을 이용해 쉽게 만들겁니다.
+
+```ps1
+yarn add web3uikit moralis react-moralis
+```
+
+참고로 `Graph`를 이용할때도 모랄리스는 사용할겁니다.
+
+차이점이라면 첫번째 프론트엔드는 Moralis 서버인 `Moralis Indexer`를 사용하는것이고 두번째는 `Graph Indexer`를 사용한 것입니다.
+
+
+`_app.js` 로 가서 모랄리스 프로바이더로 컴포넌트를 감싸줍니다.
+```js
+import "../styles/globals.css";
+import { MoralisProvider } from "react-moralis";
+
+function MyApp({ Component, pageProps }) {
+  return (
+    <MoralisProvider initializeOnMount={false}>
+      <Component {...pageProps} />
+    </MoralisProvider>
+  );
+}
+
+export default MyApp;
+
+```
+
+모랄리스 서버는 아직 이용하지 않을것이기 떄문에 MoralisProvider에 프롭으로 `initializeOnMount = {false}` 로 설정해줄겁니다.
+
+`components/Header.js`로 돌아와서 헤더를 만들겠습니다.
+
+```jsx
+import {ConnectButton} from "web3uikit";
+
+export default function Header() {
+    return <ConnectButton />
+}
+```
+
+그리고 다시 `_app.js`로 돌아와 Header를 컴포넌트 위에 넣어줍니다.
+
+```js
+import "../styles/globals.css";
+import { MoralisProvider } from "react-moralis";
+import Header from "../components/Header";
+
+function MyApp({ Component, pageProps }) {
+  return (
+    <MoralisProvider initializeOnMount={false}>
+      <Header />
+      <Component {...pageProps} />
+    </MoralisProvider>
+  );
+}
+
+export default MyApp;
+```
+
+
+## 번외 : nextjs typescript 세팅
+
+`tsconfig.json` 파일 생성
+
+```ps1
+# If you’re using npm
+npm install --save-dev typescript @types/react @types/node
+
+# If you’re using Yarn
+yarn add --dev typescript @types/react @types/node
+```
+
+데브 서버 실행해주기 `yarn dev` -> tsconfig.json 파일을 채워줌
+
+아니면
+```ps1
+npx create-next-app@latest --ts
+# or
+yarn create next-app --typescript
+# or
+pnpm create next-app --ts
+```
+
+만약 --moduleResolution 모듈 해석 전략 어쩌구 에러나 모듈을 찾지 못하겠다고 나오면 vscode를 닫고 재실행
+
+
+## 이어서
+
+`next/link` 로 nft-sell 페이지로 연결해주는 네비 바를 만들어봅시다.
+
+tailwindCSS를 사용할 겁니다.
+
+```ps1
+yarn add --dev tailwindcss postcss autoprefixer
+
+yarn tailwindcss init -p
+```
+
+tailwind.config.js 와 postcss.config.js가 생성됩니다.
+
+tailwind.config.js에 다음내용을 붙여넣어줍니다.
+```js
+/** @type {import('tailwindcss').Config} */ 
+module.exports = {
+  content: [
+    "./pages/**/*.{js,ts,jsx,tsx}",
+    "./components/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {},
+  },
+  plugins: [],
+}
+```
+
+그리고 nextjs의 `./styles/globals.css` 도 다음코드로 교체해줍니다.
+
+```css
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+```
+
+헤더를 스타일링 합니다.
+
+그리고 `ConnectButton` 에 moralisAuth를 false로 해주어 모랄리스 DB에 연결되지 않도록 합니다. 우리는 메타마스크에 연결할겁니다.
+```jsx
+import { ConnectButton } from "@web3uikit/web3";
+import Link from "next/link";
+
+const Header: React.FC = () => {
+  return (
+    <nav className="p-5 border-b-2 flex flex-row justify-between items-center">
+      <h1 className="py-4 px-4 font-bold text-3xl">NFT 마켓플레이스</h1>
+      <div className="flex flex-row items-center">
+        <Link href="/">
+          <a className="mr-4 p-6">홈</a>
+        </Link>
+        <Link href="/sell-nft">
+          <a className="mr-4 p-6">NFT 등록하기</a>
+        </Link>
+        <ConnectButton moralisAuth={false}/>
+      </div>
+    </nav>
+  );
+};
+
+export default Header;
+
+```
+
+## Introduction to Indexing in Web3
+
+이제 마켓플레이스에 올라온 모든 NFT를 화면에 나타내보겠습니다.
+
+먼저 모든 페이지에서 Header가 보일 수 있도록 `_app.tsx`로 `<Head>` 컴포넌트를 옮기겠습니다.
+
+이제 `index.tsx`부터 시작해보겠습니다.
+
+먼저 해야할건 어떻게 최신 NFT 리스트를 보여주냐 입니다.
+
+계약코드로 돌아가봅시다.
+
+```solidity
+    // NFT Contract address -> NFT TokenID -> Listing
+    mapping(address => mapping(uint256 => Listing)) private s_listings;
+```
+
+만약 이 매핑을 통해 보여준다고 생각하면 우리는 모든 사용자들의 주소와 TokenID를 순회하며 s_listings를 조회해야 할것입니다.
+
+만약 사용자가 엄청나게 많다면 까다로워질 것입니다.
+
+이것을 해결할 수 있는 방법이 무엇일까요
+
+첫번째. 
+Create an array of listing instead?
+리스트의 배열만들기
+Get all the NFTs a user owns?
+사용자가 가진 NFT의 배열이란 건 없습니다. 단지 매핑일 뿐입니다.
+
+Query some other weird data?
+What if an array will be VERY GAS EXPENSIVE!!
+
+모든 배열을 순회한다는 것은 엄청난 가스가 소비될것입니다.
+
+we don't want to change our protocal for jsut the website.
+
+웹사이트를 위해서 프로토콜을 바꾸고 싶지 않다면?
+
+매핑에 대해 하나하나 배열을 가진다는 것은 정말 가스 익스펜시브한 짓입니다.
+
+여기서 사용할 수 있는게 바로 `event` 입니다.
+
+우리는 계약에서 `itemlist`를 호출할때마다 `ItemListed` 이벤트가 발생(`emit`)되도록 만들었습니다.
+
+`ItemListed` 이벤트는 여전히 온체인상의 자료구조에 저장되어 스마트 컨트렉트가 접근할 수 있습니다.
+
+하지만 접근이 가능한 경우를 생각해봅시다. 오프체인 서비스의 경우 이러한 이벤트에 접근할 수 있습니다.
+
+그래서 이렇게 해볼겁니다.
+
+We will index the events off-chain and then read from our database.
+Setup a server to listen for those events to be fired, and we will add them to a database to query.
+
+오프체인에서 이벤트를 인덱싱한 다음 데이터베이스에서 읽습니다.
+발생하는 이벤트를 수신 대기하도록 서버를 설정하고 쿼리할 데이터베이스에 추가합니다.
+
+우리는 말 그대로 이벤트가 발생할때마다 해당 이벤트를 데이터베이스에 인덱싱할겁니다.
+
+그리고 중앙화된 데이터베이스를 호출하여 시작할겁니다.
+그렇다면 의문이 생길겁니다. 어 이거 중앙화 아닌가요?
+
+대답은 여기서는 분산화가 필요하지 않기 때문입니다.
+
+GRAPH가 이 분산화 데이터베이스 기능을 가진 프로토콜입니다.
+오프체인에서 인덱싱하고 그래프 프로토콜로 넘기는 것입니다. 그리고 이 작업을 분산화 방식으로 합니다.
+
+첫번째로 보여줄 모랄리스는 사용할 수 있는 추가기능이 많은 중앙화된 방식으로 진행됩니다. 
+
+-- 1:01:10:00 부터 번역 다시 해야함
+
+```js
+// All our logic is still 100% on chain
+// Speed & Development time.
+// Its really hard to start a prod blockchain project 100% decentralized.
+// The are working on open sourcing their code.
+// Feature richness
+// We can create more features with a centralized back end to start
+// AS more decentrailzed tools are being created.
+// Local development
+```
+
+그리고 우리가 중앙화된 방식을 도입하더라도 이 애플리케이션의 대부분은 분산화된 방식입니다.
+
+그리고 여러분이 이 분산화 계약과 상호작용 된다는 걸 검증했습니다.(verify) 
+
+우리는 여태까지 중앙화된 프로토콜을 많이 사용해왔습니다.
+
+ETHERSCAN이나 OPENSEA 그밖에 등등이 있죠 이런것들은 이 분야에서 매우 중요합니다.
+
+그래서 모랄리스를 이용한 방법을 보여줌으로서 중앙화된 서비스를 제공하는 어플리케이션을 만들때 중앙화된 서버를 이용하는 방법에 친숙해지도록 할겁니다.
+
+그리고 오픈제플린 디펜더 (openzeppelin defender)와 같은 수많은 도구들이 있습니다. 이것들은 중앙화되어있지만 우리에게 엄청난 이점을 가져다 줍니다. 
+
+-- 1:01:11:23
+
+우리는 커뮤니티로서 점점 더 많은 것을 분산화하고 있습니다. 그리고 때때로 우리는 거기에 도달하기 위해 약간의 보조바퀴가 필요합니다.
+
+그리고 `GRAPH`가 바로 분산화된 방법이 될것입니다.
+
+메인넷으로 가기 위해 많은 과정이 필요하지만 GRPAH를 배울때 다시 설명드리겠습니다.
+
+모랄리스에대한 동영상 링크도 첨부해드리겠습니다.
+>
+
+우리는 일단 `모든 매핑(s_listings)이 들어있으면서 읽기쉬운 자료구조로 되어있는 데이터베이스`에서 NFT리스트를 읽어올겁니다.
+
+모랄리스와 GRAPH 모두 이 역할을 해줍니다.
+
+## What is Moralis?
+
+모랄리스는 애플리케이션에 더 많은 기능제공을 위해 서버 백엔드를 옵션으로 제공합니다. 
+
+하지만 모랄리스가 모든것을 커버해 줄 수 는 없습니다.
+
+그래서 모랄리스가 무엇을 할 수 있는지 대해서 Ivan 이 대신 설명해줄겁니다.
+
+Special Guest Ivan Liljeqvist- 초대손님 이반 릴예크비스트
+
+안녕하세요 이반입니다. 모랄리스에서 왔구요, 그리고 어떻게 당신의 개발속도를 10배 빠르게 하는 법을 알려드리려고 왔습니다. 과장이 아닙니다.
+
+무언가를 구축할 때 확장성(스케일러블)이 보장받고 싶을겁니다. 왜냐하면 여러분의 Dapp이 글로벌화되고, 입소문을 타고, 메인스트림이 되는 일은 정말로 일어날 수도 있는 일이기 때문입니다. 
+
+그리고 정말로 그런일이 일어난다면, 완전 처음부터 시작하고 싶지는 않을겁니다.
+여러분은 빠르게, 또한 크게 성장하도록 하는 도구와 서비스를 사용하기를 원할겁니다. 
+그것이 바로 Moralis가 제공하는 것입니다.
+
+Moralis에서 우리는 도구를 만들고 단일 워크플로가 있는 방식으로 개발자를 위한 인프라를 만들고 이것이 시간을 절약해 주기 때문에 곧 의미를 설명할 것입니다.
+
+If you have a single workflow for doing things. And workflow in web three really means that you have to have a smart contract, whether it's a token, the game, sme kind of staking some kind of marketplace, some kin of DeFi. It will be on-chain, but at the same time, you connect it to your back end. Beacuse when someting happens on chain, you need to monitor that. So you can create web hooks, you can create email, you can create a push notification, you can run some custom code, you can run some calculation, you can save some thing to the database, everthing on chain at the end of the day needs to go into our back end.
+
+단일 워크플로를 가지게 되면, 그리고 웹3의 워크플로는 이것을 뜻합니다. 여러분이 스마트컨트렉트를 가져야하며, 그것이 토큰이든, 게임이든, 도박이든, 디파이든 간에 그것은 온체인상에 존재한다는 것을요. 그러나 동시에 그것을 백엔드에 연결해야합니다.
+
+왜냐하면, 온체인에서 무슨일이 발생하면 그것을 감지해야하기 때문입니다. 따라서 여러분이 웹후크, 이메일, 푸쉬알림, 커스텀 코드 실행, 계산 등을 만들 수 있으며 이것을 데이터베이스에 저장할 수 있습니다. 온체인에 있는 모든것들이 결국에는 백엔드로 가야하는 것입니다.
+
+그리고 무언가가 백엔드에 있을때 그것은 또 프론트엔드로 가야되겠죠. 
+
+예를 들어, UI를 어떤일이 온체인에서 일어났을때 바꾸거나, 특정 임계값을 넘은 전송(transfer)를 사용자가 받았을때 UI를 바꿀수 있습니다. 혹은 유저가 NFC를 가지고 있고, 유저에게 채팅이나 다른 특정한 독점컨텐츠에 접근할 권한을 주는게 가능합니다.
+
+모랄리스는 당신에게 100000명의 개발자가 이용하는 풀스택 suite를 제공합니다. 모랄리스는 웹 3에서 가장 많이 채택된 기술 스택 중 하나가 되었습니다. 
+
+1:01:14:16.... 제품설명
+
+모랄리스 아이덴티티
+대쉬보드에서 유저정보를 관리할 수 있습니다.
+웹사이트, 게임같은 프론트엔드 사이에 웹세션을 만들 수 이습니다. 
+세션 아이덴티티 메니져
+
+모랄리스는 실시간 입니다.
+실시간으로 진행되는 트랜잭션에 대한 웹후크와 알림기능을 이용할 수 있습니다.
+
+모랄리스 SDKs
+이 모든것을 쉽게 해주고 앱에 연결해줄 수 있는 SDK가 있습니다.
+
+모랄리스 API
+모랄리스 API는 또한 크로스폴렛폼을 지원합니다.
+다양한 언어/라이브러리 폴렛폼에서 이용할 수 있습니다.
+
+또한 크로스체인입니다. 다른 월렛/ 프로토콜에서 이용가능합니다.
+오직 하나의 사용자에 대해서 말이죠.
+
+## Connecting Moralis To our Local Hardhat Node
+
+이제 모랄리스 sever capabilities 를 사용할겁니다.
+
+모랄리스에 가입해야합니다.
+>https://moralis.io
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-17%20233434.png)
+
+create app을 누릅니다.
+
+이번시간에는 로컬 데브체인을 사용할겁니다.
+
+이 과정은 모랄리스가 로컬 하드햇 노드에서 일어나는 이벤트를 인덱싱 할 수 있도록 만드는 과정입니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-17%20233640.png)
+
+Eth 를 선택하고 Proceed를 누릅니다. 폴리곤, 아발렌체, 팬텀 등 EVM 호환(compatible) 체인들은 모두 eth로 하면 됩니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-17%20234155.png)
+
+지역을 선택합니다. 여기서는 싱가포르로 선택했습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-17%20234304.png)
+
+이름도 입력해줍니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-17%20234352.png)
+
+view Detail을 눌러 보면 Ganache라 되있지만 hardhat으로 사용할 수 있으므로 걱정할 필요 없습니다.
+
+이제 모랄리스 설명서로 가봅시다.
+>https://docs.moralis.io
+
+검색창에 events를 입력하고 검색해봅시다.
+
+지금은 새 docs가 나와서 구 docs로 대체하겠습니다.
+>https://v1docs.moralis.io/moralis-dapp/automatic-transaction-sync/smart-contract-events
+
+왜 events를 감시하고 관리해야하는지 써있습니다.
+
+기본적으로 이 서버에서는 데이터베이스가 이벤트가 발생하는지 지켜볼 겁니다.
+
+그러기 전에 우리는 애플리케이션을 서버에 훅업해야합니다.
+
+리액트 모랄리스 깃허브에 가보면 MoralisProvider 컴포넌트에 프롭으로 AppId와 severUrl 을 넘기는걸 볼 수 있습니다.
+
+>https://github.com/MoralisWeb3/react-moralis
+
+```js
+import React from "react";
+import ReactDOM from "react-dom";
+import { MoralisProvider } from "react-moralis";
+
+ReactDOM.render(
+  <MoralisProvider appId="xxxxxxxx" serverUrl="xxxxxxxx">
+    <App />
+  </MoralisProvider>,
+  document.getElementById("root"),
+);
+```
+
+모랄리스 대시보드에서 view detail을 보면
+DappId와 serverURL을 가져올 수 있습니다. 
+
+initializedOnMount={false} 대신 appId 와 sererUrl을 입력해줍니다.
+
+appId와 serverUrl을 보관하기 위한 .env 파일을 만들어줍니다.
+
+nextjs는 .env.local 같은 빌트인 환경변수들이 있습니다.
+
+또하나의 방법은 NEXT_PUBLIC_ 프리픽스를 이용하는겁니다.
+
+그러나 여기에서는 간편하게 하기 위해 그냥 .env를 사용하겠습니다.
+
+단 nextjs는 키 앞에 NEXT_PUBLIC을 붙여주어야 nextjs에서 인식하고 키를 갖다 쓸 수 있습니다.
+
+```tsx
+import "../styles/globals.css";
+import type { AppProps } from "next/app";
+import Header from "../components/Header";
+import { MoralisProvider } from "react-moralis";
+import Head from "next/head";
+
+const APP_ID = process.env.NEXT_PUBLIC_APP_ID!;
+const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL!;
+
+function MyApp({ Component, pageProps }: AppProps) {
+  return (
+    <>
+      <Head>
+        <title>NFT 마켓</title>
+        <meta name="description" content="NFT를 거래할 수 있는 장터입니다." />
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
+      <MoralisProvider appId={APP_ID} serverUrl={SERVER_URL} >
+        <Header />
+        <Component {...pageProps} />
+      </MoralisProvider>
+    </>
+  );
+}
+
+export default MyApp;
+
+```
+
+이제 모랄리스 database dashboard로 가봅시다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-18%20090930.png)
+
+access database를 클릭하면 됩니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-18%20091019.png)
+
+그러면 이제 모랄리스 서버에게 이벤트를 수신해야 한다고 알려줘야 합니다.
+
+그리고 누군가 buyItem하거나 cancellist 하면 해당 데이터베이스를 제거해야합니다.
+
+
+```
+1. Home Page:
+  1. Show recently listed NFTs\
+    1. If you own the NFT, you can update the listing
+    2. If not, you can buy the listing
+2. Sell Page:
+  1. You can list your NFT on the marketplace
+
+
+Moralis: How do we tell it to listen to our events?
+
+1. Connect it to our blockchain
+2. Which contract, which events, and what to do when it hears those events.
+```
+
+이제 하드햇 노드에 연결해볼겁니다.
+
+프로젝트에서 터미널 창을 하나 더 엽니다.
+
+그리고 마켓플레이스 계약이 있는 프로젝트 폴더로 들어갑니다.
+
+그리고 `yarn hardhat node`로 하드햇 노드를 활성화합니다.
+
+다시 모랄리스로 돌아가서 view detail -> Devchain Proxy Server 항목을 봅니다.
+(Network -> Settings 로 들어가면 됩니다.)
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-18%20091911.png)
+
+그리고 이것이 모랄리스에게 로컬에서 실행되는 하드햇 노드를 수신하는 개발체인 프록시 서버가 될겁니다.
+
+그리고 리버스 프록시라 불리는 것을 다운로드 받아야 합니다.
+>https://github.com/fatedier/frp/releases
+
+운영체제에 맞는 버전을 다운받았으면 `frpc.ini` 파일을 수정해줘야 합니다.
+
+**주의 `frpc.ini` 파일입니다. `frps.ini`파일이 아닙니다!**
+
+```ini
+# Ganache
+[common]
+  server_addr = x0r3rvpvm9gi.usemoralis.com
+  server_port = 7000
+  token = iNe1UC0Uoi
+[ganache]
+  type = http
+  local_port = 7545
+  custom_domains = x0r3rvpvm9gi.usemoralis.com
+
+# Hardhat
+[common]
+  server_addr = x0r3rvpvm9gi.usemoralis.com
+  server_port = 7000
+  token = iNe1UC0Uoi
+[hardhat]
+  type = http
+  local_port = 8545
+  custom_domains = x0r3rvpvm9gi.usemoralis.com
+```
+여기서는 Hardhat 노드를 사용할 것이기 때문에 Hardhat 설정을 복사해서 붙여넣어줍니다.
+
+그리고 파워셸이나 터미널을 열고 frps압축이 풀려있는 폴더로 이동해줍니다.
+
+```ps1
+# Linux
+./frpc -c frpc.ini
+
+# Window
+frpc.exe -c frpc.ini
+```
+
+vscode powershell 일 경우 해당 폴더에서
+```ps1
+./frpc.exe -c frpc.ini
+```
+
+그리고 해당 명령어중 운영체제에 맞는것을 선택해 실행합니다.
+
+파워셸일경우 Linux 명령어를 사용합니다.
+
+frpc.exe 가 블록체인노드를 모랄리스에 연결해주는 실행파일입니다.
+
+frpc.ini 는 연결설정 파일입니다.
+
+루트폴더에 frp 폴더를 만든 후 frpc.exe와 frpc.ini 파일을 옮겨줍니다.
+
+-c 는 config를 의미합니다. 해당 컨픽파일을 이용해서 응용프로그램을 실행시키겠단 뜻입니다.
+
+Moralis CLI를 이용하는 방법도 있습니다.
+
+```ps1
+yarn global add moralis-admin-cli
+```
+
+실행
+```ps1
+moralis-admin-cli
+```
+
+여기서 중요한 명렁어는
+```
+connect-local-devchain
+```
+
+입니다.
+
+즉 이 두 명령어는 똑같이 작동합니다.
+```ps1
+./frpc -c frpc.ini
+
+connect-local-devchain
+```
+
+```ps1
+2022/08/18 10:57:42 [I] [service.go:349] [1a8646e041bf46c3] login to server success, get run id [1a8646e041bf46c3], server udp port [0]
+2022/08/18 10:57:42 [I] [proxy_manager.go:144] [1a8646e041bf46c3] proxy added: [hardhat]
+2022/08/18 10:57:43 [I] [control.go:181] [1a8646e041bf46c3] [hardhat] start proxy success
+```
+연결되었다고 나옵니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-18%20105928.png)
+
+
+CLI를 이용한다면 다음과 같이 package.json 의 script를 만들어줍니다.
+
+```json
+"moralis:sync":"moralis-admin-cli connect-local-devchain --chain hardhat --moralisSubdomain <서버URL.com까지만> --frpcPath ./frp/frpc"
+```
+
+해당 명령어를 `yarn moralis:sync` 로 실행시키면 API키를 입력하라는 프롬프트가 출력됩니다.
+
+모랄리스 홈페이지에서 API키를 가져옵니다.
+
+또 시크릿APIKEY도 입력하라 합니다. 
+
+이 과정이 복잡하니까 모랄리스가 스스로 .env에서 키를 읽어오도록 만들어보겠습니다.
+
+.env 파일에
+
+```json
+moralisApiKey=
+moralisApiSecret
+```
+
+를 입력해줍니다.
+
+이것을 소문자로 작성하는 이유는 이 변수들은 프론트엔드에 쓰이는 용도가 아니기 때문입니다.
+
+이 변수들은 로컬 개발체인 백엔드에서 사용할 키이기 때문입니다.
+
+그러므로 `NEXT_PUBLIC_` 프리픽스도 필요없습니다.
+
+그리고 대시보드로 가보면 Connected라고 되어있을겁니다.
+
+로컬 하드햇노드를 모랄리스 서버에 연결한 것입니다.
+
+그리고 하드햇 노드 터미널을 보면
+```
+eth_blockNumber(...)
+```
+숫자가 증가하는걸 볼 수 있습니다. 모랄리스 서버가 업데이트를 지속적으로 확인하고 있다는 겁니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-18%20111007.png)
+
+
+## Moralis Event Sync
+
+모랄리스 서버가 이벤트를 수신하게 만드는 방법엔 두가지가 있습니다.
+
+첫번째는 모랄리스 웹페이지 UI를 사용하는 것입니다.
+
+sync 페이지로 이동합니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-18%20115052.png)
+
+add new sync를 선택하고
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-18%20115241.png)
+custom events를 선택하겠습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-18%20115411.png)
+
+그러면 이와같이 다양한 파리미터를 입력하는 창이 나옵니다.
+
+이것을 프로그래밍 방식으로도 할 수 있습니다.
+
+우리의 코드베이스로 돌아와서 `addEvents.ts`를 생성하겠습니다.
+
+그리고 이제 우리는 터미널 3개(프론트엔드,하드햇노드,frpc)에 더해 터미널을 하나 더 열겠습니다.
+
+모랄리스 docs로 가서 Connected with SDK 항목을 살펴봅시다.
+
+우리는 이미 react에 연결하는 법을 배웠습니다.
+
+이번에는 Node.js에 연결하는 방법을 알아봅시다.
+
+```ts
+const Moralis = require("moralis/node")
+require("dotenv").config();
+```
+
+**모랄리스 node가 moralis 패키지와 통합됨에 따라 moralis만 불러와도 됩니다.**
+
+```ts
+import Moralis from "moralis";
+import "dotenv/config";
+```
+
+모랄리스 노드 패키지에서 모랄리스를 불러옵니다.
+
+dotenv를 설치해줍니다.
+```ps1
+yarn add --dev dotenv
+```
+
+첫번째로 필요한것은 contractAddress 입니다.
+
+쉬운방법은 하드햇 노드를 실행시킬때 나온 NFTMarketplace의 주소를 찾아서 넣는겁니다.
+
+그리고 우리가 Raffle 앱을 만들때 사용했던 방법인 auto updated 방법을 그대로 응용해서 사용해보겠습니다.
+
+nftMarketpalce 하드팻 프로젝트로 돌아와서 deploy 폴더로 갑니다.
+
+그리고 `99-update-front-end.js` 파일을 생성해줍니다.
+
+우리는 자동적으로 업데이트 되는 디플로이 스크립트를 이용해서 주소를 갱신해서 가져올겁니다.
+
+`99-update-front-end.js`
+```js
+const { ethers } = require("hardhat");
+
+module.exports = async function() {
+    if(process.env.UPDATE_FRONT_END) {
+        console.log("프론트엔드를 업데이트 하고 있습니다 ...");
+        await updateContractAddresses();
+    }
+}
+
+async function updateContractAddresses() {
+    const nftMarketplace = await ethers.getContract("NftMarketplace");
+}
+```
+
+그리고 나서 우리는 이 스크립트가 자동적으로 생성하는 파일을 프론트엔드프로젝트 디렉토리의 어딘가에 보관해야 할겁니다.
+
+프론트엔드 루트폴더에 `constants`폴더를 생성하고 `networkMapping.json`파일을 생성해줍니다.
+
+그리고 빈 객체를 내용으로 입력해줍니다.
+```json
+{}
+```
+
+이제 이 파일이 모든 배포를 추적하는 파일이 될겁니다.
+예를들어 링크비에 배포했다면 이런식으로 나올겁니다.
+```json
+{"4": {"NftMarketplace":[], "BasicNft":[] /*...*/ }}
+```
+
+이제 다시 업데이트 스크립트로 돌아와서 `networkMapping.json`파일의 위치를 추적해줍니다.
+
+```js
+const frontEndContractsFile = "../nextjs-nft-marketplace/constants/networkMapping.json"
+```
+
+그런다음 체인아이디를 불러오고 `fs`로 해당 constants 파일을 읽어옵니다.
+
+```js
+const { ethers, network } = require("hardhat");
+const fs = require("fs");
+
+const frontEndContractsFile = "../nextjs-nft-marketplace/constants/networkMapping.json"
+
+module.exports = async function() {
+    if(process.env.UPDATE_FRONT_END) {
+        console.log("프론트엔드를 업데이트 하고 있습니다 ...");
+        await updateContractAddresses();
+    }
+}
+
+async function updateContractAddresses() {
+    const nftMarketplace = await ethers.getContract("NftMarketplace");
+    const chainId = network.config.chainId;
+    const contractAddresses = JSON.parse(fs.readFileSync(frontEndContractsFile,"utf8"));
+}
+```
+
+그런다음 JSON으로 파싱된 contractAddresses 내부에 주소가 있는지 판단하고 없으면 생성하고 있다면 업데이트시켜줍니다.
+
+```js
+const { ethers, network } = require("hardhat");
+const fs = require("fs");
+
+const frontEndContractsFile = "../nextjs-nft-marketplace/constants/networkMapping.json"
+
+module.exports = async function() {
+    if(process.env.UPDATE_FRONT_END) {
+        console.log("프론트엔드를 업데이트 하고 있습니다 ...");
+        await updateContractAddresses();
+    }
+}
+
+async function updateContractAddresses() {
+    const nftMarketplace = await ethers.getContract("NftMarketplace");
+    const chainId = network.config.chainId;
+    const contractAddresses = JSON.parse(fs.readFileSync(frontEndContractsFile,"utf8"));
+    if(chainId in contractAddresses) {
+        if(!contractAddresses[chainId]["nftMarketplace"].incldues(nftMarketplace.address)) {
+            contractAddresses[chainId]["nftMarketpalce"].push(nftMarketplace.address);
+        }
+    } else {
+        contractAddresses[chainId] = {"NftMarketplace": [nftMarketplace.address]};
+    }
+    fs.writeFileSync(frontEndContractsFile,JSON.stringify(contractAddresses,"utf8"));
+}
+
+module.exports.tags = ["all", "frontend"];
+```
+
+이제 이 스크립트를 run 해봅시다.
+
+```ps1
+yarn hardhat deploy --network localhost --tags frontend
+```
+```ps1
+프론트엔드를 업데이트 하고 있습니다 ...
+Done in 2.30s.
+```
+
+networkMapping.json 파일을 살펴봅시다.
+
+```json
+{"undefined":{"nftMarketplace":["0x5FbDB2315678afecb367f032d93F642f64180aa3"]}}
+```
+undefined로 되었네요. hardhat.config.js로 가서 설정을 다시 해보겠습니다.
+
+```js
+  networks: {
+    hardhat: {
+      chainId: 31337,
+      // forking: {
+      //   url: MAINNET_RPC_URL,
+      // }
+    },
+    localhost: {
+      chainId: 31337,
+    },
+    rinkeby: {
+      chainId: 4,
+      blockConfirmations: 6,
+      url: RINKEBY_RPC_URL,
+      accounts: [PRIVATE_KEY],
+    },
+  },
+```
+
+`localhost` 네트워크를 하나 추가해주겠습니다.
+
+```json
+{"31337":{"nftMarketplace":["0x5FbDB2315678afecb367f032d93F642f64180aa3"]},"undefined":{"nftMarketplace":["0x5FbDB2315678afecb367f032d93F642f64180aa3"]}}
+```
+
+기존 배열에 31337 체인이 추가되었습니다.
+
+undefined는 지워주도록 하겠습니다.
+
+```json
+{"31337":{"nftMarketplace":["0x5FbDB2315678afecb367f032d93F642f64180aa3"]}}
+```
+
+다시 프론트엔드 코드베이스로 돌아옵니다.
+
+** const contractAddress 와 import로 선언한 contractAddress가 이름이 똑같다면 다음과 같은 에러가 생깁니다.
+import contractAddress 도 const contractAddress로 선언한것과 마찬가지이기 때문입니다 **
+```ps1
+import contractAddress
+const contractAddress: any
+'contractAddress'이(가) 선언은 되었지만 해당 값이 읽히지는 않았습니다.ts(6133)
+가져오기 선언이 'contractAddress'의 로컬 선언과 충돌합니다.ts(2440)
+```
+
+```ts
+import Moralis from "moralis";
+import "dotenv/config";
+//import countryTable from "./data/countries.json" assert {type: "json"};
+import contractAddresses from "./constants/networkMapping.json" assert {type: "json"};
+
+// let chainId = process.env.chainId != null ? process.env.chainId : null;
+
+type typeOfchainId = string | number;
+
+// let chainId = (process.env.chainId || 31337) as keyof typeof contractAddresses;
+let chainId = process.env.chainId || 31337;
+
+
+
+// interface nested {
+//     Nftmarketplace: string
+// }
+
+    // {
+    // "31337":{
+    //     "nftMarketplace":["0x5FbDB2315678afecb367f032d93F642f64180aa3"]
+    //     }
+    // }
+
+interface nftMarketplace {
+    nftMarketplace: Array<string>
+}
+
+// interface contractAddress {
+//     "31337": nftMarketplace;
+//     [prop: string]: any;
+// }
+
+interface contractAddress {
+    [prop: typeOfchainId]: nftMarketplace;
+}
+
+
+// const contractAddress:string = contractAddresses[chainId]["Nftmarketplace"][0];
+
+const conAddresses:contractAddress = contractAddresses;
+
+const contractAddress = conAddresses[chainId]["nftMarketplace"][0];
+
+// function getAddress(chainId:chainId):void | string {
+//     const chainNumbers:Array<string> = Object.keys(conAddresses)
+//     const chainNumber = chainNumbers.find(key => key === chainId)
+//     if(typeof chainNumber === "string") {
+//         console.log(conAddresses[chainNumber]);
+//     }
+//     return console.log("체인아이디가 없습니다.")
+// }
+
+// console.log(contractAddress);
+console.log(chainId); // 31337
+console.log(typeof chainId); // string
+console.log(contractAddress);
+
+async function main() {
+    console.log("hello");
+}
+
+main().then(() => process.exitCode = 0).catch((error)=>{
+    console.log(error);
+    process.exitCode = 1;
+})
+
+
+```
+
+```ts
+import Moralis from "moralis";
+import "dotenv/config";
+//import countryTable from "./data/countries.json" assert {type: "json"};
+import contractAddresses from "./constants/networkMapping.json" assert {type: "json"};
+
+type typeOfchainId = string | number;
+
+let chainId = process.env.chainId || 31337;
+
+interface nftMarketplace {
+    nftMarketplace: Array<string>
+}
+
+interface contractAddress {
+    [prop: typeOfchainId]: nftMarketplace;
+}
+
+const conAddresses:contractAddress = contractAddresses;
+
+const contractAddress = conAddresses[chainId]["nftMarketplace"][0];
+
+console.log(chainId); // 31337
+console.log(typeof chainId); // string
+console.log(contractAddress);
+
+async function main() {
+    console.log("hello");
+}
+
+main().then(() => process.exitCode = 0).catch((error)=>{
+    console.log(error);
+    process.exitCode = 1;
+})
+
+
+```
+
+이제 서버URL 앱아이디를 불러온 후 masterKey도 불러올겁니다.
+
+모랄리스 서버 뷰 디테일로 가서 MasterKey 값을 가져와 .env에 저장합니다.
+
+그후 다시 addEvents에서 불러옵니다.
+
+그리고 `Moralis.start(serverUrl, appId, masterKey)`로 모랄리스 서버를 시작해줍니다.
+
+```ts
+import Moralis from "moralis";
+import "dotenv/config";
+import contractAddresses from "./constants/networkMapping.json" assert { type: "json" };
+
+const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL;
+const appId = process.env.NEXT_PUBLIC_APP_ID;
+const masterKey = process.env.masterKey;
+
+type ChainId = string | number;
+
+let chainId:ChainId = process.env.chainId || 31337;
+
+interface NftMarketplace {
+  nftMarketplace: Array<string>;
+}
+
+interface ContractAddress {
+  [prop: ChainId]: NftMarketplace;
+}
+
+const conAddresses: ContractAddress = contractAddresses;
+
+const contractAddress = conAddresses[chainId]["nftMarketplace"][0];
+
+console.log(chainId); // 31337
+console.log(typeof chainId); // string
+console.log(contractAddress);
+
+async function main() {
+  console.log("안녕하세요");
+  await Moralis.start( {serverUrl, appId, masterKey});
+  console.log(`다음 계약에서 작업중입니다. Address: ${contractAddress}`);
+}
+
+main()
+  .then(() => (process.exitCode = 0))
+  .catch((error) => {
+    console.log(error);
+    process.exitCode = 1;
+  });
+
+```
+
+우리가 수신해야할 이벤트는 3가지가 있습니다.
+
+```solidity
+    event ItemListed(
+        address indexed seller,
+        address indexed nftAddress,
+        uint256 indexed tokenId,
+        uint256 price
+    );
+
+    event ItemBought(
+        address indexed buyer,
+        address indexed nftAddress,
+        uint256 indexed tokenId,
+        uint256 price
+    );
+
+    event ItemCanceled(
+        address indexed seller,
+        address indexed nftAddress,
+        uint256 indexed tokenId
+    );
+```
+
+그리고 모랄리스에는 `watchContractEvent(options)`라는 함수가 있습니다.
+
+docs의 events sync from code 항목을 살펴보시기 바랍니다.
+
+그러기 위해선 `options`를 먼저 작성해야합니다.
+
+>https://v1docs.moralis.io/moralis-dapp/automatic-transaction-sync/smart-contract-events#sync-and-watch-contract-events
+
+>https://v1docs.moralis.io/moralis-dapp/connect-the-sdk/connect-using-node#add-new-event-sync-from-code
+
+```ts
+// watchEvent.ts
+const watchEvent = async () => {
+  await Moralis.start({ serverUrl, appId, masterKey });
+  // code example of creating a sync event from cloud code
+  let options = {
+    chainId: "42",
+    // UniswapV2Factory contract
+    address: "0x5c69bee701ef814a2b6a3edd4b1652cb9cc5aa6f",
+    topic: "PairCreated(address, address, address, uint256)",
+    abi: {
+      anonymous: false,
+      inputs: [
+        {
+          indexed: true,
+          internalType: "address",
+          name: "token0",
+          type: "address",
+        },
+        {
+          indexed: true,
+          internalType: "address",
+          name: "token1",
+          type: "address",
+        },
+        {
+          indexed: false,
+          internalType: "address",
+          name: "pair",
+          type: "address",
+        },
+        {
+          indexed: false,
+          internalType: "uint256",
+          name: "test",
+          type: "uint256",
+        },
+      ],
+      name: "PairCreated",
+      type: "event",
+    },
+    limit: 500000,
+    tableName: "UniPairCreated",
+    sync_historical: false,
+  };
+
+  Moralis.Cloud.run("watchContractEvent", options, { useMasterKey: true }).then(
+    (result) => {
+      console.log(result);
+    }
+  );
+};
+
+watchEvent();
+```
+
+또한 모랄리스는 로컬체인을 `1337`로 인식한다는걸 알아두셔야 합니다.
+
+`sync_historical`은 이미 발생한 이벤트도 되돌아가서 수신할 수 있습니다.
+
+`Topic`은 이벤트 정보가 될겁니다. Topic은 이벤트 이름이 될거고 인수로 안의 인수들으 ㄹ전해주면 됩니다.
+
+`abi`는 해당 이벤트가 들어있는 오브젝트를 abi에서 가져오면 됩니다.
+```json
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "seller",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "nftAddress",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "uint256",
+          "name": "tokenId",
+          "type": "uint256"
+        },
+        {
+          "indexed": false,
+          "internalType": "uint256",
+          "name": "price",
+          "type": "uint256"
+        }
+      ],
+      "name": "ItemListed",
+      "type": "event"
+    },
+```
+
+`tableName: "ItemListed"` 은 모랄리스 데이터베이스에 ItemListed라는 이름의 새 테이블을 만드는 것입니다.
+
+Browser 아래에 있는 항목으로 ItemListed를 하나 더 생성하게 됩니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-18%20192637.png)
+
+
+```ts
+import Moralis from "moralis";
+import "dotenv/config";
+import contractAddresses from "./constants/networkMapping.json" assert { type: "json" };
+
+const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL;
+const appId = process.env.NEXT_PUBLIC_APP_ID;
+const masterKey = process.env.masterKey;
+
+type ChainId = string | number;
+
+let chainId: ChainId = process.env.chainId || 31337;
+let moralisChainId = chainId == "31337" ? "1337" : chainId;
+
+interface NftMarketplace {
+  nftMarketplace: Array<string>;
+}
+
+interface ContractAddress {
+  [prop: ChainId]: NftMarketplace;
+}
+
+const I_contractAddresses: ContractAddress = contractAddresses;
+
+const contractAddress = I_contractAddresses[chainId]["nftMarketplace"][0];
+
+console.log(chainId); // 31337
+console.log(typeof chainId); // string
+console.log(contractAddress);
+
+async function main() {
+  console.log("안녕하세요");
+  await Moralis.start({ serverUrl, appId, masterKey });
+  console.log(`다음 계약에서 작업중입니다. Address: ${contractAddress}`);
+  let itemListedOptions = {
+    chainId: moralisChainId,
+    sync_historical: true,
+    topic: "ItemListed(address, address, uint256, uint256)",
+    abi: {
+      anonymous: false,
+      inputs: [
+        {
+          indexed: true,
+          internalType: "address",
+          name: "seller",
+          type: "address",
+        },
+        {
+          indexed: true,
+          internalType: "address",
+          name: "nftAddress",
+          type: "address",
+        },
+        {
+          indexed: true,
+          internalType: "uint256",
+          name: "tokenId",
+          type: "uint256",
+        },
+        {
+          indexed: false,
+          internalType: "uint256",
+          name: "price",
+          type: "uint256",
+        },
+      ],
+      name: "ItemListed",
+      type: "event",
+    },
+    tableName: "ItemListed"
+  };
+}
+
+main()
+  .then(() => (process.exitCode = 0))
+  .catch((error) => {
+    console.log(error);
+    process.exitCode = 1;
+  });
+
+```
+
+이렇게 해서 이벤트 하나가 끝났습니다. 나머지 두개의 이벤트도 이런식으로 작성하면 됩니다.
+
+이제 서버가 이 정보를 토대로 이벤트를 인덱싱 할겁니다.
+
+이제 서버에게 요청을 보내야겠죠
+
+```ts
+import Moralis from "moralis-v1/node";
+import "dotenv/config";
+import contractAddresses from "./constants/networkMapping.json" assert { type: "json" };
+
+const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL;
+const appId = process.env.NEXT_PUBLIC_APP_ID;
+const masterKey = process.env.masterKey;
+
+type ChainId = string | number;
+
+let chainId: ChainId = process.env.chainId || 31337;
+let moralisChainId = chainId == "31337" ? "1337" : chainId;
+
+interface NftMarketplace {
+  nftMarketplace: Array<string>;
+}
+
+interface ContractAddress {
+  [prop: ChainId]: NftMarketplace;
+}
+
+const I_contractAddresses: ContractAddress = contractAddresses;
+
+const contractAddress = I_contractAddresses[chainId]["nftMarketplace"][0];
+
+console.log(chainId); // 31337
+console.log(typeof chainId); // string
+console.log(contractAddress);
+
+async function main() {
+  console.log("안녕하세요");
+  await Moralis.start({ serverUrl, appId, masterKey });
+  console.log(`다음 계약에서 작업중입니다. Address: ${contractAddress}`);
+  let itemListedOptions = {
+    chainId: moralisChainId,
+    address: contractAddress,
+    sync_historical: true,
+    topic: "ItemListed(address, address, uint256, uint256)",
+    abi: {
+      anonymous: false,
+      inputs: [
+        {
+          indexed: true,
+          internalType: "address",
+          name: "seller",
+          type: "address",
+        },
+        {
+          indexed: true,
+          internalType: "address",
+          name: "nftAddress",
+          type: "address",
+        },
+        {
+          indexed: true,
+          internalType: "uint256",
+          name: "tokenId",
+          type: "uint256",
+        },
+        {
+          indexed: false,
+          internalType: "uint256",
+          name: "price",
+          type: "uint256",
+        },
+      ],
+      name: "ItemListed",
+      type: "event",
+    },
+    tableName: "ItemListed",
+  };
+  let itemBoughtOptions = {
+    chainId: moralisChainId,
+    address: contractAddress,
+    sync_historical: true,
+    topic: "ItemBought(address, address, uint256, uint256)",
+    abi: {
+      anonymous: false,
+      inputs: [
+        {
+          indexed: true,
+          internalType: "address",
+          name: "buyer",
+          type: "address",
+        },
+        {
+          indexed: true,
+          internalType: "address",
+          name: "nftAddress",
+          type: "address",
+        },
+        {
+          indexed: true,
+          internalType: "uint256",
+          name: "tokenId",
+          type: "uint256",
+        },
+        {
+          indexed: false,
+          internalType: "uint256",
+          name: "price",
+          type: "uint256",
+        },
+      ],
+      name: "ItemBought",
+      type: "event",
+    },
+    tableName: "ItemBought",
+  };
+  let itemCanceledOptions = {
+    chainId: moralisChainId,
+    address: contractAddress,
+    sync_historical: true,
+    topic: "ItemCanceled(address, address, uint256)",
+    abi: {
+      anonymous: false,
+      inputs: [
+        {
+          indexed: true,
+          internalType: "address",
+          name: "seller",
+          type: "address",
+        },
+        {
+          indexed: true,
+          internalType: "address",
+          name: "nftAddress",
+          type: "address",
+        },
+        {
+          indexed: true,
+          internalType: "uint256",
+          name: "tokenId",
+          type: "uint256",
+        },
+      ],
+      name: "ItemCanceled",
+      type: "event",
+    },
+    tableName: "ItemCanceled"
+  };
+
+  const listedResponse = await Moralis.Cloud.run("watchContractEvent", itemListedOptions, {
+    useMasterKey: true,
+  })
+  const boughtResponse = await Moralis.Cloud.run("watchContractEvent", itemBoughtOptions, {
+    useMasterKey:true,
+  })
+  const canceledResponse = await Moralis.Cloud.run("watchContractEvent", itemCanceledOptions, {
+    useMasterKey: true,
+  })
+}
+
+main()
+  .then(() => (process.exitCode = 0))
+  .catch((error) => {
+    console.log(error);
+    process.exitCode = 1;
+  });
+
+```
+
+`await Moralis.Cloud.run()`은 API에게 요청을 보낸뒤 응답을 받습니다.
+
+**Moralis가 V2.0으로 업그레이드 되어서 더이상 Cloud함수를 지원하지 않습니다. 따라서 `yarn add moralis-v1` 으로 v1버전의 모랄리스를 설치하고 `import Moralis from 'moralis-v1/node'`로 불러와야합니다.**
+
+성공하면 터미널에 다음과 같은 메세지를 볼 수 있습니다.
+
+```ps1
+{success: true}
+```
+
+이것이 API에서 받는 리턴값입니다. 이것을 이용해서 다음줄을 추가하여 성공/실패 시 메시지를 확인할 수 있도록 합니다.
+
+```ts
+  if(listedResponse.success && boughtResponse.success && canceledResponse.success) {
+    console.log("성공! 데이터베이스가 이벤트를 감지하여 업데이트 되었습니다.")
+  } else {
+    console.log("실패... 무언가 잘못되었습니다...");
+  }
+```
+
+이것이 바로 서버 데이터베이스에게 이벤트를 프로그래밍 방식으로 수신하도록 하는 방법입니다.
+
+전체코드
+```ts
+//addEvents.ts
+import Moralis from "moralis-v1/node";
+import "dotenv/config";
+import contractAddresses from "./constants/networkMapping.json" assert { type: "json" };
+
+const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL;
+const appId = process.env.NEXT_PUBLIC_APP_ID;
+const masterKey = process.env.masterKey;
+
+type ChainId = string | number;
+
+let chainId: ChainId = process.env.chainId || 31337;
+let moralisChainId = chainId == "31337" ? "1337" : chainId;
+
+interface NftMarketplace {
+  nftMarketplace: Array<string>;
+}
+
+interface ContractAddress {
+  [prop: ChainId]: NftMarketplace;
+}
+
+const I_contractAddresses: ContractAddress = contractAddresses;
+
+const contractAddress = I_contractAddresses[chainId]["nftMarketplace"][0];
+
+console.log(chainId); // 31337
+console.log(typeof chainId); // string
+console.log(contractAddress);
+
+async function main() {
+  console.log("안녕하세요");
+  await Moralis.start({ serverUrl, appId, masterKey });
+  console.log(`다음 계약에서 작업중입니다. Address: ${contractAddress}`);
+  let itemListedOptions = {
+    chainId: moralisChainId,
+    address: contractAddress,
+    sync_historical: true,
+    topic: "ItemListed(address, address, uint256, uint256)",
+    abi: {
+      anonymous: false,
+      inputs: [
+        {
+          indexed: true,
+          internalType: "address",
+          name: "seller",
+          type: "address",
+        },
+        {
+          indexed: true,
+          internalType: "address",
+          name: "nftAddress",
+          type: "address",
+        },
+        {
+          indexed: true,
+          internalType: "uint256",
+          name: "tokenId",
+          type: "uint256",
+        },
+        {
+          indexed: false,
+          internalType: "uint256",
+          name: "price",
+          type: "uint256",
+        },
+      ],
+      name: "ItemListed",
+      type: "event",
+    },
+    tableName: "ItemListed",
+  };
+  let itemBoughtOptions = {
+    chainId: moralisChainId,
+    address: contractAddress,
+    sync_historical: true,
+    topic: "ItemBought(address, address, uint256, uint256)",
+    abi: {
+      anonymous: false,
+      inputs: [
+        {
+          indexed: true,
+          internalType: "address",
+          name: "buyer",
+          type: "address",
+        },
+        {
+          indexed: true,
+          internalType: "address",
+          name: "nftAddress",
+          type: "address",
+        },
+        {
+          indexed: true,
+          internalType: "uint256",
+          name: "tokenId",
+          type: "uint256",
+        },
+        {
+          indexed: false,
+          internalType: "uint256",
+          name: "price",
+          type: "uint256",
+        },
+      ],
+      name: "ItemBought",
+      type: "event",
+    },
+    tableName: "ItemBought",
+  };
+  let itemCanceledOptions = {
+    chainId: moralisChainId,
+    address: contractAddress,
+    sync_historical: true,
+    topic: "ItemCanceled(address, address, uint256)",
+    abi: {
+      anonymous: false,
+      inputs: [
+        {
+          indexed: true,
+          internalType: "address",
+          name: "seller",
+          type: "address",
+        },
+        {
+          indexed: true,
+          internalType: "address",
+          name: "nftAddress",
+          type: "address",
+        },
+        {
+          indexed: true,
+          internalType: "uint256",
+          name: "tokenId",
+          type: "uint256",
+        },
+      ],
+      name: "ItemCanceled",
+      type: "event",
+    },
+    tableName: "ItemCanceled"
+  };
+
+  const listedResponse = await Moralis.Cloud.run("watchContractEvent", itemListedOptions, {
+    useMasterKey: true,
+  })
+  const boughtResponse = await Moralis.Cloud.run("watchContractEvent", itemBoughtOptions, {
+    useMasterKey:true,
+  })
+  const canceledResponse = await Moralis.Cloud.run("watchContractEvent", itemCanceledOptions, {
+    useMasterKey: true,
+  })
+
+  if(listedResponse.success && boughtResponse.success && canceledResponse.success) {
+    console.log("성공! 데이터베이스가 이벤트를 감지하여 업데이트 되었습니다.")
+  } else {
+    console.log("실패... 무언가 잘못되었습니다...");
+  }
+}
+
+main()
+  .then(() => (process.exitCode = 0))
+  .catch((error) => {
+    console.log(error);
+    process.exitCode = 1;
+  });
+
+```
+
+NextJS는 tsconfig에서 module: esnext 를 사용하지만 ts-node는 commonJS를 사용하기때문에
+
+tsconfig에 ts-node를 따로 설정해줘야합니다.
+
+```json
+{
+  "compilerOptions": {
+    "target": "es5",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+  },
+  "ts-node": {
+    "compilerOptions": {
+      "module": "CommonJS"
+    }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules"]
+}
+
+```
+
+그리고 다음과 같이 작성합니다.
+
+```ts
+import Moralis from "moralis-v1/node.js";
+import "dotenv/config";
+import contractAddresses from "./constants/networkMapping.json";
+
+const serverUrl = process.env.NEXT_PUBLIC_SERVER_URL;
+const appId = process.env.NEXT_PUBLIC_APP_ID;
+const masterKey = process.env.masterKey;
+
+type ChainId = string | number;
+
+let chainId: ChainId = process.env.chainId || 31337;
+let moralisChainId = chainId == "31337" ? "1337" : chainId;
+
+interface NftMarketplace {
+  nftMarketplace: Array<string>;
+}
+
+interface ContractAddress {
+  [prop: ChainId]: NftMarketplace;
+}
+
+const I_contractAddresses: ContractAddress = contractAddresses;
+
+const contractAddress = I_contractAddresses[chainId]["nftMarketplace"][0];
+
+console.log(chainId); // 31337
+console.log(typeof chainId); // string
+console.log(contractAddress);
+
+async function main() {
+  console.log("안녕하세요");
+  await Moralis.start({ serverUrl, appId, masterKey });
+  console.log(`다음 계약에서 작업중입니다. Address: ${contractAddress}`);
+  let itemListedOptions = {
+    chainId: moralisChainId,
+    address: contractAddress,
+    sync_historical: true,
+    topic: "ItemListed(address, address, uint256, uint256)",
+    abi: {
+      anonymous: false,
+      inputs: [
+        {
+          indexed: true,
+          internalType: "address",
+          name: "seller",
+          type: "address",
+        },
+        {
+          indexed: true,
+          internalType: "address",
+          name: "nftAddress",
+          type: "address",
+        },
+        {
+          indexed: true,
+          internalType: "uint256",
+          name: "tokenId",
+          type: "uint256",
+        },
+        {
+          indexed: false,
+          internalType: "uint256",
+          name: "price",
+          type: "uint256",
+        },
+      ],
+      name: "ItemListed",
+      type: "event",
+    },
+    tableName: "ItemListed",
+  };
+  let itemBoughtOptions = {
+    chainId: moralisChainId,
+    address: contractAddress,
+    sync_historical: true,
+    topic: "ItemBought(address, address, uint256, uint256)",
+    abi: {
+      anonymous: false,
+      inputs: [
+        {
+          indexed: true,
+          internalType: "address",
+          name: "buyer",
+          type: "address",
+        },
+        {
+          indexed: true,
+          internalType: "address",
+          name: "nftAddress",
+          type: "address",
+        },
+        {
+          indexed: true,
+          internalType: "uint256",
+          name: "tokenId",
+          type: "uint256",
+        },
+        {
+          indexed: false,
+          internalType: "uint256",
+          name: "price",
+          type: "uint256",
+        },
+      ],
+      name: "ItemBought",
+      type: "event",
+    },
+    tableName: "ItemBought",
+  };
+  let itemCanceledOptions = {
+    chainId: moralisChainId,
+    address: contractAddress,
+    sync_historical: true,
+    topic: "ItemCanceled(address, address, uint256)",
+    abi: {
+      anonymous: false,
+      inputs: [
+        {
+          indexed: true,
+          internalType: "address",
+          name: "seller",
+          type: "address",
+        },
+        {
+          indexed: true,
+          internalType: "address",
+          name: "nftAddress",
+          type: "address",
+        },
+        {
+          indexed: true,
+          internalType: "uint256",
+          name: "tokenId",
+          type: "uint256",
+        },
+      ],
+      name: "ItemCanceled",
+      type: "event",
+    },
+    tableName: "ItemCanceled"
+  };
+
+  const listedResponse = await Moralis.Cloud.run("watchContractEvent", itemListedOptions, {
+    useMasterKey: true,
+  })
+  const boughtResponse = await Moralis.Cloud.run("watchContractEvent", itemBoughtOptions, {
+    useMasterKey:true,
+  })
+  const canceledResponse = await Moralis.Cloud.run("watchContractEvent", itemCanceledOptions, {
+    useMasterKey: true,
+  })
+
+  if(listedResponse.success && boughtResponse.success && canceledResponse.success) {
+    console.log("성공! 데이터베이스가 이벤트를 감지하여 업데이트 되었습니다.")
+  } else {
+    console.log(listedResponse)
+    console.log(boughtResponse)
+    console.log(canceledResponse)
+    console.log("실패... 무언가 잘못되었습니다...");
+  }
+}
+
+main()
+  .then(() => (process.exitCode = 0))
+  .catch((error) => {
+    console.log(error);
+    process.exitCode = 1;
+  });
+
+```
+
+`yarn ts-node ./addEvents.ts` 로 실행합니다.
+
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-20%20122621.png)
+
+이벤트 수신기가 등록되었습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-20%20123642.png)
+
+DB에서도 새 테이블 3가지가 생성된걸 확인 할 수 있습니다.
+
+이중 `EventSyncStatus` 테이블에서는 데이터베이스가 이벤트를 수신하는지 확인할 수 있습니다.
+
+이제 우리의 데이터베이스가 블록체인노드를 수신하고있고(여기서는 정확히 하드햇 노드) 등록된 3가지의 이벤트를 수신하고 있습니다.
+
+이제 다시 하드햇 계약 프로젝트로 가서 전에 준비해놓은 `mint-and-list.js` 스크립트를 실행시켜봅시다.
+
+말그대로 NFT를 발행한 후에 장터에 등록하는 스크립트입니다.
+
+그렇다면 모랄리스 데이터베이스에서 `ItemListed`이벤트를 수신하고 그것을 ItemListed 테이블에 기록해놓아야합니다.
+
+**실행전 반드시 하드햇 노드와 모랄리스 db가 frp로 연결되었는지 확인해주세요**
+
+```ps1
+yarn hardhat run scripts/mint-and-list.js --network localhost
+```
+```ps1
+network localhost
+발행중...
+NFT 승인중...
+NFT 마켓에 등록중...
+등록되었습니다.
+Done in 4.03s.
+```
+
+그리고 다시 데이터베이스 테이블을 확인해 보면 ItemListed 테이블에 `1`이 생긴걸 확인할 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-20%20125107.png)
+
+여기에는 이벤트에 대한 모든 정보가 들어가 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-20%20125622.png)
+
+훌륭합니다.
+
+## Resetting the Local Chain
+
+여기서 문제해결을 하나 해보겠습니다.
+
+만약 현재 하드햇 노드 연결을 끊고 하드햇 노드를 재활성화했다면 어떻게 될까요
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-20%20130619.png)
+
+모랄리스 서버에 가서 Connect로 바뀌었는지 확인해봅니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-20%20134751.png)
+
+네 물론 다시 연결됩니다. 그러나 하드햇 NFT마켓 프로젝트에서 다시 `mint-and-list.js`스크립트를 실행시켰을때
+
+모랄리스 DB 대시보드를 확인해보면 `ItemListed` 테이블에 새로 발생한 이벤트가 기록되지 않습니다.
+
+왜냐하면 모랄리스 서버가 정확히 우리가 전에 실행했던 하드햇노드를 가리키고 있기 때문입니다.
+
+따라서 이렇게 조치해줘야합니다.
+
+Network -> Setting -> Dev Chain Proxy Server에 가서 `RESET LOCALCHAIN` 버튼을 눌러줘야합니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-20%20130359.png)
+
+그리고 다시 `mint-and-list.js`를 실행시키면
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-20%20135210.png)
+
+다음과 같이 리셋 로컬체인 전에 기록된 이벤트와 리셋 후 기록된 이벤트 두가지가 잘 기록된걸 볼 수 있습니다.
+
+물론 이 방법도 프로그래밍 방식으로 코드를 이용해서 배포스크립트 안에 코드를 추가해 자동으로 리셋하게 만들 수 있습니다.
+
+다만 이번에는 짚고 넘어가지 않겠습니다.
+
+## Moralis Cloud Functions
+
+여기서 또 문제가 있습니다.
+
+누군가 NFT를 구매했다고 가정해봅시다.
+
+ItemListed 이벤트는 아직 데이터베이스에 있을겁니다. 그러나 기술적으로는 nftMarketplace 계약에는 더이상 없어야합니다. 있어서는 안되겠죠.
+
+이것을 해결하는 설계방법에 2가지가 있습니다.
+
+하나는 `Moralis Cloud Functions`를 사용하는 겁니다.
+
+`Moralis Cloud Functions`는 모랄리스 서버로 부터 우리가 원하는 모든것을 프론트엔드에 넣을 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-20%20140610.png)
+
+CLI로 클라우드 함수 코드를 모랄리스 서버로 보내서 실행시킬겁니다.
+
+따라서 폴더를 하나 만들어줍니다.
+
+`cloudFunctions/updateActiveItems.js` 파일을 생성합니다.
+
+이 스크립트에서 만약 `console.log("hi")`라는 내용이 있다면 이 내용은 자동적으로 서버에 저장되게 됩니다.
+
+그리고 이것을 하는 방법은 해당 페이지에 안내되어있는 명령어를 이용하면됩니다.
+
+**실행전 반드시 moralis-admin-cli가 설치되어있어야 합니다.**
+
+```ps1
+moralis-admin-cli watch-cloud-folder --moralisApiKey <API키> --moralisApiSecret <시크릿키> --moralisSubdomain <서버URL.com까지만> --autoSave 1 --moralisCloudfolder <클라우드파일로사용할로컬파일path>
+```
+
+이 커맨드도 너무 길기 때문에 package.json 파일을 열어 새 moralis 스크립트를 추가하겠습니다.
+
+
+```json
+{
+  //...
+  "moralis:cloud":"moralis-admin-cli watch-cloud-folder --moralisSubdomain <서버URL.com까지만> --autoSave 1 --moralisCloudfolder ./cloudFunctions"
+}
+```
+
+여기서 시크릿키 와 api 키는 이미 환경변수(.env)에 포함되어있기 때문에 빼도록 하겠습니다.
+
+그런다음
+
+```ps1
+yarn moralis:cloud
+```
+로 스크립트를 실행시켜봅시다.
+
+그리고 모랄리스 legacy UI 로 가서 Cloud Function을 확인하면 다음과 같이 스크립트가 업데이트된걸 볼 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-20%20161626.png)
+
+타입스크립트 파일은 감지하지 못하네요 js파일이나 js로 컴파일 한 후에 줍시다.
+
+--isolatedMoudle 이 true인 설정일 경우 ts스크립트에 빈 export문 `export {}`를 넣어주어야  컴파일이 가능합니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-20%20162033.png)
+
+```ps1
+ncc: Version 0.29.2
+ncc: Compiling file index.js into CJS
+Changes Uploaded Correctly
+```
+그러면 알아서 CJS 모듈로 컴파일 한 후 업로드됩니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-20%20162407.png)
+
+그리고 클라우드 함수 명령어가 실행 중에는 스크립트를 추가하거나 수정시 계속해서 캐치해서 업로드됩니다.
+
+문제는 모랄리스 관리 페이지에 가면 CPU로드율이 100%가 된다는 점입니다.
+
+```
+// Create a new table called "ActiveItem"
+// Add items when they are listed on the marketplace
+// Remove them when they are bought or cancled
+
+```
+
+그래서 우리는 실행을 종료하고 다음과 같이 ActiveItem이라는 새로운 테이블을 DB에 만들겁니다.
+
+장터에 새 물품이 등록되면 물품을 추가할겁니다.
+
+그리고 물품이 판매되거나 판매취소시 제거할겁니다.
+
+즉 오직 이벤트가 발생하는 경우에만 수신하도록 만들겁니다.
+
+
+그리고 모랄리스를 import 할 필요가 없습니다. 서버에 이미 모랄리스가 존재하기 때문이죠.
+
+우리는 Moralis.cloud의 afterSave 함수를 활용할겁니다.
+
+첫번째 인수로는 이벤트이름 두번째로는 해당 이벤트가 저장되었을때 작동할 콜백이 들어갑니다.
+
+그리고 콜백함수에는 request가 들어갈겁니다. 왜냐하면 저장될때마다 요청을 보낼것이기 때문입니다.
+
+ItemListed 이벤트가 저장(save)될때마다 우리는 ActiveItemList를 추가하려합니다.
+
+그리고 request는 confirmed라는 플래그와 함께작동할겁니다.
+
+그리고 트랜잭션은 두번 일어납니다. 블럭컨펌이 일어나지 않은 상태와(`unconfirmed`) 컨펌이 완료된 상태(`confirmed`)입니다.
+
+우리는 Item을 트랜잭션이 확실히 `confirmed` 되었을때만 업데이트하려합니다.
+
+그래서 리퀘스트 객체에서 confirmed 어트리뷰트를 가져올겁니다.
+
+
+```ts
+// Create a new table called "ActiveItem"
+// Add items when they are listed on the marketplace
+// Remove them when they are bought or cancled
+export {}
+
+console.log("헬로");
+console.log("타입스크립트도 가능?");
+
+// class Map<T> {
+//     private items: { [key: string]: T };
+
+//     public constructor() {
+//         this.items = Object.create(null);
+//     }
+
+//     public set(key: string, value: T): void {
+//         this.items[key] = value;
+//     }
+
+//     public get(key: string): T {
+//         return this.items[key];
+//     }
+
+//     public remove(key: string): T {
+//         let value = this.get(key);
+//         delete this.items[key];
+//         return value;
+//     }
+// }
+
+
+interface Logger {
+    info<T,K>(log:T):K;
+}
+
+interface RequestObject {
+    object: { get<T,K>(objectName:T):K}
+}
+// interface RequestObject<T> {
+//     [key:string]: T;
+//     // object: { get<T,K>(objectName:T):K}
+// }
+
+interface Cloud {
+    afterSave<T>(events:{ new (): T } | string, callback:(request:RequestObject) => Promise<void> | void): void;
+    getLogger():Logger;
+}
+
+interface Moralis {
+    // [key:string]: object;
+    Cloud: Cloud;
+}
+
+declare global {
+    // function myFunction(): boolean;
+    // var myVariable: number;
+    var Moralis: Moralis;
+  }
+  
+// globalThis.myFunction = () => true;
+// globalThis.myVariable = 42;
+
+
+Moralis.Cloud.afterSave("ItemListed",async (request:RequestObject) => {
+    const confrimed = request.object.get("confirmed")
+    const logger = Moralis.Cloud.getLogger();
+    logger.info("looking for confirmed Tx");
+})
+
+// function identity<Type>(arg: Type): Type {
+//     return arg;
+//   }
+   
+//   let myIdentity: <Type>(arg: Type) => Type = identity;
+
+// function loggingIdentity<Type>(arg: Array<Type>): Array<Type> {
+//   console.log(arg.length); // Array has a .length, so no more error
+//   return arg;
+// }
+
+// if("Moralis" in global) {
+//     global.Moralis.get()
+// }
+
+// class Map<T> {
+//     private items: { [key: string]: T };
+
+//     public constructor() {
+//         this.items = Object.create(null);
+//     }
+
+//     public set(key: string, value: T): void {
+//         this.items[key] = value;
+//     }
+
+//     public get(key: string): T {
+//         return this.items[key];
+//     }
+
+//     public remove(key: string): T {
+//         let value = this.get(key);
+//         delete this.items[key];
+//         return value;
+//     }
+// }
+
+// function getMainImageUrl(images: Map<string>): string {
+//     return images.get("main");
+// }
+
+// interface Images {
+//     main: string;
+//     [key:string]: string;
+// }
+
+// function getMainImageUrl(images: Images): string {
+//     return images.main;
+// }
+```
+
+스크립트를 실행 후 mint-and-list.js를 실행하면 log에 메세지가 떠야할겁니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-21%20181701.png)
+
+하지만 여기서 문제가 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-21%20183107.png)
+
+confirm을 보면 false라고 되어있습니다. 즉 블록이 채굴되기 전에 아이템이 리스트된겁니다.
+
+우리는 완전히 컨펌된 후의 아이템을 리스트에 등록하고 싶습니다.
+
+그래서 우리는 하드햇 노드에 블록컨펌 하나를 추가하여 컨펌이 완료될때가지 기다릴겁니다.
+
+이번엔 하드햇 노드를 조작해야하기 때문에 하드햇 프로젝트로 넘어가겠습니다.
+
+scripts 폴더에 `move-blocks.js` 파일을 생성합니다.
+
+지금 하려는 것은 블록을 이동시켜서 확실히 컨펌하는 것입니다. 그래서 모랄리스가 이 블록은 완전히 컨펌되었다는걸 확인 한 후 인덱싱하는겁니다. 그러나 그 수가 많아질수록 모랄리스 서버가 버거워하기 때문에 딱 한 블럭만 수동 채굴(Manual Mining)할겁니다.
+
+>하드햇 수동 채굴 (Manual Mining)
+>https://hardhat.org/hardhat-network/docs/reference#manual-mining
+
+이 방법은 `evm_mine` RPC 메소드를 사용하는 방법입니다.
+
+그리고 우리가 이것을 메인함수 아래에 집어넣지 않고 스크립트로 따로 만드는 이유는 어디서나 import로 불러와서 사용할 수 있기 때문입니다.
+
+
+
+```js
+async function moveBlock(amount, sleepAmount = 0) {
+
+}
+```
+
+인수로는 amount 와 sleepAmount를 전달할겁니다. 
+
+`amount`는 채굴할 블록 수,
+
+`sleepAmount`는 옵셔널 파라미터입니다. 블럭 하나를 채굴 한 후 블럭과 블럭 사이에 잠시 기다려주는 시간을 의미합니다.
+
+우리가 진짜 블록체인처럼 블럭을 이동한 후 얼마간 기다리도록 할 수 있습니다.
+
+```js
+const { network } = require("hardhat")
+
+async function moveBlock(amount, sleepAmount = 0) {
+    console.log("블럭 옮기는 중 ... ")
+    for(let i=0; i < amount; i++) {
+        await network.provider.request({
+            method:"evm_mine",
+            params:[],
+        })
+    }
+}
+```
+그리고 매 블록마다 순회하며 `evm_mine` RPC 메소드를 실행시켜서 블록이 채굴되도록 합니다.
+
+전에 Raffle 프로젝트를 테스트할때 블록체인 시간을 조작하는것과 비슷합니다!
+
+그리고 실제 블록체인에서는 `evm_mine`같은 메소드를 호출하지 못하겠죠?
+
+이것은 로컬 하드햇노드이기 때문에 가능한것입니다.
+
+그리고 기다려주는 함수를 만들겁니다.
+
+기억하세요. 우리가 무언갈 기다리게 만드는 함수를 만들때는 Promise를 이용합니다.
+
+```js
+const { network } = require("hardhat")
+
+function sleep(timeInMs) {
+    return new Promise((resolve, reject) => {
+        setTimeout(resolve,timeInMs)
+    })
+}
+
+async function moveBlock(amount, sleepAmount = 0) {
+    console.log("블럭 옮기는 중 ... ")
+    for(let i=0; i < amount; i++) {
+        await network.provider.request({
+            method:"evm_mine",
+            params:[],
+        })
+        if(sleepAmount) {
+            console.log(`${sleepAmount} ms 만큼 대기합니다 ...`);
+            await sleep(sleepAmount);
+        }
+    }
+}
+
+module.exports = {
+    moveBlock,
+    sleep
+}
+```
+
+기본적으로 자바스크립트에서 기다리는(sleep) 방법은 setTimeout을 담은 프로미스를 반환하는것입니다.
+
+그리고 우리는 sleep 함수를 await 해서 끝날때까지 기다리고 sleep함수는 항상 setTimeout이 timeInms 만큼 기다린 후에 끝나게 됩니다.
+
+이제 모랄리스가 컨펌된 블록을 등록할 수 있도록 블럭을 모두 수동으로 컨펌할 수 있게되었습니다.
+
+끝으로 moveBlock과 sleep을 모듈로 export 해줍니다.
+
+이제 `mint-and-list.js` 로 가봅시다. 
+
+맨 위에서 `moveBlock`과 `sleep`을 불러옵니다.
+
+```js
+const { ethers, network } = require("hardhat");
+const { moveBlock, sleep} = require("../scripts/move-blocks")
+
+
+async function mintAndList() {
+  // const PRICE = ethers.utils.parseEther("0.1");
+  // const nftMarketplace = await ethers.getContract("NftMarketplace");
+  // const basicNft = await ethers.getContract("BasicNft");
+  // console.log("발행중...");
+  // const mintTx = await basicNft.mintNft();
+  // const mintTxReceipt = await mintTx.wait(1);
+  // const tokenId = mintTxReceipt.events[0].args.tokenId;
+  // console.log("NFT 승인중...");
+
+  // const approvalTx = await basicNft.approve(nftMarketplace.address, tokenId);
+  // await approvalTx.wait(1);
+  // console.log("NFT 마켓에 등록중...");
+  // const tx = await nftMarketplace.listItem(basicNft.address, tokenId, PRICE);
+  // await tx.wait(1);
+  // console.log("등록되었습니다.");
+
+  if (network.config.chainId == "31337") {
+    await moveBlock(1, (sleepAmount = 1000))
+  }
+}
+
+mintAndList()
+  .then(() => {
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.log(error);
+    process.exit(1);
+  });
+
+```
+
+그리고 잠시 moveBlock 만 빼놓고 모두 주석처리한후 잘 돌아가는지 체크해봅시다.
+
+```ps1
+yarn hardaht run scripts/mint-and-list.js --network localhost
+```
+
+그리고 데이터베이스를 확인해 보면 confirmed 가 `true`로 바뀌었습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-21%20190619.png)
+
+이제 다시 프론트엔드로 넘어가서 updateActiveItems.ts 를 마저 작성해봅시다.
+
+```ts
+
+
+export {}
+
+console.log("헬로");
+
+interface Logger {
+    info<T,R>(log:T):R;
+}
+
+interface RequestObject {
+    object: { get<T,R>(objectName:T):R}
+}
+
+interface Cloud {
+    afterSave<T>(events:{ new (): T } | string, callback:(request:RequestObject) => Promise<void> | void): void;
+    getLogger():Logger;
+}
+
+interface ObjectAttribute {
+    set<T,U,R>(attr:T,value:U):R;
+    save<T,U,R>(attrs?:T, options?:U): Promise<R>;
+}
+
+interface ObjectStatic {
+    extend(className: string | { className: string }, protoProps?: any, classProps?: any): {new ():ObjectAttribute};
+}
+
+interface Moralis {
+    Cloud: Cloud;
+    Object: ObjectStatic;
+}
+
+declare global {
+    var Moralis: Moralis;
+}
+
+Moralis.Cloud.afterSave("ItemListed",async (request:RequestObject) => {
+    const confrimed = request.object.get("confirmed")
+    const logger = Moralis.Cloud.getLogger();
+    logger.info("Tx 컨펌 감시중 ...");
+    if(confrimed) {
+        const ActiveItem = Moralis.Object.extend("ActiveItem");
+        const activeItem = new ActiveItem()
+        activeItem.set("marketpalceAddress", request.object.get("address"))
+        activeItem.set("nftAddress", request.object.get("nftAddress"));
+        activeItem.set("price", request.object.get("price"));
+        activeItem.set("tokenId", request.object.get("tokenId"));
+        activeItem.set("seller", request.object.get("seller"));
+        logger.info(`테이블 추가됨 => address: ${request.object.get("address")}, tokenId: ${request.object.get("tokenId")}`)
+        logger.info(`저장중입니다 ... `);
+        await activeItem.save();
+    }
+})
+
+
+```
+
+여기서 `Object.extend()`메소드는 넘겨받은 인수를 이름으로 아래와 같은 테이블을 하나 더 만들어줍니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-21%20192335.png)
+
+그리고 어트리뷰트를 set메소드로 설정할수 있습니다. 테이블 줄(row)를 하나 만드는 것입니다.
+
+모랄리스 docs의 Trigger 부분을 살펴보세요.
+
+그리고 `yarn moralis:cloud`로 실행해보겠습니다.
+
+그리고 모랄리스 클라우드 함수가 업로드되었는지 확인합니다.
+
+자 이제부터 항상 `ItemListed` 이벤트가 발생할때마다 서버가 해당 이벤트를 수신하고 `ActiveItem`이라는 새 데이터테이블을 추가할 것입니다.
+
+다시한번 하드햇 프로젝트에서 `mint-and-list.js`를 실행시켜봅시다.
+
+```ps1
+발행중...
+NFT 승인중...
+NFT 마켓에 등록중...
+등록되었습니다.
+블럭 옮기는 중 ... 
+1000 ms 만큼 대기합니다 ...
+Done in 4.38s.
+```
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-21%20215659.png)
+
+그리고 나서 데이터베이스를 살펴보면 `ActiveItem` 테이블이 우리가 작성한 어트리뷰트 모양대로 생성된걸 확인 할 수 있습니다.
+
+## Practice Resetting The Local Chain
+
+자 이번시간에는 현재 실행중인 터미널을 모두 종료하세요. 그리고 커피를 마시든 나가서 산책하든 잠시 휴식을 취하세요.
+
+그런다음 로컬체인을 처음부터 다시 설정하는 방법에 대해 배울겁니다. 이부분이 생각보다 까다롭기 때문입니다.
+
+프론트엔드 next dev 터미널, 모랄리스 서버에 연결된 터널링 frpc 노드, 그리고 하드햇 노드 까지, 모두 다 Ctrl + C를 눌러 실행을 종료합니다.
+
+자 이제 다시 하드햇 노드를 실행하고, 모랄리스서버에 frpc로 연결해봅시다.
+
+그리고 나서 모랄리스 웹 대시보드에서 `reset dev chain`을 반드시 눌러줍시다. 
+
+그리고 한가지 더, 모랄리스 DB 대시보드에 들어가서 `ItemListed` 테이블 과 `ActiveItem` 테이블에 있는 row들을 모두 선택한 뒤 지워줍니다. 이것들은 존재하지 않는 블록체인의 것이기 때문입니다.
+
+그리고 다시 하드햇프로젝트로 가서 `mint-and-list.js`를 실행할겁니다.
+
+이번에는 2블럭을 컨펌해봅시다 (1블럭도 괜찮습니다.)
+
+```ps1
+yarn hardhat run scripts/mint-and-list.js --network localhost
+```
+
+이제 데이터베이스가 이벤트를 인덱싱 할 수 있도록 딜레이를 주었습니다. 그리고 다시 DB 대시보드를 확인해보면
+
+`ActiveItem` 테이블과 `ItemListed` 테이블이 동시에 업데이트 된걸 확인할 수 있습니다.
+
+이로써 `ItemListed` 트랜잭션이 컨펌된 후에 `ActiveItem`을 업데이트 함을 확실시 할 수 있습니다.
+
+## Moralis Cloud Function II
+
+이제 아이템이 구매되거나 판매취소되었을 경우 `AtciveItem`에서 제거(remove)하는 기능을 만들어보겠습니다.
+
+한번은 구매되었을때 그리고 한번은 판매취소되었을때를 작성할겁니다.
+
+똑같이 `afterSave`함수로 시작합니다.
+
+그리고 똑같습니다. 우리가 `ItemCanceled` 이벤트를 발생시키고 트랜잭션이 컨펌되어 블럭이 채굴되었을때 모랄리스 서버가 이 이벤트를 수신하여 기록하고, 그와 동시에 `ActiveItem`에서 해당 아이템을 제거할겁니다.
+
+그리고 해당 아이템을 쿼리(query)해서 검색하기(retrieve) 위해 우리는 다음과 같은 쿼리를 사용할겁니다.
+
+>https://v1docs.moralis.io/moralis-dapp/database/queries#basic-queries
+
+```js
+const Monster = Moralis.Object.extend("Monster");
+const query = new Moralis.Query(Monster);
+query.equalTo("ownerName", "Aegon");
+const results = await query.find();
+alert("Successfully retrieved " + results.length + " monsters.");
+// Do something with the returned Moralis.Object values
+for (let i = 0; i < results.length; i++) {
+  const object = results[i];
+  alert(object.id + " - " + object.get("ownerName"));
+}
+```
+
+즉 우리가 검색하기 위해서 해당 테이블을 먼저 쿼리하는겁니다.
+
+```ts
+
+export {}
+
+console.log("서버에 스크립트 업로드");
+
+interface Logger {
+    info<T,R>(log:T):R;
+}
+
+// interface InnerObject {
+//     get<T,R>(objectName:T): R;
+//     // [props:string]: any;
+// }
+
+interface RequestObject {
+    object: ObjectAttribute;
+}
+
+interface Cloud {
+    afterSave<T>(events:{ new (): T } | string, callback:(request:RequestObject) => Promise<void> | void): void;
+    getLogger():Logger;
+}
+
+interface ObjectAttribute {
+    get<T,R>(objectName:T): R;
+    set<T,U,R>(attr:T,value:U):R;
+    save<T,U,R>(attrs?:T, options?:U): Promise<R>;
+    destroy<O>(options?: O): Promise<this>;
+}
+
+interface ObjectStatic<T extends ObjectAttribute = ObjectAttribute> {
+    extend<T>(className: string | { className: string }, protoProps?: any, classProps?: any): {new (...args: T[]):ObjectAttribute};
+}
+
+interface NewQueryObject {
+    equalTo<K,R>(key: K,value:RequestObject):R
+    first():ObjectAttribute
+}
+
+interface Moralis {
+    Cloud: Cloud;
+    Object: ObjectStatic;
+    Query: new<T> (queriedTable:{new (...args: T[]):ObjectAttribute}) => NewQueryObject;
+
+}
+
+declare global {
+    var Moralis: Moralis;
+}
+
+Moralis.Cloud.afterSave("ItemListed",async (request:RequestObject) => {
+    const confrimed = request.object.get("confirmed");
+    const logger = Moralis.Cloud.getLogger();
+    logger.info("Tx 컨펌 감시중 ...");
+    if(confrimed) {
+        const ActiveItem = Moralis.Object.extend("ActiveItem");
+        const activeItem = new ActiveItem()
+        activeItem.set("marketplaceAddress", request.object.get("address"))
+        activeItem.set("nftAddress", request.object.get("nftAddress"));
+        activeItem.set("price", request.object.get("price"));
+        activeItem.set("tokenId", request.object.get("tokenId"));
+        activeItem.set("seller", request.object.get("seller"));
+        logger.info(`테이블 추가됨 => address: ${request.object.get("address")}, tokenId: ${request.object.get("tokenId")}`)
+        logger.info(`저장중입니다 ... `);
+        await activeItem.save();
+    }
+})
+
+Moralis.Cloud.afterSave("ItemCancled",async (request:RequestObject) => {
+    const confirmed = request.object.get("confirmed");
+    const logger = Moralis.Cloud.getLogger();
+    logger.info(`Marketplace | Object ${request.object}`);
+    if(confirmed) {
+        const ActiveItem = Moralis.Object.extend("ActiveItem");
+        const query = new Moralis.Query(ActiveItem);
+        query.equalTo("marketplaceAddress", request.object.get("address"));
+        query.equalTo("nftAddress", request.object.get("nftAddress"));
+        query.equalTo("tokenId", request.object.get("tokenId"));
+        logger.info(`Marketplace | 쿼리: ${query}`);
+        const canceledItem = await query.first();
+        logger.info(`Marketplace | 취소된 물품: ${canceledItem}`);
+        if(canceledItem) {
+            logger.info(`판매가 취소되어 등록된 ${request.object.get("tokenId")} 를 ${request.object.get("address")}으 아이템 목록에서 제거하였습니다.`);
+            await canceledItem.destroy()
+        } else {
+            logger.info(`주소:${request.object.get("address")} 에서 토큰아이디가 ${request.object.get("tokenId")} 인 아이템을 찾을 수 없습니다.`)
+        }
+    }    
+})
+
+```
+
+query.first()는 쿼리된 첫번째 아이템을 탐색할 수 있습니다.
+
+이제 스크립트를 모랄리스 클라우드로 업로드합니다.
+
+```ps1
+yarn moralis:cloud
+```
+
+이제 다시 하드햇 프로젝트로 넘어가서 `cancelItem` 스크립트를 만들어봅시다.
+
+`cancle.js` 파일을 생성합니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-22%20131818.png)
+
+이 tokenId 0 인 아이템을 취소시킬겁니다.
+
+```js
+//scripts/cancel.js
+const { ethers, network } = require("hardhat");
+const { moveBlock } = require("../utils/move-blocks");
+
+const TOKEN_ID = 0;
+
+async function cancel() {
+    const nftMarketplace = await ethers.getContract("NftMarketplace");
+    const basicNft = await ethers.getContract("BasicNft");
+    const tx = await nftMarketplace.cancelListing(basicNft.address, TOKEN_ID) //nftAddress, tokenId
+    await tx.wait(1);
+    console.log("NFT 판매 취소됨");
+    if(network.config.chainId == "31337") {
+        await moveBlock(2, sleepAmount = 1000);
+    }
+}
+
+cancel()
+  .then(() => (process.exitCode = 0))
+  .catch((error) => {
+    console.log(error);
+    process.exitCode = 1;
+  });
+
+```
+
+```ps1
+yarn hardhat run scripts/cancel.js --network localhost
+```
+
+이제 다시 DB테이블을 확인해봅시다.
+
+Logs를 살펴보니 에러가 있습니다.
+
+```log
+2022-08-22T04:29:11.861Z - 주소:0x5fbdb2315678afecb367f032d93f642f64180aa3 에서 토큰아이디가 0 인 아이템을 찾을 수 없습니다.
+2022-08-22T04:29:11.860Z - Marketplace | 취소된 물품: undefined
+2022-08-22T04:29:11.851Z - Marketplace | 쿼리: [object Object]
+2022-08-22T04:29:11.850Z - Marketplace | Object [object Object]
+2022-08-22T04:29:11.575Z - Marketplace | Object [object Object]
+```
+
+ActiveItem 테이블을 세팅할때 marketplaceAddress를 marketpa`l`ceAddress 로 오기해서 발생한 문제였습니다.
+
+```js
+activeItem.set("marketpalceAddress", request.object.get("address")); // X 
+activeItem.set("marketplaceAddress", request.object.get("address")); // O
+```
+
+다시 체인을 리셋시키고 `mint-and-list.js` -> `cancel.js` 순으로 실행시켜보겠습니다.
+
+```log
+2022-08-23T02:55:12.914Z - Marketplace | Object [object Object]
+2022-08-23T02:55:12.914Z - 아이템 등록 취소 이벤트 감지
+2022-08-23T02:55:12.643Z - 판매가 취소되어 등록된 0 를 0x5fbdb2315678afecb367f032d93f642f64180aa3 아이템 목록에서 제거하였습니다.
+2022-08-23T02:55:12.642Z - Marketplace | 취소된 물품: [object Object]
+2022-08-23T02:55:12.623Z - Marketplace | 쿼리: [object Object]
+2022-08-23T02:55:12.622Z - Marketplace | Object [object Object]
+2022-08-23T02:55:12.622Z - 아이템 등록 취소 이벤트 감지
+2022-08-23T02:54:15.437Z - Tx 컨펌 감시중 ...
+2022-08-23T02:54:15.116Z - 저장중입니다 ... 
+2022-08-23T02:54:15.116Z - 테이블 추가됨 => address: 0x5fbdb2315678afecb367f032d93f642f64180aa3, tokenId: 0
+2022-08-23T02:54:15.114Z - Tx 컨펌 감시중 ...
+2022-08-23T02:52:52.037Z - Ran cloud function coreservices_getConfig for user undefined with:
+  Input: {}
+  Result: {"status":200,"data":{"success":true,"result":{"providers":[{"chain":"Eth","name":"LocalDevChain","network":"ganache","exchange":"x0r3rvpvm9gi.usemoralis.com:2053","chainId":"0x539","lookups":["ganache","0x539","hardhat","localdevchain","local devchain","dev"],"token":{"name":"Ether","symbol":"ETH"},"httpProviderUrl":null,"maxRecordsPerCategory":50,"userSync":true}],"addressSyncs":[],"eventSyncs":[{"chainId":"1337","address":"0x5FbDB2315678afecb367f032d93F642f64180aa3","sync_historical":true,"topic":"ItemBought(address, address, uint256, uint256)","abi":{"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"buyer","type":"address"},{"indexed":true,"internalType":"address","name":"nftAddress","type":"address"},{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"},{"indexed":false,"internalType":"uint256","name":"price","type":"uint256"}],"name":"ItemBought","type":"event"},"tableName":"ItemBought"},{"chainId":"1337","address":"0x5FbDB2315678a... (truncated)
+```
+
+이번에는 지워야할 아이템을 찾았습니다.
+그리고 테이블에서 삭제되었는지 확인해보겠습니다.
+
+ActiveItem 테이블에 있던 아이템이 성공적으로 제거되었습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-23%20115944.png)
+
+반면에 ItemCanceled 테이블에 지워진 아이템이 기록되었습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-23%20115956.png)
+
+아이템을 구매했을때도 마찬가지로 작성해주면 됩니다.
+
+```ts
+Moralis.Cloud.afterSave("ItemListed",async (request) => {
+    const confrimed = request.object.get("confirmed");
+    const logger = Moralis.Cloud.getLogger();
+    logger.info("Tx 컨펌 감시중 ...");
+    if(confrimed) {
+        const ActiveItem = Moralis.Object.extend("ActiveItem");
+        const activeItem = new ActiveItem()
+        activeItem.set("marketplaceAddress", request.object.get("address"))
+        activeItem.set("nftAddress", request.object.get("nftAddress"));
+        activeItem.set("price", request.object.get("price"));
+        activeItem.set("tokenId", request.object.get("tokenId"));
+        activeItem.set("seller", request.object.get("seller"));
+        logger.info(`테이블 추가됨 => address: ${request.object.get("address")}, tokenId: ${request.object.get("tokenId")}`)
+        logger.info(`저장중입니다 ... `);
+        await activeItem.save();
+    }
+})
+
+Moralis.Cloud.afterSave("ItemCanceled",async (request) => {
+    const confirmed = request.object.get("confirmed");
+    const logger = Moralis.Cloud.getLogger();
+    logger.info("아이템 등록 취소 이벤트 감지")
+    logger.info(`Marketplace | Object ${request.object}`);
+    if(confirmed) {
+        const ActiveItem = Moralis.Object.extend("ActiveItem");
+        const query = new Moralis.Query(ActiveItem);
+        query.equalTo("marketplaceAddress", request.object.get("address"));
+        query.equalTo("nftAddress", request.object.get("nftAddress"));
+        query.equalTo("tokenId", request.object.get("tokenId"));
+        logger.info(`Marketplace | 쿼리: ${query}`);
+        const canceledItem = await query.first();
+        logger.info(`Marketplace | 취소된 물품: ${canceledItem}`);
+        if(canceledItem) {
+            logger.info(`판매가 취소되어 등록된 ${request.object.get("tokenId")} 를 ${request.object.get("address")} 아이템 목록에서 제거하였습니다.`);
+            await canceledItem.destroy()
+        } else {
+            logger.info(`주소:${request.object.get("address")} 에서 토큰아이디가 ${request.object.get("tokenId")} 인 아이템을 찾을 수 없습니다.`)
+        }
+    }    
+})
+
+Moralis.Cloud.afterSave("ItemBought", async (request) => {
+    const confirmed = request.object.get("confirmed");
+    const logger = Moralis.Cloud.getLogger();
+    logger.info("아이템 구매 이벤트 수신")
+    logger.info(request.object);
+    if(confirmed) {
+        const activeItem = Moralis.Object.extend("ActiveItem");
+        const query = new Moralis.Query(activeItem);
+        query.equalTo("marketplaceAddress", request.object.get("address"));
+        query.equalTo("nftAddress", request.object.get("nftAddress"));
+        query.equalTo("tokenId", request.object.get("tokenId"));
+        logger.info(`Marketplace | query : ${query}`);
+        const boughtItem = await query.first();
+        logger.info(`Marketplace | 구입한 아이템: ${boughtItem}`);
+        if(boughtItem) {
+            logger.info(`등록된 ${request.object.get("tokenId")} 아이템이 판매되어 ${request.object.get("address")} 아이템 목록에서 제거하였습니다.`);
+            await boughtItem.destroy()
+        } else {
+            logger.info(`주소:${request.object.get("address")} 에서 토큰아이디가 ${request.object.get("tokenId")} 인 아이템을 찾을 수 없습니다.`)
+        }
+    }
+})
+```
+
+이제 블록체인에서 ItemBought 이벤트를 발생시키기 위해  `buyItem.js`를 작성하겠습니다.
+
+그 전에 아이템을 등록하기 위해 mint-and-list.js 를 한번 더 실행하여 ActiveItem 테이블에 아이템을 기록하겠습니다.
+
+```js
+const { ethers, network } = require("hardhat");
+const { moveBlock, sleep } = require("../utils/move-blocks");
+
+const TOKEN_ID = 1;
+
+async function buy() {
+  const nftMarketpalce = await ethers.getContract("NftMarketplace");
+  const basicNft = await ethers.getContract("BasicNft");
+  const listing = await nftMarketpalce.getListing(basicNft.address, TOKEN_ID) //getListing(address nftAddress, uint256 tokenId)
+  const price = listing.price.toString();
+  const tx = await nftMarketpalce.buyItem(basicNft.address, TOKEN_ID, {value: price}); //function buyItem(address nftAddress, uint256 tokenId)
+  await tx.wait(1);
+  console.log("아이템이 구매되었습니다.");
+  if (network.config.chainId == 31337) {
+    await moveBlock(2, (sleepAmount = 1000));
+  }
+}
+
+buy()
+  .then(() => (process.exitCode = 0))
+  .catch((error) => {
+    console.log(error);
+    process.exitCode = 1;
+  });
+
+```
+
+그리고  buy스크립트를 실행해봅시다.
+
+또한 한가지 더 할 게 있습니다.
+
+NftMarketplace.sol 계약에 리스트 업데이트 함수를 작성했었죠.
+
+```solidity
+    function updateListing(
+        address nftAddress,
+        uint256 tokenId,
+        uint256 newPrice
+    )
+        external
+        isListed(nftAddress, tokenId)
+        isOwner(nftAddress, tokenId, msg.sender)
+    {
+        s_listings[nftAddress][tokenId].price = newPrice;
+        emit ItemListed(msg.sender, nftAddress, tokenId, newPrice);
+    }
+```
+
+이 함수가 발생시키는 `ItemListed` 이벤트를 수신하여 아이템 목록을 업데이트 시켜보겠습니다.
+
+즉 `afterSave` 를 이용해서 이미 목록에 아이템이 있는지 확인해줄겁니다.
+
+다음과 같이 남기때문에요
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-23%20155937.png)
+
+이 방법은 UX적으로도 좋은 방법입니다. 사용자들이 이런 기능들을 추가적인 가스소모 없이 사용할 수 있기 때문이죠.
+
+
+이제 액티브 아이템 데이터베이스의 모든것을 부르는 방법에 대해 알아봅시다.
+
+## Querying the Moralis database
+
+자 이제 프론트엔드의 처음으로 돌아갑시다.
+
+우리가 던졌던 첫번재 질문인 `이미 리스트 된 아이템을 어떻게 보여줄것인가` 에 대한 작업을 끝마쳤습니다.
+
+이제 우리가 만든 시스템을 가지고 화면에 보여주면 됩니다.
+
+이제 프론트엔드에서 모랄리스 데이터베이스를 쿼리할겁니다.
+
+아래의 훅을 이용할겁니다.
+
+>https://github.com/MoralisWeb3/react-moralis#usemoralisquery
+
+리액트 컨텍스트에 fetch하여 이곳에서 query하는겁니다.
+
+우리의 시작점인 pages 폴더의 `index.js`로 다시 돌아올때가 되었습니다.
+
+그리고 이것들이 우리의 index.js가 나타났을때 일시적으로 쿼리를 행할겁니다.
+
+```js
+const { data, error, isLoading } = useMoralisQuery("GameScore");
+
+if (error) {
+  return <span>🤯</span>;
+}
+
+if (isLoading) {
+  return <span>🙄</span>;
+}
+
+return <pre>{JSON.stringify(data, null, 2)}</pre>;
+```
+
+```tsx
+import type { NextPage } from 'next'
+import Head from 'next/head'
+import Image from 'next/image'
+import { useApiContract, useMoralisQuery } from 'react-moralis'
+import styles from '../styles/Home.module.css'
+
+const Home: NextPage = () => {
+  // How do we show the recently listed NFTs?
+
+  // const value = await useApiContract.getListing(asdfasdf)
+  // we will read from a database that has all the mapping in an easier to read data structure
+
+  const {data: listedNfts, isFetching: fetchingListedNfts} = useMoralisQuery(
+    // TableName
+    // Function for the query
+    "ActiveItem",
+    (query) => query.limit(10).descending("tokenId")
+  )
+
+  return (
+    <div className={styles.container}>
+      
+    </div>
+  )
+}
+
+export default Home
+
+```
+
+```tsx
+  const {data: listedNfts, isFetching: fetchingListedNfts} = useMoralisQuery(
+    // TableName
+    // Function for the query
+    "ActiveItem",
+    (query) => query.limit(10).descending("tokenId")
+  )
+  console.log(listedNfts);
+```
+
+`ActiveItem`이라는 테이블에서 query를 들고 오는데 `limit(10)` 즉, `첫번째부터 10개까지` 들고오고, `내림차순(desending)`으로 들고올겁니다. `tokenId`값을 기준으로요.
+
+그리고 이 쿼리결과는 `data: listedNfts` 에 저장될겁니다. 작동되는지 콘솔로그를 찍어볼까요?
+
+useMoralisQuery가 정확히 어떤 값을 가져오는지 확인해봅시다.
+
+현재 하드햇 노드와 frpc 연결이 모두 되어있는 상태에서 프론트엔드 서버를 연결합니다. `yarn dev`
+
+그리고 콘솔창을 확인하면 첫번째 배열에서는 앱을 초기화 하는 단계이며 아직 데이터를 받아오지 못했기때문에 비어있습니다.
+
+두번째 배열부터 리스트에 등록된 아이템 오브젝트를 얻을 수 있습니다.
+
+> 메타마스크 익스텐션에서 계정 로그아웃 시키기
+>https://github.com/MetaMask/metamask-extension/issues/8990
+```jsx
+    const walletAddress = await window.ethereum.request({
+      method: "eth_requestAccounts",
+      params: [
+        {
+          eth_accounts: {}
+        }
+      ]
+    });
+
+    if (!isReturningUser) {
+    // Runs only they are brand new, or have hit the disconnect button
+      await window.ethereum.request({
+        method: "wallet_requestPermissions",
+        params: [
+          {
+            eth_accounts: {}
+          }
+        ]
+      });
+    }
+```
+```jsx
+const accounts = await window.ethereum.request({
+    method: "wallet_requestPermissions",
+    params: [{
+        eth_accounts: {}
+    }]
+}).then(() => ethereum.request({
+    method: 'eth_requestAccounts'
+}))
+
+const account = accounts[0]
+```
+
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-24%20084517.png)
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-25%20200524.png)
+
+아무튼 다시 응답받은 오브젝트를 보면 attribute에 데이터베이스에 기록된 값들이 들어있는걸 볼 수 있습니다.
+
+`isFetching: fetchingListedNfts`
+
+우리가 먼저 해야할것은 위 변수를 이용해 패칭중인지 체크하는겁니다.
+
+그리고 패칭중이 아니라면 패치가 완료되었단 뜻이니 맵을 돌리면 됩니다.
+
+```js
+import type { NextPage } from "next";
+import Head from "next/head";
+import Image from "next/image";
+import { useMoralisQuery } from "react-moralis";
+import styles from "../styles/Home.module.css";
+
+const Home: NextPage = () => {
+  // How do we show the recently listed NFTs?
+
+  // const value = await useApiContract.getListing(asdfasdf)
+  // we will read from a database that has all the mapping in an easier to read data structure
+
+  const {
+    data: listedNfts,
+    isFetching: fetchingListedNfts,
+    error: reqError,
+  } = useMoralisQuery(
+    // TableName
+    // Function for the query
+    "ActiveItem",
+    (query) => query.limit(10).descending("tokenId")
+  );
+  console.log(fetchingListedNfts);
+  console.log(reqError);
+  console.log(listedNfts);
+
+  // createdAt: Thu Aug 25 2022 15:40:03 GMT+0900 (한국 표준시) {}
+  // marketplaceAddress: "0x5fbdb2315678afecb367f032d93f642f64180aa3"
+  // nftAddress: "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512"
+  // price: "100000000000000000"
+  // seller: "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+  // tokenId: "0"
+  // updatedAt: Thu Aug 25 2022 15:40:03 GMT+0900 (한국 표준시)
+
+  return (
+    <div className={styles.container}>
+      {fetchingListedNfts
+        ? "로딩중 ... "
+        : listedNfts.map((nft,i) => {
+            console.log(nft.attributes);
+            const {
+              createdAt,
+              marketplaceAddress,
+              nftAddress,
+              price,
+              seller,
+              tokenId,
+              updatedAt,
+            } = nft.attributes;
+            return (
+              <div> ItemIndex: {i}
+                <p>createdAt: {createdAt.toString()}.</p>
+                <p>marketplaceAddress: {marketplaceAddress}.</p>
+                <p>nftAddress: {nftAddress}.</p>
+                <p>Price: {price}.</p>
+                <p>Seller: {seller}.</p>
+                <p>tokenId: {tokenId}.</p>
+                <p>updatedAt: {updatedAt.toString()}</p>
+              </div>
+            );
+          })}
+    </div>
+  );
+};
+
+export default Home;
+
+```
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-25%20202355.png)
+
+
+NFT를 한개 더 mint한 뒤 다시 확인해봅시다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-25%20202828.png)
+
+아이템 목록이 하나 더 나타났습니다. 좋습니다.
+
+## Rendering the NFT Images
+
+아주 좋아요 그런데 여러분이 한가지 말하고 싶은게 있을겁니다.
+
+"이거 너무 못생겼어요", 네 저도 동감합니다.
+
+우리는 NFT 이미지와 함께 같이 예쁘게 출력해줄 컴포넌트를 하나 더 만들겁니다.
+
+Component에 `NFTBox.tsx` 파일을 생성합니다.
+
+```tsx
+export default function NFTBox({price, nftAddress, tokenId, marketplaceAddress, seller}) {
+
+} 
+```
+
+그리고 프롭으로 패치로 받은 값들을 넘겨줄겁니다.
+
+그리고 토큰URI에 따라서 해당 NFT 이미지를 렌더링해줄겁니다. 
+
+먼저 넘겨줄 프롭의 인터페이스를 만들어주겠습니다.
+
+```ts
+// eip-1193
+interface RequestArguments {
+    readonly method: string;
+    readonly params?: readonly unknown[] | object;
+  }
+
+declare function EthRequest(args:RequestArguments):unknown
+
+export interface EthereumProvider {
+    isMetaMask?: boolean;
+    request: typeof EthRequest;
+}
+
+declare global {
+    interface Window {
+        ethereum?: EthereumProvider;
+    }
+}
+
+// Props
+export interface NftListedProps {
+    price?: string;
+    nftAddress?: string;
+    tokenId?: string;
+    marketplaceAddress?: string;
+    seller?: string;
+    createdAt?: object;
+    updatedAt?: object;
+}
+```
+
+그리고 다음과 같이 useState를 사용해 imageURI를 통제할 겁니다.
+
+```tsx
+import { useState } from "react";
+import { NftListedProps } from "../common/types";
+
+export default function NFTBox({price, nftAddress, tokenId, marketplaceAddress, seller}:NftListedProps) {
+    const [imageURI, setImageURI] = useState();
+
+    async function updateUI() {
+        // get the tokenURI
+        // using the image tag from the tokenURI, get the image
+    }
+} 
+```
+
+그리고 toeknURI 로부터 이미지 태그를 얻어 이미지를 가지고 오고 UI를 업데이트 시켜줄 `updateUI`함수를 작성하겠습니다.
+
+아시다시피 우리는 `useWeb3Contract`메소드를 이용해 toeknURI를 확보할 겁니다.
+
+```tsx
+import { useState } from "react";
+import { useWeb3Contract } from "react-moralis";
+import { NftListedProps } from "../common/types";
+
+export default function NFTBox({price, nftAddress, tokenId, marketplaceAddress, seller}:NftListedProps) {
+    const [imageURI, setImageURI] = useState();
+
+    const {runContractFunction: getTokenURI} = useWeb3Contract({
+        abi:
+    })
+
+    async function updateUI() {
+        // get the tokenURI
+        // using the image tag from the tokenURI, get the image
+    }
+} 
+```
+
+ABI가 필요하기 때문에 잠시 주석처리해놓고 다시 하드햇 프로젝트로 넘어가겠습니다.
+
+`99-update-front-end.js` 파일에 ABI를 업로드 해주는 코드를 작성해줍니다.
+
+```js
+const frontEndAbi = "../nextjs-nft-marketplace/constants/"
+
+module.exports = async function() {
+    if(process.env.UPDATE_FRONT_END) {
+        console.log("프론트엔드를 업데이트 하고 있습니다 ...");
+        await updateContractAddresses();
+        await updateAbi();
+    }
+}
+
+async function updateAbi() {
+    const nftMarketpalce = await ethers.getContract("NftMarketplace");
+    fs.writeFileSync(`${frontEndAbi}NftMarketplace.json`,nftMarketpalce.interface.format(ethers.utils.FormatTypes.json));
+}
+
+```
+
+이번에는 ABI 파일을 chainId를 객체 안을 확인해서 교체하는 구조가 아니라 바로바로 새 ABI로 덮어씌울겁니다.
+
+따라서 경로도 폴더까지만 설정해주고 writeFileSync에서 파일이름을 json으로 설정해줍니다.
+
+```js
+myContract.interface.format(ethers.utils.FormatTypes.json)
+```
+
+그리고 두번째 인수로 넘겨주는 파일에서 ethers의 contract.interface.format메소드를 이용해서 ABI를 JSON으로 바로 파싱해준후 넘겨줍니다.
+
+마찬가지로 BasicNft도 작성해야합니다.
+
+```js
+async function updateAbi() {
+  const nftMarketpalce = await ethers.getContract("NftMarketplace");
+  fs.writeFileSync(
+    `${frontEndAbi}NftMarketplace.json`,
+    nftMarketpalce.interface.format(ethers.utils.FormatTypes.json)
+  );
+  const basicNft = await ethers.getContract("BasicNft");
+  fs.writeFileSync(
+    `${frontEndAbi}BasicNft.json`,
+    basicNft.interface.format(ethers.utils.FormatTypes.json)
+  );
+}
+```
+**`contract.interface.format` 과 `ethers.utils.FormatTypes`는 ethers.js 문서에서 확인하실 수 있습니다.**
+
+이제 프론트엔드 업데이트를 실행시켜봅시다.
+
+```ps1
+yarn hardhat deploy --tags frontend --network localhost
+```
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-25%20225201.png)
+
+이제 두가지 파일이 더 추가되었습니다.
+
+이제 이 두 파일을 프론트엔드의 `index.tsx`에서 불러와서 사용하겠습니다.
+
+```tsx
+import { useState } from "react";
+import { useWeb3Contract } from "react-moralis";
+import { NftListedProps } from "../common/types";
+import NftMarketplaceAbi from "../constants/NftMarketplace.json";
+import BasicNftAbi from "../constants/BasicNft.json";
+
+export default function NFTBox({price, nftAddress, tokenId, marketplaceAddress, seller}:NftListedProps) {
+    const [imageURI, setImageURI] = useState();
+
+    const {runContractFunction: getTokenURI} = useWeb3Contract({
+        abi: BasicNftAbi,
+        contractAddress: nftAddress,
+        functionName: "tokenURI",
+        params: {
+            tokenId: tokenId,
+        }
+
+    })
+
+    async function updateUI() {
+        const tokenURI = await getTokenURI();
+        console.log(tokenURI);
+        // get the tokenURI
+        // using the image tag from the tokenURI, get the image
+    }
+
+} 
+```
+
+tokenURI 함수에 인수로 주는 tokenId를 주석해제해주고 require 문을 작성해줬습니다.
+
+```solidity
+//BasicNft.sol
+    function tokenURI(
+        uint256 tokenId
+    ) public view override returns (string memory) {
+        require(_exists(tokenId), unicode"ERC721Metadata: 존재하지 않는 토큰의 URI를 쿼리하고 있습니다.");
+        return TOKEN_URI;
+    }
+```
+
+**에러메세지 원문은 `"ERC721Metadata: URI query for nonexistent token"` 입니다.**
+
+```tsx
+import { useState, useEffect} from "react";
+import { useMoralis, useWeb3Contract } from "react-moralis";
+import { NftListedProps } from "../common/types";
+import NftMarketplaceAbi from "../constants/NftMarketplace.json";
+import BasicNftAbi from "../constants/BasicNft.json";
+
+export default function NFTBox({price, nftAddress, tokenId, marketplaceAddress, seller}:NftListedProps) {
+    const [imageURI, setImageURI] = useState();
+    const { isWeb3Enabled } = useMoralis();
+
+    const {runContractFunction: getTokenURI} = useWeb3Contract({
+        abi: BasicNftAbi,
+        contractAddress: nftAddress,
+        functionName: "tokenURI",
+        params: {
+            tokenId: tokenId,
+        }
+
+    })
+
+    async function updateUI() {
+        const tokenURI = await getTokenURI();
+        console.log(tokenURI);
+        // get the tokenURI
+        // using the image tag from the tokenURI, get the image
+    }
+
+    useEffect(() => {
+        if(isWeb3Enabled) {
+            updateUI()
+        }
+    }, [isWeb3Enabled])
+    
+    return (
+      <></>
+    )
+} 
+```
+
+그리고 `updateUI` 함수에서 `getTokenURI`를 호출하여 tokenURI 값을 제대로 받아오는지 확인해봅니다.
+
+또한 useEffect로 `isWebEnabled`가 바뀔때마다 `updateUI`를 호출하도록 합니다.
+
+이제 `index.tsx`에 이걸 가져와서 제대로 작동하는지 확인해봅시다.
+
+**그전에 끝에 jsx요소를 반환해줘야 index.tsx 에서 컴포넌트로 불러올 수 있습니다. `return (<></>)`**
+
+```tsx
+import type { NextPage } from "next";
+import Head from "next/head";
+import Image from "next/image";
+import { useMoralisQuery } from "react-moralis";
+import styles from "../styles/Home.module.css";
+import NFTBox from "../components/NFTbox";
+
+const Home: NextPage = () => {
+  // How do we show the recently listed NFTs?
+
+  // const value = await useApiContract.getListing(asdfasdf)
+  // we will read from a database that has all the mapping in an easier to read data structure
+
+  const {
+    data: listedNfts,
+    isFetching: fetchingListedNfts,
+    error: reqError,
+  } = useMoralisQuery(
+    // TableName
+    // Function for the query
+    "ActiveItem",
+    (query) => query.limit(10).descending("tokenId")
+  );
+  console.log(fetchingListedNfts);
+  console.log(reqError);
+  console.log(listedNfts);
+
+  // createdAt: Thu Aug 25 2022 15:40:03 GMT+0900 (한국 표준시) {}
+  // marketplaceAddress: "0x5fbdb2315678afecb367f032d93f642f64180aa3"
+  // nftAddress: "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512"
+  // price: "100000000000000000"
+  // seller: "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+  // tokenId: "0"
+  // updatedAt: Thu Aug 25 2022 15:40:03 GMT+0900 (한국 표준시)
+
+  return (
+    <div className={styles.container}>
+      {fetchingListedNfts
+        ? "로딩중 ... "
+        : listedNfts.map((nft) => {
+            console.log(nft.attributes);
+            const {
+              createdAt,
+              marketplaceAddress,
+              nftAddress,
+              price,
+              seller,
+              tokenId,
+              updatedAt,
+            } = nft.attributes;
+            return (
+              <div className="mt-4">
+                <p>createdAt: {createdAt.toString()}.</p>
+                <p>updatedAt: {updatedAt.toString()}</p>
+                <NFTBox
+                  price={price}
+                  nftAddress={nftAddress}
+                  tokenId={tokenId}
+                  marketplaceAddress={marketplaceAddress}
+                  seller={seller}
+                  key={`${nftAddress}${tokenId}`}
+                />
+              </div>
+            );
+          })}
+    </div>
+  );
+};
+
+export default Home;
+
+```
+
+NFTBox를 불러와준 뒤 props를 넘겨줍시다.
+
+**참고로 프롭을 받는 컴포넌트에서 이렇게 작성해도됩니다.**
+
+```tsx
+export default async function Component(props:propsType) {
+  const { prop1, prop2, prop3 } = props;
+}
+```
+
+타입스크립트에서 useState 사용하기
+```tsx
+const [state,setState] = useState<string | undefined>()
+
+const something = await fetch("http://abcde.kr/fetchText");
+
+const whatIsThis:unknown = something(); 
+
+setState(whatIsThis as string)
+```
+
+```tsx
+import React, { useState, useEffect} from "react";
+import { useMoralis, useWeb3Contract } from "react-moralis";
+import { NftListedProps } from "../common/types";
+import NftMarketplaceAbi from "../constants/NftMarketplace.json";
+import BasicNftAbi from "../constants/BasicNft.json";
+
+export default function NFTBox({price, nftAddress, tokenId, marketplaceAddress, seller}:NftListedProps) {
+    const [imageURI, setImageURI] = useState<string | undefined>();
+    const { isWeb3Enabled } = useMoralis();
+
+    const {runContractFunction: getTokenURI} = useWeb3Contract({
+        abi: BasicNftAbi,
+        contractAddress: nftAddress,
+        functionName: "tokenURI",
+        params: {
+            tokenId: tokenId,
+        }
+
+    })
+
+    async function updateUI() {
+        const tokenURI = await getTokenURI();
+        console.log(tokenURI);
+        const tokenURIURL = tokenURI as string
+        setImageURI(tokenURIURL);
+        // get the tokenURI
+        // using the image tag from the tokenURI, get the image
+    }
+
+    useEffect(() => {
+        if(isWeb3Enabled) {
+            updateUI()
+        }
+    }, [isWeb3Enabled])
+    
+    return (
+        <div>NFTBox {imageURI} abcde</div>
+    )
+} 
+```
+
+```tsx
+import type { NextPage } from "next";
+import Head from "next/head";
+import Image from "next/image";
+import { useMoralisQuery } from "react-moralis";
+import styles from "../styles/Home.module.css";
+import NFTBox from "../components/NFTbox";
+
+const Home: NextPage = () => {
+  // How do we show the recently listed NFTs?
+
+  // const value = await useApiContract.getListing(asdfasdf)
+  // we will read from a database that has all the mapping in an easier to read data structure
+
+  const {
+    data: listedNfts,
+    isFetching: fetchingListedNfts,
+    error: reqError,
+  } = useMoralisQuery(
+    // TableName
+    // Function for the query
+    "ActiveItem",
+    (query) => query.limit(10).descending("tokenId")
+  );
+  console.log(fetchingListedNfts);
+  console.log(reqError);
+  console.log(listedNfts);
+
+  // createdAt: Thu Aug 25 2022 15:40:03 GMT+0900 (한국 표준시) {}
+  // marketplaceAddress: "0x5fbdb2315678afecb367f032d93f642f64180aa3"
+  // nftAddress: "0xe7f1725e7734ce288f8367e1bb143e90bb3f0512"
+  // price: "100000000000000000"
+  // seller: "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266"
+  // tokenId: "0"
+  // updatedAt: Thu Aug 25 2022 15:40:03 GMT+0900 (한국 표준시)
+
+  return (
+    <div className={styles.container}>
+      {fetchingListedNfts
+        ? "로딩중 ... "
+        : listedNfts.map((nft) => {
+            console.log(nft.attributes);
+            const {
+              createdAt,
+              marketplaceAddress,
+              nftAddress,
+              price,
+              seller,
+              tokenId,
+              updatedAt,
+            } = nft.attributes;
+            return (
+              <div className="mt-4">
+                <p>createdAt: {createdAt.toString()}.</p>
+                <p>updatedAt: {updatedAt.toString()}</p>
+                <NFTBox
+                  price={price}
+                  nftAddress={nftAddress}
+                  tokenId={tokenId}
+                  marketplaceAddress={marketplaceAddress}
+                  seller={seller}
+                  key={`${nftAddress}${tokenId}`}
+                />
+              </div>
+            );
+          })}
+    </div>
+  );
+};
+
+export default Home;
+
+```
+
+그리고 앱에 지갑을 연결하면 아래와 같이 콘솔로그가 나타납니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-26%20003330.png)
+
+해당 주소로 가볼까요?
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-26%20004016.png)
+
+지난번 저장해놓은 IPFS 저장소가 나타납니다!
+
+정확히는 json 파일을 원합니다. json파일에 토큰URI가 들어있습니다.
+
+```json
+{
+    "name": "FLYINGHEAD",
+    "description": "Some flying heads",
+    "image": "ipfs://bafybeifgbwz6ufmgdfaxf7ekuvqpmyoskii3odxwskp6wpoywa3zfhwmam/flying0308.png",
+    "attributes": [
+        {
+            "trait_type": "frame",
+            "value": 308
+        }
+    ]
+}
+```
+
+이제 이 IPFS 주소에서 이미지를 가져와야합니다.
+
+그런데 문제는 누구나 IPFS를 설치하고 있지는 않다는 겁니다. 모든 브라우저가 IFPS를 지원하지도 않습니다.
+
+그래서 약간의 편법을 사용할겁니다. `ipfs://` 주소를 `https://` 버전으로 바꿀겁니다.
+
+그리고 이것은 `IPFS Gateway`를 사용해서 할겁니다.
+
+>IPFS Gateway : A server that will return IPFS files from a "normal" URL.
+
+그래서 기술적으로 분산화되었냐구요? 맞습니다. 분산화되었습니다. 그러나 이상적인 방법은 아닙니다.
+
+세상 모두가 IPFS를 적용하고 표준으로 받아들이지 않는 이상 지금 우리가 할 수 있는 방법은 이것뿐입니다.
+
+```tsx
+    async function updateUI() {
+        const tokenURI = await getTokenURI();
+        console.log(tokenURI);
+        
+        if(tokenURI) {
+            // IPFS Gateway : A server that will return IPFS files from a "normal" URL
+            const requestURL = (tokenURI as string).replace("ipfs://","https://ipfs.io/ipfs/")
+        }
+
+        // get the tokenURI
+        // using the image tag from the tokenURI, get the image
+    }
+```
+
+해당 tokenURI의 앞주소를 IPFS 개발팀에서 지원하는 Gateway https 주소로 바꿔주는겁니다.
+
+그리고 이것이 Gateway에 요청을 보내는 간단한 방법이기도 합니다.
+
+그래서 말인데 다음 코드가 약간 괴상할겁니다.
+
+```tsx
+    async function updateUI() {
+        const tokenURI = await getTokenURI();
+        console.log(tokenURI);
+        
+        if(tokenURI) {
+            // IPFS Gateway : A server that will return IPFS files from a "normal" URL
+            const requestURL = (tokenURI as string).replace("ipfs://","https://ipfs.io/ipfs/");
+            const tokenURIResponse = await (await fetch(requestURL)).json();
+        }
+        const tokenURIURL = tokenURI as string
+        setImageURI(tokenURIURL);
+        // get the tokenURI
+        // using the image tag from the tokenURI, get the image
+    }
+```
+
+`fetch`는 자바스크립트에서 사용할 수 있는 키워드로 URL을 fetch하거나 get 할때 사용됩니다.
+
+`fetch`는 근본적으로 우리가 아까 봤던 IPFS에 있는 json 파일에 있는 내용을 복사해서 브라우저에 붙여넣는 것과 동일합니다.
+
+그리고 JSON Response(응답)을 받는것이죠.
+
+그래서 우리는 `await fetch(requestURL)`로 해당 URL에서 내용을 복사해서 응답을 받고
+
+`await (await fetch(requestURL)).json()` 으로 받은 응답을 `JSON`으로 변환할때까지 기다리는것입니다.
+
+```tsx
+    async function updateUI() {
+        const tokenURI = await getTokenURI();
+        console.log(tokenURI);
+        
+        if(tokenURI) {
+            // IPFS Gateway : A server that will return IPFS files from a "normal" URL
+            const requestURL = (tokenURI as string).replace("ipfs://","https://ipfs.io/ipfs/");
+            const tokenURIResponse = await (await fetch(requestURL)).json();
+            const imageURI = tokenURIResponse.image;
+            const imageURIURL = imageURI.replace("ipfs://","https://ipfs.io/ipfs/");
+            setImageURI(imageURIURL);
+        }
+        // get the tokenURI
+        // using the image tag from the tokenURI, get the image
+    }
+```
+
+그리고 응답받은 json객체 안의 image 프로퍼티 안의 ipfs 주소도 ipfs Gateway 주소로 replace 해줍니다.
+
+그리고 나서 setImageURI 에 바꿔준 주소를 넣어줍니다.
+
+그런데 이게 최선의 방법일까요? 물론 아닙니다.
+
+첫번째 방법은 서버(예를 들어 모랄리스서버)를 이용해서 이미지를 렌더링한 후 서버에서 가져오는 방법이 있습니다.
+
+또 다른 방법은 테스트넷이나 메인넷에서 , 모랄리스는 `useNFTbalances()` 같은 여러 훅들을 가지고 있습니다.
+
+`useNFTbalnaces()` 는 NFT를 보여주고 NFT에 대한 여러 정보를 보여줍니다. 그러나 오직 테스트넷과 메인넷에서만 동작합니다.
+
+세상이 모두 IFPS 네트워크를 적용했다면 이럴필요는 없지만, 아직은 그렇지 않죠. 그래서 이렇게 작업해야합니다.
+
+
+자 이제 이 URI를 가지고 어떻게 이미지를 출력할까요?
+
+nextJS는 `next/image` 라는 이미지컴포넌트(`<Image />`)를 가지고 있습니다.
+
+URI만 가지면 쉽게 이미지를 렌더링 할 수 있습니다.
+
+>https://nextjs.org/docs/api-reference/next/image#required-props
+
+그리고 img태그가 아닌 컴포넌트를 이용하는 이유는 img태그는 백엔드에 최적화되어있지 않기때문입니다.
+
+이 말은 그 페이지가 IPFS 처럼 정적페이지에 정적으로 배포될 수 없다는 뜻입니다.
+
+왜냐하면 애플리케이션이 서버를 요구하기 때문입니다.
+
+우리가 `<image />` 컴포넌트를 이용하면 우리는 IPFS처럼 정적페이지로 배포할 수 없습니다.
+
+>https://nextjs.org/docs/messages/next-image-unconfigured-host
+
+```jsx
+import React, { useState, useEffect } from "react";
+import { useMoralis, useWeb3Contract } from "react-moralis";
+import { NftListedProps } from "../common/types";
+import NftMarketplaceAbi from "../constants/NftMarketplace.json";
+import BasicNftAbi from "../constants/BasicNft.json";
+import Image from "next/image";
+import { Card } from "web3uikit";
+import { ethers, BigNumberish } from "ethers";
+
+export default function NFTBox({
+  price,
+  nftAddress,
+  tokenId,
+  marketplaceAddress,
+  seller,
+}: NftListedProps) {
+  const [imageURI, setImageURI] = useState<string | undefined>();
+  const [tokenName, setTokenName] = useState<string | undefined>();
+  const [tokenDesc, setTokenDesc] = useState<string | undefined>();
+  const [tokenAttr, setTokenAttr] = useState<object | undefined>();
+  const { isWeb3Enabled } = useMoralis();
+
+  const { runContractFunction: getTokenURI } = useWeb3Contract({
+    abi: BasicNftAbi,
+    contractAddress: nftAddress,
+    functionName: "tokenURI",
+    params: {
+      tokenId: tokenId,
+    },
+  });
+
+  async function updateUI() {
+    const tokenURI = await getTokenURI();
+    console.log(tokenURI);
+
+    if (tokenURI) {
+      // IPFS Gateway : A server that will return IPFS files from a "normal" URL
+      const requestURL = (tokenURI as string).replace(
+        "ipfs://",
+        "https://ipfs.io/ipfs/"
+      );
+      console.log(requestURL);
+      const tokenURIResponse = await (await fetch(requestURL)).json();
+      console.log(tokenURIResponse);
+      const imageURI = tokenURIResponse.image;
+      const name = tokenURIResponse.name;
+      const description = tokenURIResponse.description;
+      const attributes = tokenURIResponse.attributes;
+      const imageURIURL = imageURI.replace("ipfs://", "https://ipfs.io/ipfs/");
+      setImageURI(imageURIURL);
+      setTokenName(name);
+      setTokenDesc(description);
+      setTokenAttr(attributes);
+    }
+    // get the tokenURI
+    // using the image tag from the tokenURI, get the image
+  }
+
+  useEffect(() => {
+    if (isWeb3Enabled) {
+      updateUI();
+    }
+  }, [isWeb3Enabled]);
+
+  return (
+    <Card>
+      {imageURI ? (
+        <div className="mx-2 my-2">
+          <Image
+            className="object-cover"
+            loader={() => imageURI}
+            src={imageURI}
+            width="200"
+            height="200"
+          />
+          <h2 className="font-bold text-lg">
+            # {tokenId} {tokenName}
+          </h2>
+          <div className="italic text-sm">판매자:{seller}</div>
+          <div className="font-bold">
+            {ethers.utils.formatUnits(price as BigNumberish, "ether")} ETH
+          </div>
+        </div>
+      ) : (
+        <div>이미지 로딩중 ...</div>
+      )}
+    </Card>
+  );
+}
+
+```
+
+그리고 `web3uikit`을 이용해서 `Card` 컴포넌트 안에 들여놓겠습니다. 그후 해당 NFT 정보를 써줍니다.
+
+그리고 `index.js`도 스타일링해줍니다.
+
+또한 지갑과 연결을 해제했을때 목록이 보이지 않도록 isweb3Enabled 를 이용해 삼항연산자로 한번 더 감싸줍니다,
+
+```jsx
+import type { NextPage } from "next";
+import Head from "next/head";
+import Image from "next/image";
+import { useMoralis, useMoralisQuery } from "react-moralis";
+import styles from "../styles/Home.module.css";
+import NFTBox from "../components/NFTbox";
+
+const Home: NextPage = () => {
+  const { isWeb3Enabled } = useMoralis();
+  const {
+    data: listedNfts,
+    isFetching: fetchingListedNfts,
+    error: reqError,
+  } = useMoralisQuery(
+    // TableName
+    // Function for the query
+    "ActiveItem",
+    (query) => query.limit(10).descending("tokenId")
+  );
+  console.log(fetchingListedNfts);
+  console.log(reqError);
+  console.log(listedNfts);
+
+  return (
+    <div className="container mx-auto">
+      <h1 className="py-4 px-4 font-bold text-2xl">최근 등록됨</h1>
+      <div className="flex flex-wrap gap-2">
+        {isWeb3Enabled 
+        ? fetchingListedNfts
+          ? "로딩중 ... "
+          : listedNfts.map((nft) => {
+              console.log(nft.attributes);
+              const {
+                createdAt,
+                marketplaceAddress,
+                nftAddress,
+                price,
+                seller,
+                tokenId,
+                updatedAt,
+              } = nft.attributes;
+              return (
+                <div className="mt-4">
+                  <NFTBox
+                    price={price}
+                    nftAddress={nftAddress}
+                    tokenId={tokenId}
+                    marketplaceAddress={marketplaceAddress}
+                    seller={seller}
+                    key={`${nftAddress}${tokenId}`}
+                  />
+                </div>
+              );
+            })
+        : <div>web3 연결이 끊어졌습니다.</div>}   
+      </div>
+    </div>
+  );
+};
+
+export default Home;
+
+```
+
+다음에 할것은 NFT 소유자라면 리스트를 업데이트 할 수 있는 기능을 만드는 것입니다.
+
+useMoralis 훅의 account를 이용해서 사용자의 Metamask 계정을 가지고 올겁니다.
+
+그 다음 truncated라는 유틸함수를 만들어 긴 주소를 짧게 만들어줄겁니다.
+
+truncated는 common 폴더에 따로 `utils.ts` 파일을 만들어 분리했습니다.
+
+`common/utils.ts`
+```ts
+const truncateStr = (fullStr:string, strLength:number) => {
+    if(fullStr.length <= strLength) return fullStr;
+
+    const separator = "..."
+    const separatorLength = separator.length;
+    const charsToShow = strLength - separatorLength;
+    const frontChars = Math.ceil(charsToShow / 2);
+    const backChars = Math.floor(charsToShow / 2);
+
+    return fullStr.substring(0, frontChars) + separator + fullStr.substring(fullStr.length - backChars);
+}
+
+export { truncateStr }
+```
+
+`NFTBox.tsx`
+```tsx
+import React, { useState, useEffect } from "react";
+import { useMoralis, useWeb3Contract } from "react-moralis";
+import { NftListedProps } from "../common/types";
+import NftMarketplaceAbi from "../constants/NftMarketplace.json";
+import BasicNftAbi from "../constants/BasicNft.json";
+import Image from "next/image";
+import { Card } from "web3uikit";
+import { ethers, BigNumberish } from "ethers";
+import {truncateStr} from "../common/utils";
+
+export default function NFTBox({
+  price,
+  nftAddress,
+  tokenId,
+  marketplaceAddress,
+  seller,
+}: NftListedProps) {
+  const [imageURI, setImageURI] = useState<string | undefined>();
+  const [tokenName, setTokenName] = useState<string | undefined>();
+  const [tokenDesc, setTokenDesc] = useState<string | undefined>();
+  const [tokenAttr, setTokenAttr] = useState<object | undefined>();
+  const { isWeb3Enabled, account } = useMoralis();
+
+  const { runContractFunction: getTokenURI } = useWeb3Contract({
+    abi: BasicNftAbi,
+    contractAddress: nftAddress,
+    functionName: "tokenURI",
+    params: {
+      tokenId: tokenId,
+    },
+  });
+
+  async function updateUI() {
+    const tokenURI = await getTokenURI();
+    console.log(tokenURI);
+
+    if (tokenURI) {
+      // IPFS Gateway : A server that will return IPFS files from a "normal" URL
+      const requestURL = (tokenURI as string).replace(
+        "ipfs://",
+        "https://ipfs.io/ipfs/"
+      );
+      console.log(requestURL);
+      const tokenURIResponse = await (await fetch(requestURL)).json();
+      console.log(tokenURIResponse);
+      const imageURI = tokenURIResponse.image;
+      const name = tokenURIResponse.name;
+      const description = tokenURIResponse.description;
+      const attributes = tokenURIResponse.attributes;
+      const imageURIURL = imageURI.replace("ipfs://", "https://ipfs.io/ipfs/");
+      setImageURI(imageURIURL);
+      setTokenName(name);
+      setTokenDesc(description);
+      setTokenAttr(attributes);
+    }
+    // get the tokenURI
+    // using the image tag from the tokenURI, get the image
+  }
+
+  useEffect(() => {
+    if (isWeb3Enabled) {
+      updateUI();
+    }
+  }, [isWeb3Enabled]);
+
+  const isOwnedByUser = seller === account || seller === undefined;
+  const formattedSellerAddress = isOwnedByUser ? "나" : truncateStr(seller || "", 15);
+
+  return (
+    <Card>
+      {imageURI ? (
+        <div className="mx-2 my-2">
+          <Image
+            className="object-cover"
+            loader={() => imageURI}
+            src={imageURI}
+            width="200"
+            height="200"
+          />
+          <h2 className="font-bold text-lg">
+            # {tokenId} {tokenName}
+          </h2>
+          <div className="italic text-sm">소유자:{formattedSellerAddress}</div>
+          <div className="font-bold">
+            {ethers.utils.formatUnits(price as BigNumberish, "ether")} ETH
+          </div>
+        </div>
+      ) : (
+        <div>이미지 로딩중 ...</div>
+      )}
+    </Card>
+  );
+}
+
+```
+
+다음과 같이 seller 가 account와 같은지 확인해서 본인이라면 "나"로 표시해주고 타인소유라면 truncateStr를 이용하여 주소를 줄여서 표시해줍니다.
+
+```tsx
+  const isOwnedByUser = seller === account || seller === undefined;
+  const formattedSellerAddress = isOwnedByUser ? "나" : truncateStr(seller || "", 15);
+```
+
+타인 계정일떄
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-28%20225000.png)
+
+내 계정일때
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-28%20225048.png)
+
+
+## Update Listing Modal
+
+이제 우리가 리스팅 된 NFT의 소유자라면 해당 NFT를 업데이트 할 수 있도록 만들겁니다.
+
+그래서 새 컴포넌트 `UpdateListingModal.tsx`를 만들겁니다.
+
+`UpdateListingModal.tsx`
+```tsx
+import { Modal, Input } from "web3uikit";
+import { NftListedProps } from "./NFTbox";
+
+export interface UpdatedListingModalProps extends NftListedProps{
+    isVisible?: boolean
+}
+
+export default function UpdateListingModal({nftAddress, tokenId, isVisible}:UpdatedListingModalProps) {
+    return (
+        <Modal isVisible={isVisible}>           
+            <Input
+                label="등록된 가격을 레이어1 화폐(ETH)단위로 업데이트 "
+                name="new listing price"
+                type="number"
+            />
+        </Modal>
+    )
+}
+```
+
+web3uikit 의 UpdateListingModal을 이용합니다.
+
+`NFTBox` 컴포넌트에서는 프롭으로 `isVisible`(true 혹은 false) 값을 넘겨줍니다.
+
+```tsx
+import React, { useState, useEffect } from "react";
+import { useMoralis, useWeb3Contract } from "react-moralis";
+import NftMarketplaceAbi from "../constants/NftMarketplace.json";
+import BasicNftAbi from "../constants/BasicNft.json";
+import Image from "next/image";
+import { Card } from "web3uikit";
+import { ethers, BigNumberish } from "ethers";
+import {truncateStr} from "../common/utils";
+import UpdateListingModal from "./UpdateListingModal";
+
+export interface NftListedProps {
+    price?: string;
+    nftAddress?: string;
+    tokenId?: string;
+    marketplaceAddress?: string;
+    seller?: string;
+    createdAt?: object;
+    updatedAt?: object;
+}
+
+export default function NFTBox({
+  price,
+  nftAddress,
+  tokenId,
+  marketplaceAddress,
+  seller,
+}: NftListedProps) {
+  const [imageURI, setImageURI] = useState<string | undefined>();
+  const [tokenName, setTokenName] = useState<string | undefined>();
+  const [tokenDesc, setTokenDesc] = useState<string | undefined>();
+  const [tokenAttr, setTokenAttr] = useState<object | undefined>();
+  const { isWeb3Enabled, account } = useMoralis();
+
+  const { runContractFunction: getTokenURI } = useWeb3Contract({
+    abi: BasicNftAbi,
+    contractAddress: nftAddress,
+    functionName: "tokenURI",
+    params: {
+      tokenId: tokenId,
+    },
+  });
+
+  async function updateUI() {
+    const tokenURI = await getTokenURI();
+    console.log(tokenURI);
+
+    if (tokenURI) {
+      // IPFS Gateway : A server that will return IPFS files from a "normal" URL
+      const requestURL = (tokenURI as string).replace(
+        "ipfs://",
+        "https://ipfs.io/ipfs/"
+      );
+      console.log(requestURL);
+      const tokenURIResponse = await (await fetch(requestURL)).json();
+      console.log(tokenURIResponse);
+      const imageURI = tokenURIResponse.image;
+      const name = tokenURIResponse.name;
+      const description = tokenURIResponse.description;
+      const attributes = tokenURIResponse.attributes;
+      const imageURIURL = imageURI.replace("ipfs://", "https://ipfs.io/ipfs/");
+      setImageURI(imageURIURL);
+      setTokenName(name);
+      setTokenDesc(description);
+      setTokenAttr(attributes);
+    }
+    // get the tokenURI
+    // using the image tag from the tokenURI, get the image
+  }
+
+  useEffect(() => {
+    if (isWeb3Enabled) {
+      updateUI();
+    }
+  }, [isWeb3Enabled]);
+
+  const isOwnedByUser = seller === account || seller === undefined;
+  const formattedSellerAddress = isOwnedByUser ? "나" : truncateStr(seller || "", 15);
+
+  return (
+    <>
+    <UpdateListingModal isVisible={true}/>
+    <Card>
+      {imageURI ? (
+        <div className="mx-2 my-2">
+          <Image
+            className="object-cover"
+            loader={() => imageURI}
+            src={imageURI}
+            width="200"
+            height="200"
+          />
+          <h2 className="font-bold text-lg">
+            # {tokenId} {tokenName}
+          </h2>
+          <div className="italic text-sm">소유자:{formattedSellerAddress}</div>
+          <div className="font-bold">
+            {ethers.utils.formatUnits(price as BigNumberish, "ether")} ETH
+          </div>
+        </div>
+      ) : (
+        <div>이미지 로딩중 ...</div>
+      )}
+    </Card>
+    </>
+  );
+}
+
+```
+
+그리고 `Card` 컴포넌트 위에 위치시켜줍니다. 프롭으로 isVisible이 true일 경우 모달이 나타나고 false일 경우 모달이 꺼집니다.
+
+현재는 이를 컨트롤해주지 않았기 때문에 모달 창이 리스트된 NFT 수 만큼 뜨게됩니다. 일단은 false로 해놓겠습니다.
+
+이제 우리는 모달이 누군가 NFT 카드를 클릭했을때만 열리도록 해줄겁니다.
+
+따라서 `Card`에 attr로 onClick을 설정해주고 handleCardClick 함수를 만들어줍니다.
+
+추가로 모달열림닫힘 상태를 판단하는 showModal state도 만들어줍니다.
+
+```tsx
+
+  const [showModal, setShowModal] = useState<boolean>(false);
+
+  const handleCardClick = () => {
+    isOwnedByUser ? setShowModal(true) : console.log("구매페이지로");
+  };
+
+  return (
+    <Card onClick={handleCardClick}>...
+```
+
+그리고 UpdateListingModal에 다음과 같이 프롭들을 전달해줍니다.
+
+isVisible은 showModal에 따라서 boolean값을 받고 그에 따라 모달이 열릴지 닫힐지 결정합니다.
+
+onCloseButtonPressed와 onCancled는 닫기버튼과 취소버튼을 눌렀을때 실행될 함수를 넘겨주는겁니다.
+
+chlidren에는 Modal 컴포넌트 안에 자식요소가 있다면 넘겨줘야 하는 프롭입니다. 저는 그냥 프레그먼트를 넣었습니다.
+
+```tsx
+      <UpdateListingModal
+        children={<></>}
+        isVisible={showModal}
+        onCloseButtonPressed={onCloseButtonPressed}
+        onCancel={onCloseButtonPressed}
+      />
+```
+
+UpdateListingModal.tsx로 가봅시다.
+
+```tsx
+import { Modal, Input, ModalProps } from "web3uikit";
+import { NftListedProps } from "./NFTbox";
+
+export interface UpdatedListingModalProps extends NftListedProps, ModalProps {}
+
+export default function UpdateListingModal({nftAddress, tokenId, isVisible, onCloseButtonPressed, onCancel }:UpdatedListingModalProps) {
+    return (
+        <Modal isVisible={isVisible} onCloseButtonPressed={onCloseButtonPressed} onCancel={onCancel}>           
+            <Input
+                label="등록된 가격을 레이어1 화폐(ETH)단위로 업데이트 "
+                name="new listing price"
+                type="number"
+            />
+        </Modal>
+    )
+}
+```
+
+넘겨받은 프롭을 그대로 Modal 컴포넌트에 attr로 적용시켜주면 됩니다.
+
+
+```tsx
+import React, { useState, useEffect } from "react";
+import { useMoralis, useWeb3Contract } from "react-moralis";
+import NftMarketplaceAbi from "../constants/NftMarketplace.json";
+import BasicNftAbi from "../constants/BasicNft.json";
+import Image from "next/image";
+import { Card } from "web3uikit";
+import { ethers, BigNumberish } from "ethers";
+import { truncateStr } from "../common/utils";
+import UpdateListingModal from "./UpdateListingModal";
+
+export interface NftListedProps {
+  price?: string;
+  nftAddress?: string;
+  tokenId?: string;
+  marketplaceAddress?: string;
+  seller?: string;
+  createdAt?: object;
+  updatedAt?: object;
+}
+
+export default function NFTBox({
+  price,
+  nftAddress,
+  tokenId,
+  marketplaceAddress,
+  seller,
+}: NftListedProps) {
+  const { isWeb3Enabled, account } = useMoralis();
+  const [imageURI, setImageURI] = useState<string | undefined>();
+  const [tokenName, setTokenName] = useState<string | undefined>();
+  const [tokenDesc, setTokenDesc] = useState<string | undefined>();
+  const [tokenAttr, setTokenAttr] = useState<object | undefined>();
+  const [showModal, setShowModal] = useState<boolean>(false);
+
+  const { runContractFunction: getTokenURI } = useWeb3Contract({
+    abi: BasicNftAbi,
+    contractAddress: nftAddress,
+    functionName: "tokenURI",
+    params: {
+      tokenId: tokenId,
+    },
+  });
+
+  async function updateUI() {
+    const tokenURI = await getTokenURI();
+    console.log(tokenURI);
+
+    if (tokenURI) {
+      // IPFS Gateway : A server that will return IPFS files from a "normal" URL
+      const requestURL = (tokenURI as string).replace(
+        "ipfs://",
+        "https://ipfs.io/ipfs/"
+      );
+      console.log(requestURL);
+      const tokenURIResponse = await (await fetch(requestURL)).json();
+      console.log(tokenURIResponse);
+      const imageURI = tokenURIResponse.image;
+      const name = tokenURIResponse.name;
+      const description = tokenURIResponse.description;
+      const attributes = tokenURIResponse.attributes;
+      const imageURIURL = imageURI.replace("ipfs://", "https://ipfs.io/ipfs/");
+      setImageURI(imageURIURL);
+      setTokenName(name);
+      setTokenDesc(description);
+      setTokenAttr(attributes);
+    }
+    // get the tokenURI
+    // using the image tag from the tokenURI, get the image
+  }
+
+  useEffect(() => {
+    if (isWeb3Enabled) {
+      updateUI();
+    }
+  }, [isWeb3Enabled]);
+
+  const isOwnedByUser = seller === account || seller === undefined;
+  const formattedSellerAddress = isOwnedByUser
+    ? "나"
+    : truncateStr(seller || "", 15);
+
+  const handleCardClick = () => {
+    isOwnedByUser ? setShowModal(true) : console.log("구매페이지로");
+  };
+
+  const onCloseButtonPressed = () => {
+    isOwnedByUser
+      ? (console.log("triggerd"), setShowModal(false))
+      : console.log("NFT소유자가 아니여서 명령을 수행할 수 없습니다.");
+  };
+
+  return (
+    <>
+      <UpdateListingModal
+        children={<></>}
+        isVisible={showModal}
+        onCloseButtonPressed={onCloseButtonPressed}
+        onCancel={onCloseButtonPressed}
+      />
+      <Card onClick={handleCardClick}>
+        {imageURI ? (
+          <div className="mx-2 my-2">
+            <Image
+              className="object-cover"
+              loader={() => imageURI}
+              src={imageURI}
+              width="200"
+              height="200"
+            />
+            <h2 className="font-bold text-lg">
+              # {tokenId} {tokenName}
+            </h2>
+            <div className="italic text-sm">
+              소유자:{formattedSellerAddress}
+            </div>
+            <div className="font-bold">
+              {ethers.utils.formatUnits(price as BigNumberish, "ether")} ETH
+            </div>
+          </div>
+        ) : (
+          <div>이미지 로딩중 ...</div>
+        )}
+      </Card>
+    </>
+  );
+}
+
+```
+
+이제 모달창에서 `OK` 버튼을 누르면 수정요청 트랜잭션을 보내는 기능을 만들면 됩니다.
+
+UpdateListedModal.tsx로 갑니다.
+
+web3uikit의 Modal 컴포넌트에 `onOk` 어트리뷰트를 넣어 OK버튼을 누를시 `updateListing` 함수가 호출시키도록 합니다.
+
+그리고 `useWeb3Contract` 훅의 `runContractFunction` 을 이용해서 해당 함수에 abi, contractAddress, functionName, params를 넣어주고 실행시킬 수 있도록 합니다.
+
+```jsx
+import { useState } from "react";
+import { Modal, Input, ModalProps } from "web3uikit";
+import { NftListedProps } from "./NFTbox";
+import { useWeb3Contract } from "react-moralis";
+import nftMarketplaceAbi from "../constants/NftMarketplace.json";
+import { ethers } from "ethers";
+
+export interface UpdatedListingModalProps extends NftListedProps, ModalProps {}
+
+export default function UpdateListingModal({
+  nftAddress,
+  tokenId,
+  isVisible,
+  onCloseButtonPressed,
+  onCancel,
+  marketplaceAddress,
+}: UpdatedListingModalProps) {
+  const [priceToUpdatedListingWith, setPriceToUpdateListingWith] = useState<
+    string | undefined
+  >("0");
+
+  const { runContractFunction: updateListing } = useWeb3Contract({
+    abi: nftMarketplaceAbi,
+    contractAddress: marketplaceAddress,
+    functionName: "updateListing",
+    params: {
+      nftAddress: nftAddress,
+      tokenId: tokenId,
+      newPrice: ethers.utils.parseEther(priceToUpdatedListingWith || "0"),
+    },
+  });
+
+  const handleUpdateListingSuccess = () => {
+    
+  }
+
+  return (
+    <Modal
+      isVisible={isVisible}
+      onCloseButtonPressed={onCloseButtonPressed}
+      onCancel={onCancel}
+      onOk={async () =>
+        await updateListing({
+          onError(error) {console.log(error)},
+          onSuccess: () => handleUpdateListingSuccess()
+        })
+      }
+    >
+      <Input
+        label="등록된 가격을 레이어1 화폐(ETH)단위로 업데이트 "
+        name="new listing price"
+        type="number"
+        onChange={(event) => {
+          setPriceToUpdateListingWith(event.target.value);
+        }}
+      />
+    </Modal>
+  );
+}
+
+```
+
+추가로 onError와 onSuccess 프로퍼티를 이용해서 실패시와 성공시 `useNotification`을 이용해 알림창을 팝업 해보겠습니다.
+
+`UpdateListingModal.tsx` 컨텍스트를 이용하기 위해 `dispatch`에 `useNotification()`을 할당해줍니다.
+```tsx
+  const dispatch = useNotification();
+
+  const handleUpdateListingSuccess = () => {
+    dispatch({
+      type:"success",
+      title:"트랜잭션 성공",
+      message:"판매 NFT 정보를 수정했습니다.",
+      icon:"update",
+      position:"topR",
+    })
+  }
+```
+`_app.tsx` 여기에서는 `NotificationProvider`를 불러와서 컴포넌트를 감사주어 컨텍스트를 제공해줍니다.
+```tsx
+import "../styles/globals.css";
+import type { AppProps } from "next/app";
+import Header from "../components/Header";
+import { MoralisProvider } from "react-moralis";
+import Head from "next/head";
+import { NotificationProvider } from "web3uikit";
+
+const APP_ID = process.env.NEXT_PUBLIC_APP_ID!;
+const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL!;
+
+// declare global {
+//   namespace JSX {
+//     interface IntrinsicElements {
+//       NotificationProvider: {children: Element[]}
+//       foo: {}
+//     }
+//   }
+// }
+
+// type NotificationProvider = React.ReactNode
+
+
+function MyApp({ Component, pageProps }: AppProps, DUMMY:any) {
+  return (
+    <>
+      <Head>
+        <title>NFT 마켓</title>
+        <meta name="description" content="NFT를 거래할 수 있는 장터입니다." />
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
+      <MoralisProvider appId={APP_ID} serverUrl={SERVER_URL}>
+        <div></div>
+        {/* <foo></foo> */}
+        <NotificationProvider {...DUMMY}>
+          <Header />
+          <Component {...pageProps} />
+        </NotificationProvider>
+      </MoralisProvider>
+    </>
+  );
+}
+
+export default MyApp;
+
+```
+
+다시 `UpdateListingModal.tsx`로 이동해서 `<Modal>`컴포넌트의 `onOk`로 가봅시다.
+
+여기서 onSuccess는 파라미터로 result를 보내는데요, 이것이 바로 트랜잭션 응답객체(transactionResponse)입니다.
+
+```ts
+export interface ResolveCallOptions<Result, Params extends ResolveCallParams> {
+    onError?: (error: Error) => void;
+    onSuccess?: (results: Result) => void;
+    onComplete?: () => void;
+    throwOnError?: boolean;
+    params?: Params;
+}
+```
+
+그래서 tx를 받아올 수 있는데 여태까지 그걸 빼먹었네요.
+
+onSuccess를 호출하는 방법도 `() => {}` 가 아닌 그냥 함수이름을 참조하도록 바꿔줍니다.
+
+그리고 여기서 `result`는 `unknown` 형식으로 지정되어있기 때문에 제네릭이나 unknown으로 넘겨주고 
+
+타입체커를 만들어 트랜잭션응답객체인지 확인합니다.
+
+트랜잭션응답객체 타입은 `ethers` 의 `ContractTransaction` 타입을 이용했습니다.
+```jsx
+import { ethers, ContractTransaction } from "ethers";
+```
+
+유저 커스텀 타입 체커입니다. `is` 키워드를 사용해서 시험하려는 값이 해당 타입(ContractTransaction)과 일치하는지 사용자 정의로 검사합니다.
+```ts
+  function isContractTransaction (sus:any): sus is ContractTransaction {
+    return (
+      typeof sus === "object" && sus !== null && "wait" in sus
+    )
+  }
+```
+그리고 검사 후에 블록이 채굴될때까지 기다려줍니다.
+
+```jsx
+  function isContractTransaction (sus:any): sus is ContractTransaction {
+    return (
+      typeof sus === "object" && sus !== null && "wait" in sus
+    )
+  }
+
+  const handleUpdateListingSuccess = async<T,>(tx?:T) => {
+    if(isContractTransaction(tx)) {
+      await tx.wait(1);
+    }
+    dispatch({
+      type:"success",
+      title:"트랜잭션 성공",
+      message:"판매 NFT 정보를 수정했습니다.",
+      icon:"update",
+      position:"topR",
+    })
+  }
+
+    return (
+    <Modal
+      isVisible={isVisible}
+      onCloseButtonPressed={onCloseButtonPressed}
+      onCancel={onCloseButtonPressed}
+      onOk={async () =>
+        await updateListing({
+          onError(error) {console.log(error)},
+          onSuccess: handleUpdateListingSuccess
+        })
+      }
+    >
+    )
+```
+
+추가로 알림을 dispatch 한 후에 모달 창을 닫을 수 있도록 `onCloseButtonPressed` 가 true일시 `onCloseButtonPressed`를 호출하도록 합니다.
+
+그리고 `setPriceToUpdateeListingWIth`을 `"0"`으로 초기화해줍니다.
+
+**`<Modal>` 컴포넌트의 `onCloseButtonPressed` 프로퍼티와 헷갈리지 않기 위해 가독성을 위해 `onCloseButtonPressed`을 `onClose`로 바꿔주었습니다. `NFTBox.tsx`에서도 `onClose`로 고쳐줘야합니다.
+
+```jsx
+  const handleUpdateListingSuccess = async<T,>(tx?:T) => {
+    if(isContractTransaction(tx)) {
+      await tx.wait(1);
+    }
+    dispatch({
+      type:"success",
+      title:"트랜잭션 성공",
+      message:"판매 NFT 정보를 수정했습니다.",
+      icon:"update",
+      position:"topR",
+    })
+    onClose && onClose();
+    setPriceToUpdateListingWith("0");
+  }
+```
+
+
+이렇게 하면 트랜잭션이 완벽하게 마이닝 된 후에 `dispatch`가 작동되도록 만들 수 있습니다. 
+
+그리고 `updateListing` 함수가 호출될 경우 또다시 `ItemListed` 이벤트가 발생하게 됩니다.
+
+모랄리스 서버에서는 이를 감지하여 또다시 기록해놓을겁니다.
+
+문제는 가격을 업데이트하고 트랜잭션을 확인하고 나서 데이터베이스를 확인해보면
+
+ItemListed 테이블에 있는 아이템들이 Confirmed가 아직 false로 되어있는걸 볼 수 있습니다.
+
+따라서 다시 hardhat 프로젝트로 가서 블록만 이동시켜주는 스크립트를 작성할겁니다.
+
+그 전에 만든 util함수인 `move-block.js`을 이용할겁니다.
+
+`mine.js` 파일을 scripts 폴더에 만들어줍니다.
+```js
+
+
+```
+
+
+여기서 잠깐, 
+
+문제 1: 트랜잭션 호출 후 바로 다시 가격수정 모달을 열 경우 전에 썼던 값이 남아있습니다.
+
+이대로 OK를 눌러 트랜잭션을 보내게 되면 `handleUpdateListingSuccess`의 마지막줄인 `setPriceToUpdateListingWith("0");` 때문에 가격이 0인 상태로 보내지게됩니다.
+
+문제 2:
+`updateListing`함수에 수정된 가격을 0 이하로 책정되지 않도록 하는 코드를 추가하지 않아서 0을 넣게되면 `isListed` 모디파이어에서 `price < 0` 으로 판단하여 등록되지 않은 NFT로 취급됩니다.
+
+먼저 문제2 부터 수정해보겠습니다.
+
+```solidity
+    function updateListing(
+        address nftAddress,
+        uint256 tokenId,
+        uint256 newPrice
+    )
+        external
+        isListed(nftAddress, tokenId)
+        isOwner(nftAddress, tokenId, msg.sender)
+    {
+        if (newPrice <= 0) {
+            revert NftMarketplace__PriceMustBeAboveZero();
+        }
+        s_listings[nftAddress][tokenId].price = newPrice;
+        emit ItemListed(msg.sender, nftAddress, tokenId, newPrice);
+    }
+```
+
+그리고 문제 1 
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-30%20123746.png)
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-30%20123811.png)
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-30%20200744.png)
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-30%20202157.png)
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-30%20202355.png)
+
+아무튼 되었습니다! 모랄리스 서버가 문제였군요!
+
+## Buy NFT Listing
+
+TODO List
+```md
+1. Home Page :
+    1. show recently listed NFTs ✅
+        1. If you own the NFT, you can update the listing ✅
+        2. If not, you can buy the listing
+2. Sell Page:
+    1. You can list your NFT on the marketplace
+
+```
+
+자 이제 1-2. 해당 아이템의 소유자가 아닐경우 목록에서 아이템을 사는 기능을 구현할 차례입니다.
+
+그 전에 구매 테스트를 위해 다른 계정에 100ETH 정도 보내놓겠습니다.
+
+근데 안되네요..
+
+그냥 하드햇 노드 중 하나를 골라서 프라이빗 키를 복사해 계정가져오기를 합니다.
+
+여기서 부터 시작합니다.
+
+`NFTBox.tsx`
+```jsx
+  const handleCardClick = () => {
+    isOwnedByUser ? setShowModal(true) : console.log("구매페이지로");
+  };
+```
+
+여기서 `isOwnedByUser`가 false 일 경우 구매기능을 활성화 하면 됩니다.
+
+그리고 계약함수를 불러옵시다. `useWeb3Contract`의 `runContractFunction` 이용하면 됩니다.
+
+참고로 반드시 `msgValue` 도 추가로 들어가야합니다.
+
+```jsx
+  const { runContractFunction: buyItem } = useWeb3Contract({
+    abi: NftMarketplaceAbi,
+    contractAddress: marketplaceAddress,
+    functionName: "buyItem",
+    msgValue: price
+    params: {
+      nftAddress: nftAddress,
+      tokenId: tokenId,
+    }
+  })
+```
+
+그리고 카드 클릭시 `buyItem`이 호출되도록 합니다.
+
+```jsx
+  const handleCardClick = () => {
+    isOwnedByUser ? setShowModal(true) : buyItem({
+      onError: (error) => console.log(error),
+      onSuccess: () => handleBuyItemSuccess()
+    });
+  };
+```
+
+그리고 성공시 알림을 받도록 `useNotification`을 이용합니다.
+
+```jsx
+const dispatch = useNotification();
+
+const handleBuyItemSuccess = async function () {
+  dispatch({
+    type:"success",
+    position:"topR",
+    title:"아이템 구매 성공",
+    message:"NFT 구매에 성공했습니다",
+    icon:"bell",
+  })
+}
+```
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-30%20221015.png)
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-30%20221027.png)
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-30%20221330.png)
+
+아직 트랜잭션이 컨펌되지 않았습니다. `mine.js`를 hardhat run으로 실행시켜 블록을 마이닝 해줍니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-30%20221420.png)
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-30%20221446.png)
+
+판매목록에서 사라진걸 확인했습니다.
+
+## Sell Page Listing NFTs for Sale
+
+TODO List
+```md
+1. Home Page :
+    1. show recently listed NFTs ✅
+        1. If you own the NFT, you can update the listing ✅
+        2. If not, you can buy the listing ✅
+2. Sell Page:
+    1. You can list your NFT on the marketplace
+    2. Withdraw Proceeds
+```
+
+이제 남은건 2번 입니다! 판매 페이지를 만들고 판매기능을 구현할겁니다.
+
+새 NFT를 보내기 위해선 해당 NFT의 address와 tokenId 등 정보가 필요합니다.
+
+해당 정보를 입력하기 위한 form을 web3uikit을 이용해 만들어봅시다.
+
+```jsx
+import type { NextPage } from "next";
+import Head from "next/head";
+import Image from "next/image";
+import { Form } from "web3uikit";
+import styles from "../styles/Home.module.css";
+
+declare module "web3uikit" {
+  interface FormProps {
+    children?: React.ReactNode;
+  }
+}
+
+const Home: NextPage = (FormProps: any) => {
+  return (
+    <div className={styles.container}>
+      <Form
+        title="NFT 판매하기"
+        data={[
+          {
+            name: "NFT 주소",
+            type: "text",
+            value: "",
+            inputWidth: "50%",
+            key: "nftAddress",
+          },
+          { name: "Token ID", type: "number", value: "", key: "tokenId" },
+          { name: "Price (in ETH)", type: "number", value: "", key: "price" },
+        ]}
+        id="Main Form"
+        {...FormProps}
+      ></Form>
+      sellnft page
+    </div>
+  );
+};
+
+export default Home;
+
+```
+
+그리고 여기에 Form컴포넌트에 onSubmit 속성을 추가하여 기능을 하도록 만들어보겠습니다.
+
+이제부터 NFTMarketplace가 우리 지갑(wallet)에서 NFT를 꺼내올 수 있도록 허락(approve)할겁니다.
+
+```jsx
+onSubmit={approveAndList}
+```
+
+이제 approveAndList 함수를 작성합니다.
+
+```jsx
+  async function apporveAndList(data:any) {
+    console.log("승인하는중...");
+    const nftAddress = data.data[0].inputResult
+    const tokenId = data.data[1].inputResult
+    const price = ethers.utils.parseUnits(data.data[2].inputResult, "ehters").toString(); 
+  }
+```
+
+여기서 data.data는 Form 컴포넌트의 data 안의 배열중 하나를 가리킵니다.
+```jsx
+export interface FormProps {
+    /**
+     * A title for the form hat will render an H3
+     */
+    title: string;
+    /**
+     * Pass an array of DataInput type objects to power the form
+     */
+    data: DataInput[];
+    /**
+     * Every form should have a unique ID
+     */
+    id: string;
+    /**
+     * Pass all the props a button could use
+     */
+    buttonConfig?: ButtonProps;
+    /**
+     * Custom form footer, expects a submit button as part of the elements
+     */
+    customFooter?: JSX.Element;
+    /**
+     * when the form passes validation the data is returned
+     * { id: string, data: [{inputName: string; inputResult: string[] | string;}]}
+     */
+    onSubmit?: (data: FormDataReturned) => void;
+}
+export declare type FormDataReturned = {
+    /**
+     * The forms unique ID
+     */
+    id: string;
+    /**
+     * The data collected from the form
+     */
+    data: InputDataReturned[];
+};
+export declare type InputDataReturned = {
+    /**
+     * The name of the input
+     */
+    inputName: string;
+    /**
+     * The data collected from the input
+     */
+    inputResult: CreditCardProps | string[] | string;
+};
+```
+web3uikit의 코드를 보면 
+`onSubmit` 시 `data`라는 FormDataReturned 형태의 값을 가지는 걸 확인할 수 있습니다. 
+
+```jsx
+        data={[
+          {
+            name: "NFT 주소",
+            type: "text",
+            value: "",
+            inputWidth: "50%",
+            key: "nftAddress",
+          },
+          { name: "Token ID", type: "number", value: "", key: "tokenId" },
+          { name: "Price (in ETH)", type: "number", value: "", key: "price" },
+        ]}
+```
+
+price는 인간이 읽을 수 있는 단위를 컴퓨터가 읽을 수 있는 ETH단위로 변환해주는 parseUnit을 이용해 변환한 뒤 toString으로 문자열로 바꿉니다.
+
+```jsx
+import type { NextPage } from "next";
+import Head from "next/head";
+import Image from "next/image";
+import { Form } from "web3uikit";
+import { DataInput } from "web3uikit/dist/components/Form/types";
+import styles from "../styles/Home.module.css";
+import { ethers } from "ethers";
+import basicNftAbi from "../constants/BasicNft.json";
+import networkMapping from "../constants/networkMapping.json"
+import { useMoralis } from "react-moralis";
+
+declare module "web3uikit" {
+  interface FormProps {
+    children?: React.ReactNode;
+  }
+}
+
+interface NftMarketPlace {
+  nftMarketplace: string[]
+}
+
+interface NetworkMapping {
+  [key:string]: NftMarketPlace 
+}
+
+const Home: NextPage = (FormProps: any) => {
+  const {chainId} = useMoralis();
+  //0x234
+  const chainString = chainId ? parseInt(chainId).toString() : "31337";
+  const marketplaceAddress = (networkMapping as NetworkMapping)[chainString].nftMarketplace[0];
+  async function apporveAndList(data:any) {
+    console.log("승인하는중...");
+    const nftAddress = data.data[0].inputResult
+    const tokenId = data.data[1].inputResult
+    const price = ethers.utils.parseUnits(data.data[2].inputResult, "ehters").toString(); 
+
+    const approveOptions = {
+      abi: basicNftAbi,
+      contractAddress: nftAddress,
+      functionName: "approve",
+      params: {
+        to: marketplaceAddress,
+        tokenId: tokenId
+      }
+    }
+  }
+  return (
+    <div className={styles.container}>
+      <Form
+        onSubmit={apporveAndList}
+        title="NFT 판매하기"
+        data={[
+          {
+            name: "NFT 주소",
+            type: "text",
+            value: "",
+            inputWidth: "50%",
+            key: "nftAddress",
+          },
+          { name: "Token ID", type: "number", value: "", key: "tokenId" },
+          { name: "Price (in ETH)", type: "number", value: "", key: "price" },
+        ]}
+        id="Main Form"
+        {...FormProps}
+      ></Form>
+      sellnft page
+    </div>
+  );
+};
+
+export default Home;
+
+```
+
+그리고 우리가 ERC721 approve를 작동시키기 위한 정보들을 `approveOptions`에 할당해 놓겠습니다.
+
+```jsx
+const marketplaceAddress = (networkMapping as NetworkMapping)[chainString].nftMarketplace[0];
+```
+참고로 이 부분은 이렇게도 표현됩니다.
+```jsx
+const I_networkMapping = networkMapping:NetworkMapping;
+const marketplaceAddress = I_networkMapping[chainString]["nftMarketplace"][0]
+```
+
+이제 `runContractFunction`으로 approve 함수와 listItem 함수를 호출합니다.
+
+이번에는 runContractFunction을 함수 안에서 불러옵니다.
+
+`//@ts-ignore` 주석으로 tsc의 타입체크를 피해갈 수 있습니다.
+
+```jsx
+const Home: NextPage = (FormProps: any) => {
+  const {chainId} = useMoralis();
+  //0x234
+  const chainString = chainId ? parseInt(chainId).toString() : "31337";
+  const marketplaceAddress = (networkMapping as NetworkMapping)[chainString].nftMarketplace[0];
+
+  //@ts-ignore
+  const { runContractFunction } = useWeb3Contract();
+
+  async function apporveAndList(data:any) {
+    console.log("승인하는중...");
+    const nftAddress = data.data[0].inputResult
+    const tokenId = data.data[1].inputResult
+    const price = ethers.utils.parseUnits(data.data[2].inputResult, "ehters").toString(); 
+
+    const approveOptions = {
+      abi: basicNftAbi,
+      contractAddress: nftAddress,
+      functionName: "approve",
+      params: {
+        to: marketplaceAddress,
+        tokenId: tokenId
+      }
+    }
+
+    await runContractFunction({
+      params: approveOptions,
+      onSuccess: handleApproveSuccess(nftAddress, tokenId, price),
+      onError: (error) => console.log(error),
+
+    })
+  }
+
+  async function handleApproveSuccess(nftAddress:string, tokenId:string, price:string) {
+    console.log("이제 목록 작성을 시작합니다.")
+  }
+```
+
+먼저 runContractFunctions에 필요한 모든 params 를 approveOptions 객체로 만들어놓습니다.
+그리고 그 다음줄에 await로 runContractFunction을 호출하고 인수로 params와 더불어 onSuccess와 onError등도 같이 설정해줄겁니다.
+
+그리고 승인성공시(onSuccess) handleApproveSuccess라는 함수를 만들어 승인 후 목록에 NFT등록까지 제어해보겠습니다.
+
+```jsx
+import type { NextPage } from "next";
+import Head from "next/head";
+import Image from "next/image";
+import { Form, iconTypes, useNotification } from "web3uikit";
+import { DataInput } from "web3uikit/dist/components/Form/types";
+import styles from "../styles/Home.module.css";
+import { ethers } from "ethers";
+import basicNftAbi from "../constants/BasicNft.json";
+import nftMarketplaceAbi from "../constants/NftMarketplace.json";
+import networkMapping from "../constants/networkMapping.json"
+import { useMoralis, useWeb3Contract } from "react-moralis";
+
+declare module "web3uikit" {
+  interface FormProps {
+    children?: React.ReactNode;
+  }
+}
+
+interface NftMarketPlace {
+  nftMarketplace: string[]
+}
+
+interface NetworkMapping {
+  [key:string]: NftMarketPlace 
+}
+
+const Home: NextPage = (FormProps: any) => {
+  const {chainId} = useMoralis();
+  //0x234
+  const chainString = chainId ? parseInt(chainId).toString() : "31337";
+  const marketplaceAddress = (networkMapping as NetworkMapping)[chainString].nftMarketplace[0];
+  const dispatch = useNotification()
+
+  //@ts-ignore
+  const { runContractFunction } = useWeb3Contract();
+
+  async function apporveAndList(data:any) {
+    console.log("승인하는중...");
+    const nftAddress = data.data[0].inputResult
+    const tokenId = data.data[1].inputResult
+    const price = ethers.utils.parseUnits(data.data[2].inputResult, "ehters").toString(); 
+
+    const approveOptions = {
+      abi: basicNftAbi,
+      contractAddress: nftAddress,
+      functionName: "approve",
+      params: {
+        to: marketplaceAddress,
+        tokenId: tokenId
+      }
+    }
+
+    await runContractFunction({
+      params: approveOptions,
+      onSuccess: () => handleApproveSuccess(nftAddress, tokenId, price),
+      onError: (error) => console.log(error),
+
+    })
+  }
+
+  async function handleApproveSuccess(nftAddress:string, tokenId:string, price:string) {
+    console.log("승인이 완료되었습니다. 이제 NFT를 리스트에 등록하는 작업을 시작합니다 ...")
+    const listOption = {
+      abi:nftMarketplaceAbi,
+      contractAddress:marketplaceAddress,
+      functionName:"listItem",
+      params: {
+        nftAddress: nftAddress,
+        tokenId: tokenId,
+        price: price
+      }
+    }
+    await runContractFunction({
+      params: listOption,
+      onSuccess: () => handleListSuccess(),
+      onError: (error) => console.log(error)
+    })
+  }
+
+  async function handleListSuccess() {
+    console.log("NFT 리스팅에 성공했습니다.");
+    dispatch({
+      type: "success",
+      position: "topR",
+      title: "NFT 판매 등록 성공",
+      message: "NFT를 판매 목록에 등록했습니다.",
+      icon: "bell",
+    })
+  }
+
+  return (
+    <div className={styles.container}>
+      <Form
+        onSubmit={apporveAndList}
+        title="NFT 판매하기"
+        data={[
+          {
+            name: "NFT 주소",
+            type: "text",
+            value: "",
+            inputWidth: "50%",
+            key: "nftAddress",
+          },
+          { name: "Token ID", type: "number", value: "", key: "tokenId" },
+          { name: "Price (in ETH)", type: "number", value: "", key: "price" },
+        ]}
+        id="Main Form"
+        {...FormProps}
+      ></Form>
+      sellnft page
+    </div>
+  );
+};
+
+export default Home;
+
+```
+
+이제 다시 하드햇 프로젝트로 넘어가서 `mint.js`를 작성합니다. `Approval`도 `list`도 하지 않고 그냥 `mint`만 할겁니다.
+
+`mint.js`
+```js
+const { ethers, network } = require("hardhat");
+const { moveBlock } = require("../utils/move-blocks");
+
+async function mint() {
+    const basicNft = await ethers.getContract("BasicNft");
+    // function mintNft() public returns (uint256) {
+    //     _safeMint(msg.sender, s_tokenCounter);
+    //     emit FlyMinted(s_tokenCounter);
+    //     s_tokenCounter = s_tokenCounter + 1;
+    //     return s_tokenCounter;
+    // }
+    console.log("민팅중 ... ")
+    const mintTx = await basicNft.mintNft()
+    const mintTxReceipt = await mintTx.wait(1);
+    const tokenId = mintTxReceipt.events[0].args.tokenId
+    console.log("Token ID: ", tokenId);
+    console.log("NFT Address:", basicNft.address)
+    console.log("민팅이 완료되었습니다.")
+
+    if(network.config.chainId == "31337") {
+        moveBlock(2, sleepAmount = 1000);
+    }
+}
+
+mint()
+  .then(() => (process.exitCode = 0))
+  .catch((error) => {
+    console.log(error);
+    process.exitCode = 1;
+  });
+
+```
+
+해당 스크립트를 실행합니다.
+
+```ps1
+yarn hardhat run scripts/mint.js --network localhost
+```
+```ps1
+민팅중 ... 
+Token ID:  BigNumber { _hex: '0x04', _isBigNumber: true }
+NFT Address: 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
+민팅이 완료되었습니다.
+블럭 옮기는 중 ...
+1000 ms 만큼 대기합니다 ...
+1000 ms 만큼 대기합니다 ...
+Done in 5.59s.
+```
+그리고 다시 프론트엔드로 가서 판매페이지에 방금 발행한 NFT의 토큰ID와 NFT주소, 그리고 원하는 판매가격을 입력한 뒤 OK를 눌러 submit 해봅시다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-31%20233528.png)
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-31%20233614.png)
+
+오류가 발생했습니다. `"ehters" -> "ether"` 부분이 오타가 났군요.
+```jsx
+const price = ethers.utils.parseUnits(data.data[2].inputResult, "ether").toString(); 
+```
+다시 시도해보겠습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-31%20234054.png)
+
+이번엔 JSON RPC 에러가 발생했습니다. 토큰의 소유자와 승인요청자가 일치하지 않는다고 합니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-31%20234107.png)
+
+월렛을 확인해보니 Account4로 연결되어있습니다. 
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-31%20234129.png)
+
+BasicNft의 소유자인 Account3로 바꿔주고 다시 시도합니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-31%20234337.png)
+
+트랜잭션 성공 알림이 뜨면 다시 하드햇 프로젝트로 가서 `mine.js`를 실행시켜 블록을 옮깁니다.
+
+그리고 모랄리스 DB로 가봅시다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-08-31%20234518.png)
+
+와우! 새로운 NFT 아이템이 7eth로 데이터베이스에 등록되었습니다!
+
+이제 이 강의가 너무 길어지다보니 withdraw에 대해서는 생략할겁니다. 하지만 원한다면 구현해보세요! github에도 코드가 있습니다.
+
+## NFT marketplace - withdraw
+
+저어는 `Withdraw.tsx` 컴포넌트를 만들어서 `sell-nft.tsx` 아래다가 붙였습니다.
+```tsx
+import { useMoralis, useWeb3Contract } from "react-moralis";
+import basicNftAbi from "../constants/BasicNft.json";
+import nftMarketplaceAbi from "../constants/NftMarketplace.json";
+import networkMapping from "../constants/networkMapping.json";
+import { Information, useNotification } from "web3uikit";
+import { useState } from "react";
+import { BigNumberish } from "ethers";
+
+interface NftMarketplace {
+  nftMarketplace: string[];
+}
+
+interface NetworkMapping {
+  [chainId: string]: NftMarketplace;
+}
+
+export default function Withdraw() {
+  const [proceeds, setProceeds] = useState<string | undefined>();
+  // function getProceeds(address seller) external view returns (uint256) {
+  //     return s_proceeds[seller];
+  // }
+  const { chainId, account } = useMoralis();
+  const chainString = chainId ? parseInt(chainId).toString() : "31337";
+  const dispatch = useNotification();
+
+  const { runContractFunction: getProceeds } = useWeb3Contract({
+    abi: nftMarketplaceAbi,
+    contractAddress: (networkMapping as NetworkMapping)[chainString][
+      "nftMarketplace"
+    ][0],
+    functionName: "getProceeds",
+    params: {
+      seller: account,
+    },
+  });
+
+  // function withdrawProceeds() external {
+  //     uint256 proceeds = s_proceeds[msg.sender];
+  //     if (proceeds <= 0) {
+  //         revert NftMarketplace__NoProceeds();
+  //     }
+  //     s_proceeds[msg.sender] = 0;
+  //     (bool success, ) = payable(msg.sender).call{value: proceeds}("");
+  //     if (!success) {
+  //         revert NftMarketplace__TransferFailed();
+  //     }
+  // }
+
+  const { runContractFunction: withdrawProceeds } = useWeb3Contract({
+    abi: nftMarketplaceAbi,
+    contractAddress: (networkMapping as NetworkMapping)[chainString][
+      "nftMarketplace"
+    ][0],
+    functionName: "withdrawProceeds",
+    params: {},
+  });
+
+  async function handleGetProceedsSuccess() {
+    dispatch({
+      position: "topR",
+      type: "success",
+      title: "잔액 조회",
+      message: "잔액 조회에 성공했습니다.",
+      icon: "bell",
+    });
+  }
+
+  async function handleWithdrawProceedsSuccess() {
+    dispatch({
+      position: "topR",
+      type: "success",
+      title: "수익 인출 성공",
+      message: "수익을 정상적으로 인출했습니다.",
+      icon: "bell",
+    });
+  }
+
+  async function OnClickGetProceeds() {
+    const returnedProceeds = (
+      (await getProceeds({
+        onError: () => console.log(Error),
+        onSuccess: () => handleGetProceedsSuccess(),
+      })) as BigNumberish
+    ).toString();
+    setProceeds(returnedProceeds);
+  }
+
+  async function OnClickWithdrawProceeds() {
+    await withdrawProceeds({
+      onError: () => console.log(Error),
+      onSuccess: () => handleWithdrawProceedsSuccess(),
+    });
+  }
+
+  return (
+    <div className="mt-4">
+      <Information
+        id="Proceed Info"
+        topic="총 판매 수익"
+        information={proceeds ? proceeds : "잔액조회하기를 눌러주세요."}
+      />
+      <button
+        className="mt-2 py-2 px-2 block border bg-indigo-500 hover:bg-indigo-700 rounded-md text-white"
+        onClick={OnClickGetProceeds}
+      >
+        잔액조회하기
+      </button>
+      <button
+        className={
+          proceeds
+            ? "mt-2 py-2 px-2 block border bg-indigo-500 hover:bg-indigo-700 rounded-md text-white"
+            : "mt-2 py-2 px-2 block border bg-indigo-300 text-white rounded-md"
+        }
+        disabled={proceeds ? false : true}
+        onClick={OnClickWithdrawProceeds}
+      >
+        {proceeds ? "수익인출하기" : "수익 인출하기(먼저 잔액을 조회해주세요)"}
+      </button>
+    </div>
+  );
+}
+
+```
+## Part III The Graph Front End
+
+`Graph`는 탈중앙화 이벤트 인덱서입니다.
+
+`nextjs-nft-marketplace-thegraph` 폴더를 만들겠습니다.
+
+```ps1
+cp -r nextjs-nft-marketplace/ nextjs-nft-marketplace
+```
+로 폴더를 복사해옵니다.
+
+그리고 시작하기 전에 NftMarketplace과 BasicNft 계약을 테스트넷에 배포해야합니다.
+
+```ps1
+yarn hardhat deploy --network rinkeby
+```
+모든 계약이 배포가 완료되었다면 
+
+그리고 networkMapping.json 파일을 확인하여 업데이트 되어있지 않다면 해당 체인아이디와 주소를 수동으로 추가해줍니다.
+
+그리고 cloudFunctions 폴더도 지워줍니다. 더이상 서버 백엔드와 일하지 않을것이기 때문입니다.
+
+그리고 frp도 필요없습니다. 지워줍시다 왜냐하면 로컬블록체인을 그래프에 연결하지 않을것이기 때문입니다.
+
+여기서 함께 작업하는건 테스트넷 밖에 없습니다. 따라서 반드시 테스트넷에 계약을 배포한 뒤 작업하세요.
+
+그리고 `_app.tsx` 의 `initializedOnMount`속성도 false로 바꿔줍니다.
+
+그리고 `index.tsx`로 가보면 우리는 지금 moralis query를 이용해 데이터를 가지고 오고 있는데요, 이것 대신에 그래프를 이용할겁니다.
+
+그렇다면 그래프(graph)라는 건 뭘까요?
+
+## What is The Graph?
+
+그래프는 이벤트를 저장할 수 있는 분산화된 레이어입니다.
+
+그래프는 서로 다른 노드 네트워크로 블록체인에서 읽어온 데이터를 인덱싱할 수 있습니다.
+
+그리고 우리에게 API를 공개해줘서 우리가 호출하고 그 데이터를 읽을 수 있습니다. 
+
+netterd Abbort이 대신 설명해드릴겁니다.
+Nadia dabit David?
+
+The Graph
+Indexing protocol for querying blockchain networks like Ethereum and IPFS.
+
+그래프는 Subgraph를 이용해서 네트워크에 저장된 데이터를 쿼리하는데 있어서 더 나은 경험을 제공합니다.
+필터링, 소팅, 관계있는 데이터 , 그리고 풀 스택 검색 기능을 추가로 제공합니다.
+
+Subgraph는 블록체인과 UI 사이에 존재하고있습니다. 이 소프트웨어에서 아주 중요한 부분을 차지하고 있습니다.
+
+기존 방식의 데이터베이스에선 쿼리,필터,소트,페이지네이션 데이터를 애플리케이션에게 반환하기 전에 그룹화하고 합치게(join) 됩니다. 일반적으로 일부 HTTP request 통해서 말입니다.
+
+이런 데이터 전송방식(transformation)은 이더리움 같은 블록체인에서 직접적으로 데이터를 읽어올 수 없습니다.
+
+The Graph가 존재하기 전, 팀들은 자체적으로 인덱싱 서버를 개발 및 운영해야만 했습니다. 이로 인해 상당한 엔지니어링 및 하드웨어 리소스가 요구되었으며 탈중앙화에 필요한 중요한 보안 속성이 손상되기도 했습니다.
+
+블록체인기반으로 설계된 것과 상호작용하는것은 전통적인 테크스텍과 결이 달랐습니다.
+
+블록체인에서는 데이터는 다른 어플리케이션이나 프론트엔드에서 쉽고 효율적으로 사용(consume)하고 검색(retrieved) 할 수 있는 형식(format)으로 저장되지 않습니다.
+
+문제는 당신이 효율적인 검색(retrieval)을 위해 데이터를 인덱싱해야하고 조직해야한다는 것입니다.
+
+중앙화된 테크스텍에서는 그것이 데이터베이스와 웹서버가 전통적으로 하는일이였습니다.
+
+그러나 그 인덱싱 레이어는 web3 스텍에서는 사라졌습니다.
+
+현실에 있는 Indexing에 대한 예시를 한번 살펴볼까요? 
+
+Google과 같은 검색 엔진은 인터넷을 크롤링하여 관련 데이터를 색인화(indexing)하여 사용자가 웹 인터페이스 및 기타 API를 통해 검색할 수 있도록 합니다.
+
+이러한 색인화(인덱싱) 레이어 없이는 우리가 어디에 어떻게 인터넷에 웹상에 있는 관련 정보를 찾아야 하는지 알기 어려울겁니다.
+
+또 다른 비슷한 비유는 도서관 입니다.
+
+Dewey Decimal(듀이십진분류법) 시스템과 같은 인덱싱 시스템을 사용하여 도서관 전체를 한 권씩 살펴보지 않고도 원하는 책을 찾을 수 있는 위치를 압니다.
+
+2bilion queries per day 
+
+이제 코드를 살펴보기 전에 어떻게 서브그래프(subGraph)를 만드는지 살펴보죠.
+
+>https://thegraph.com
+
+그래프 홈페이지로 이동합니다.
+
+1. Graph UI에서 새 Subgraph를 생성합니다. 
+
+2. 새 그래프 프로젝트를 Graph CLI를 통해서 만들 수 도 있습니다.
+```ps1
+graph init --contract-name Token
+```
+그런 다음 그래프 CLI를 사용하여 자신의 계약 정보로 업데이트할 수 있는 빈 하위 그래프 상용구를 스캐폴딩합니다.
+
+3. 데이터모델, 네트워크, 계약주소, 그 밖의 다른 설정을 로컬로 정의합니다.
+
+Graph는  필드로써 역할을 하는 상위 단계 타입으로 정의되는 스키마 언어인 Grpah QL 데이터모델을 사용합니다.
+
+```tsx
+type Token @entity {
+  id: ID!
+  tokenID: BigInt!
+  contentURI: String
+  tokenIPFSPath: String
+  name: String!
+  createdAtTimestamp: BigInt!
+  creator: User!
+  owner: User!
+}
+
+type User @entity {
+  id: ID!
+  tokens: [Token!]! @derivedFrom(field: "owner")
+  created: [Token!]! @derivedFrom(field: "creator")
+}
+```
+
+4. 서브그래프 배포하기
+```ps1
+graph deploy --studio <subgraph-name>
+```
+5. 테스트하기 (홈페이지 UI로 가능)
+
+## Building a Subgraph
+
+```md
+1. Instead of reading the events from Moralis, we will
+  1. Index them with TheGraph
+  2. Read from the Graph
+```
+
+그래프 홈페이지에 가서 Graph Explorer 메뉴를 보시면 이미 배포되어있는 서브그래프들을 볼 수 있습니다.
+
+이들을 실제로 운영되고 있는 유명한 탈중앙화 프로토콜들의 서브그래프로 모두 각각의 서브그래프를 가지고 있습니다.
+
+Hosted Service는 주제에 어긋나므로 여기선 넘어가겠습니다.
+
+그러니 subgraph studio 메뉴로 가봅시다.
+
+그리고 원하는 테스트넷으로 지갑을 연결하면 signing method를 실행하게 되어 서명할거냐는 문구를 보게됩니다.
+
+우리가 개발할때만 봐왔던 sign을 실제로 사용하게 되는 사례를 처음으로 보게되었네요!
+
+모랄리스로 sign하는 대신 여기선 그래프만의 커스텀 사인을 사용하는겁니다. sign in을 눌러줍시다.
+
+그리고 원하는 네트워크를 선택하고 앱 이름을 지어준 뒤 create 합니다.
+
+다시 로컬로 돌아와서 폴더를 하나 생성합니다.
+
+`graph-nft-marketplace`
+
+그리고 graph CLI를 설치합니다.
+
+```ps1
+yarn global add @graphprotocol/graph-cli
+```
+그리고 그래프 프로젝트를 초기화합니다.
+
+```ps1
+graph init --studio nft-marketplace
+```
+
+```ps1
+$ graph init --studio nft-marketplace
+√ Protocol · ethereum
+√ Subgraph slug · nft-marketplace
+√ Directory to create the subgraph in · nft-marketplace
+? Ethereum network ...
+? Ethereum network ... 
+? Ethereum network ... 
+√ Ethereum network · goerli
+√ Contract address · 0x15c1CBb843a47e51e33906eF661132F21276F027
+✔ Fetching ABI from Etherscan
+√ Contract Name · NftMarketplace
+———
+  Generate subgraph
+  Write subgraph to directory
+✔ Create subgraph scaffold
+✔ Initialize networks config
+✔ Initialize subgraph repository
+✔ Install dependencies with yarn
+✔ Generate ABI and schema types with yarn codegen
+√ Add another contract? (y/N) · false
+
+Subgraph nft-marketplace created in nft-marketplace
+
+Next steps:
+
+  1. Run `graph auth` to authenticate with your deploy key.
+
+  2. Type `cd nft-marketplace` to enter the subgraph.
+
+  3. Run `yarn deploy` to deploy the subgraph.
+
+Make sure to visit the documentation on https://thegraph.com/docs/ for further information.
+```
+
+생성된 `nft-marketplace` 로 루트폴더를 옮겨보겠습니다.
+
+```ps1
+$ mv nft-marketplace/* ./
+```
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-02%20151834.png)
+
+그렇게 되면 nft-marketplace 폴더는 빈 폴더가 되고 내용물이 밖으로 튀어나옵니다. nft-marketplace는 지워줍시다.
+
+첫번째는 폴더는 abis ABI들이 들어있는 폴더입니다. 그래프가 이벤트를 인덱싱하기 위해서는 ABI가 필요합니다. 그 ABI를 이더스캔에서 받아온 겁니다.
+
+만약 abis 폴더가 제대로 생성되지 않거나 abi파일이 제대로 생성되지 않았다면 우리가 abi json파일을 넣을 수 도 있습니다.
+
+그 다음은 generated 폴더입니다. 이 폴더의 파일들은 자동생성되었으며 수정해서는 안된다고 적혀있습니다. (혹은 프리빌드라고 부릅니다. 나중에 build를 설명할때 알아봅시다.)
+
+이 폴더를 빌드폴더라고 이해하거나, 그래프 코드를 컴파일한 결과물을 넣어놓는 폴더라고 생각하시면 됩니다.
+
+node_modules는 말 그대로 노드 프로젝트에 생성되는 노드모듈과 똑같습니다.
+
+src 폴더에 있는 파일들이 사실상 그래프에서 우리가 가진 계약을 어떻게 매핑하여 작업할 것인지 결정하는 파일입니다.
+그리고 모두 타입스크립트 파일입니다.
+
+`network.json`에는 우리가 속해있는 네트워크에 대한 정보들이 담겨있습니다.
+
+`package.json` 역시 노드 프로젝트에 있는 패키지json 파일과 동일합니다. 다만 안에는 빌트인 그래프 스크립트들이 몇가지 적혀있습니다.
+
+`schema.graphql`은 Graph QL 스키마 입니다. 이것역시 우리가 어떻게 이벤트를 인덱싱 할건지 결정해주는 파일입니다.
+
+```graphql
+type ExampleEntity @entity {
+  id: ID!
+  count: BigInt!
+  buyer: Bytes! # address
+  nftAddress: Bytes! # address
+}
+```
+
+
+그리고 익숙하신분들도 있겠지만 스키마는 그래프QL 스키마를 따릅니다. 그래프ql을 사용하보신분들이라면 동일하게 작업하시면 됩니다.
+
+Graph Ql은 A query language for your API 입니다.
+
+쿼리를 좀 더 "그래프 타입"으로 할 수 있습니다. 
+
+`subgraph.yaml`은 서브그래프가 모든 파일을 어떤 방식으로 통합할지 결정합니다.
+```yaml
+specVersion: 0.0.4
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: NftMarketplace
+    network: goerli
+    source:
+      address: "0x15c1CBb843a47e51e33906eF661132F21276F027"
+      abi: NftMarketplace
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.6
+      language: wasm/assemblyscript
+      entities:
+        - ItemBought
+        - ItemCanceled
+        - ItemListed
+      abis:
+        - name: NftMarketplace
+          file: ./abis/NftMarketplace.json
+      eventHandlers:
+        - event: ItemBought(indexed address,indexed address,indexed uint256,uint256)
+          handler: handleItemBought
+        - event: ItemCanceled(indexed address,indexed address,indexed uint256)
+          handler: handleItemCanceled
+        - event: ItemListed(indexed address,indexed address,indexed uint256,uint256)
+          handler: handleItemListed
+      file: ./src/nft-marketplace.ts
+
+```
+
+마지막에 메인파일이 mapping.ts가 되어야합니다.
+
+이러한 정보를 가지고 있는 모든 파일들을 업데이트해서 그래프가 우리의 이벤트를 인덱싱 하도록 만들겁니다.
+
+그렇게해서 우리는 탈중앙화 환경(context)에서 그래프에서 이벤트를 읽어올 수 있습니다.
+
+그리고 모든 배포 준비가 끝났을때 우리는
+
+AUTH & DEPLOY 코드를 활용할겁니다.
+
+이것은 우리스스로를 인증하는 코드입니다. 그리고 인덱싱을 시작하는 코드를 배포하는 방법입니다.
+
+자 이제 시작하겠습니다.
+
+먼저 GraphQL 익스텐션을 설치합니다.
+
+그리고 `schema.graphql` 파일로 가봅시다.
+
+여기에 써져있는 코드는 우리의 계약이 어떤 엔티티를 가지고 있는지 알려주고 있는 파일입니다.
+
+현재 생성된 파일은 예시파일이므로 다 지우고 새로 작성하겠습니다.
+
+```graphql
+type ActiveItem @entity {
+  
+}
+```
+
+마찬가지로 우리가 필요한 엔티티는 Activeitem 일겁니다.
+그리고 그 안에서는 우리가 필요한 요소의 type을 정해주면 됩니다.
+
+여기서 `ID!`의 느낌표(!)는 반드시 이 요소가 필요하다는 것을 의미합니다.
+
+모든 ActiveItem는 ID를 가져야한다는 의미입니다.
+
+```graphql
+type ActiveItem @entity {
+  id: ID!
+  buyer: Bytes! # Address. 0x0000.... <- 아무도 사지 않았다면 빈값
+  seller: Bytes!
+  nftAddress: Bytes!
+  tokenId: BigInt!
+  price: BigInt
+}
+```
+
+price는 null값도 가질 수 있도록 !를 생략합니다.
+
+```graphql
+type ActiveItem @entity {
+  id: ID!
+  buyer: Bytes! # Address. 0x0000.... <- 아무도 사지 않았다면 빈값
+  seller: Bytes!
+  nftAddress: Bytes!
+  tokenId: BigInt!
+  price: BigInt
+}
+
+type ItemListed @entity {
+  id: ID!
+  seller: Bytes!
+  nftAddress: Bytes!
+  tokenId: BigInt!
+  price: BigInt
+}
+
+type ItemCanceled @entity {
+  id: ID!
+  seller: Bytes!
+  nftAddress: Bytes!
+  tokenId: BigInt
+}
+
+type ItemBougt @entity {
+  id: ID!
+  buyer: Bytes!
+  nftAddress: Bytes!
+  tokenId: BigInt!
+  price: BigInt
+}
+```
+
+이렇게 작성했다면 우리가 모랄리스에서 했던것처럼 인덱싱할 테이블(엔티티)들을 만들었다 보시면 됩니다.
+
+그리고 이 타입들은 각자가 함수로써 표현될겁니다 (잠시 뒤 codegen 부분에서 이해가 될겁니다.) 
+
+자 그럼 이제 서브그래프에게 이 이벤트를 수신하라고 알려줘야 합니다.
+
+이제 `src/mapping.ts` 로 이동합니다. 여기선 `nft-marketplace.ts` 파일이네요 이쪽으로 이동합시다.
+
+이 파일은 우리가 가진 이벤트 정보들을 어떻게 매핑하고 저장할것인지 알려주는 파일입니다.
+
+보시면 샘플 이벤트가 작성되어있을겁니다.
+
+```ts
+import { BigInt } from "@graphprotocol/graph-ts"
+import {
+  NftMarketplace,
+  ItemBought,
+  ItemCanceled,
+  ItemListed
+} from "../generated/NftMarketplace/NftMarketplace"
+import { ExampleEntity } from "../generated/schema"
+
+export function handleItemBought(event: ItemBought): void {
+  // Entities can be loaded from the store using a string ID; this ID
+  // needs to be unique across all entities of the same type
+  let entity = ExampleEntity.load(event.transaction.from.toHex())
+
+  // Entities only exist after they have been saved to the store;
+  // `null` checks allow to create entities on demand
+  if (!entity) {
+    entity = new ExampleEntity(event.transaction.from.toHex())
+
+    // Entity fields can be set using simple assignments
+    entity.count = BigInt.fromI32(0)
+  }
+
+  // BigInt and BigDecimal math are supported
+  entity.count = entity.count + BigInt.fromI32(1)
+
+  // Entity fields can be set based on event parameters
+  entity.buyer = event.params.buyer
+  entity.nftAddress = event.params.nftAddress
+
+  // Entities can be written to the store with `.save()`
+  entity.save()
+
+  // Note: If a handler doesn't require existing field values, it is faster
+  // _not_ to load the entity from the store. Instead, create it fresh with
+  // `new Entity(...)`, set the fields that should be updated and save the
+  // entity back to the store. Fields that were not set or unset remain
+  // unchanged, allowing for partial updates to be applied.
+
+  // It is also possible to access smart contracts from mappings. For
+  // example, the contract that has emitted the event can be connected to
+  // with:
+  //
+  // let contract = Contract.bind(event.address)
+  //
+  // The following functions can then be called on this contract to access
+  // state variables and other data:
+  //
+  // - contract.getListing(...)
+  // - contract.getProceeds(...)
+}
+
+export function handleItemCanceled(event: ItemCanceled): void {}
+
+export function handleItemListed(event: ItemListed): void {}
+
+```
+
+`export function handleItemBought(event: ItemBought)` 이 부분은
+
+`ItemBought` 이벤트가 일어날때마다 `handleItemBought`를 실행시키라는 뜻입니다.
+
+그리고 import 문을 한번 보시죠
+
+```ts
+import {
+  NftMarketplace,
+  ItemBought,
+  ItemCanceled,
+  ItemListed
+} from "../generated/NftMarketplace/NftMarketplace"
+import { ExampleEntity } from "../generated/schema"
+```
+여기보시면 generated 폴더를 패스로 두고 있습니다.
+
+우리가 터미널에서
+```ps1
+graph codegen
+```
+
+을 입력하면 그래프 코드제네레이터가 스키마에 들어있는 모든 것을 generated 폴더 안의 파일에 집어넣습니다.
+
+`generated/NftMarketplace/NftMarketplace.ts`
+
+한번 코드젠을 입력해봅시다.
+
+```ps1
+$ graph codegen
+  Skip migration: Bump mapping apiVersion from 0.0.1 to 0.0.2
+  Skip migration: Bump mapping apiVersion from 0.0.2 to 0.0.3
+  Skip migration: Bump mapping apiVersion from 0.0.3 to 0.0.4
+  Skip migration: Bump mapping apiVersion from 0.0.4 to 0.0.5
+  Skip migration: Bump mapping apiVersion from 0.0.5 to 0.0.6
+  Skip migration: Bump manifest specVersion from 0.0.1 to 0.0.2
+  Skip migration: Bump manifest specVersion from 0.0.2 to 0.0.4
+✔ Apply migrations
+✔ Load subgraph from subgraph.yaml
+  Load contract ABI from abis\NftMarketplace.json
+✔ Load contract ABIs
+  Generate types for contract ABI: NftMarketplace (abis\NftMarketplace.json)
+  Write types to generated\NftMarketplace\NftMarketplace.ts
+✔ Generate types for contract ABIs
+✔ Generate types for data source templates
+✔ Load data source template ABIs
+✔ Generate types for data source template ABIs
+✔ Load GraphQL schema from schema.graphql
+  Write types to generated\schema.ts
+✔ Generate types for GraphQL schema
+
+Types generated successfully
+```
+
+이제 generated 안에 들어있는 파일중 schema.ts 파일에 변화가 생겼을겁니다.
+
+```ts
+// THIS IS AN AUTOGENERATED FILE. DO NOT EDIT THIS FILE DIRECTLY.
+
+import {
+  TypedMap,
+  Entity,
+  Value,
+  ValueKind,
+  store,
+  Bytes,
+  BigInt,
+  BigDecimal
+} from "@graphprotocol/graph-ts";
+
+export class ActiveItem extends Entity {
+  constructor(id: string) {
+    super();
+    this.set("id", Value.fromString(id));
+  }
+
+  save(): void {
+    let id = this.get("id");
+    assert(id != null, "Cannot save ActiveItem entity without an ID");
+    if (id) {
+      assert(
+        id.kind == ValueKind.STRING,
+        `Entities of type ActiveItem must have an ID of type String but the id '${id.displayData()}' is of type ${id.displayKind()}`
+      );
+      store.set("ActiveItem", id.toString(), this);
+    }
+  }
+
+  static load(id: string): ActiveItem | null {
+    return changetype<ActiveItem | null>(store.get("ActiveItem", id));
+  }
+
+  get id(): string {
+    let value = this.get("id");
+    return value!.toString();
+  }
+
+  set id(value: string) {
+    this.set("id", Value.fromString(value));
+  }
+
+  get buyer(): Bytes {
+    let value = this.get("buyer");
+    return value!.toBytes();
+  }
+
+  set buyer(value: Bytes) {
+    this.set("buyer", Value.fromBytes(value));
+  }
+
+  get seller(): Bytes {
+    let value = this.get("seller");
+    return value!.toBytes();
+  }
+
+  set seller(value: Bytes) {
+    this.set("seller", Value.fromBytes(value));
+  }
+
+  get nftAddress(): Bytes {
+    let value = this.get("nftAddress");
+    return value!.toBytes();
+  }
+
+  set nftAddress(value: Bytes) {
+    this.set("nftAddress", Value.fromBytes(value));
+  }
+
+  get tokenId(): BigInt {
+    let value = this.get("tokenId");
+    return value!.toBigInt();
+  }
+
+  set tokenId(value: BigInt) {
+    this.set("tokenId", Value.fromBigInt(value));
+  }
+
+  get price(): BigInt | null {
+    let value = this.get("price");
+    if (!value || value.kind == ValueKind.NULL) {
+      return null;
+    } else {
+      return value.toBigInt();
+    }
+  }
+
+  set price(value: BigInt | null) {
+    if (!value) {
+      this.unset("price");
+    } else {
+      this.set("price", Value.fromBigInt(<BigInt>value));
+    }
+  }
+}
+
+export class ItemListed extends Entity {
+  constructor(id: string) {
+    super();
+    this.set("id", Value.fromString(id));
+  }
+
+  save(): void {
+    let id = this.get("id");
+    assert(id != null, "Cannot save ItemListed entity without an ID");
+    if (id) {
+      assert(
+        id.kind == ValueKind.STRING,
+        `Entities of type ItemListed must have an ID of type String but the id '${id.displayData()}' is of type ${id.displayKind()}`
+      );
+      store.set("ItemListed", id.toString(), this);
+    }
+  }
+
+  static load(id: string): ItemListed | null {
+    return changetype<ItemListed | null>(store.get("ItemListed", id));
+  }
+
+  get id(): string {
+    let value = this.get("id");
+    return value!.toString();
+  }
+
+  set id(value: string) {
+    this.set("id", Value.fromString(value));
+  }
+
+  get seller(): Bytes {
+    let value = this.get("seller");
+    return value!.toBytes();
+  }
+
+  set seller(value: Bytes) {
+    this.set("seller", Value.fromBytes(value));
+  }
+
+  get nftAddress(): Bytes {
+    let value = this.get("nftAddress");
+    return value!.toBytes();
+  }
+
+  set nftAddress(value: Bytes) {
+    this.set("nftAddress", Value.fromBytes(value));
+  }
+
+  get tokenId(): BigInt {
+    let value = this.get("tokenId");
+    return value!.toBigInt();
+  }
+
+  set tokenId(value: BigInt) {
+    this.set("tokenId", Value.fromBigInt(value));
+  }
+
+  get price(): BigInt | null {
+    let value = this.get("price");
+    if (!value || value.kind == ValueKind.NULL) {
+      return null;
+    } else {
+      return value.toBigInt();
+    }
+  }
+
+  set price(value: BigInt | null) {
+    if (!value) {
+      this.unset("price");
+    } else {
+      this.set("price", Value.fromBigInt(<BigInt>value));
+    }
+  }
+}
+
+export class ItemCanceled extends Entity {
+  constructor(id: string) {
+    super();
+    this.set("id", Value.fromString(id));
+  }
+
+  save(): void {
+    let id = this.get("id");
+    assert(id != null, "Cannot save ItemCanceled entity without an ID");
+    if (id) {
+      assert(
+        id.kind == ValueKind.STRING,
+        `Entities of type ItemCanceled must have an ID of type String but the id '${id.displayData()}' is of type ${id.displayKind()}`
+      );
+      store.set("ItemCanceled", id.toString(), this);
+    }
+  }
+
+  static load(id: string): ItemCanceled | null {
+    return changetype<ItemCanceled | null>(store.get("ItemCanceled", id));
+  }
+
+  get id(): string {
+    let value = this.get("id");
+    return value!.toString();
+  }
+
+  set id(value: string) {
+    this.set("id", Value.fromString(value));
+  }
+
+  get seller(): Bytes {
+    let value = this.get("seller");
+    return value!.toBytes();
+  }
+
+  set seller(value: Bytes) {
+    this.set("seller", Value.fromBytes(value));
+  }
+
+  get nftAddress(): Bytes {
+    let value = this.get("nftAddress");
+    return value!.toBytes();
+  }
+
+  set nftAddress(value: Bytes) {
+    this.set("nftAddress", Value.fromBytes(value));
+  }
+
+  get tokenId(): BigInt | null {
+    let value = this.get("tokenId");
+    if (!value || value.kind == ValueKind.NULL) {
+      return null;
+    } else {
+      return value.toBigInt();
+    }
+  }
+
+  set tokenId(value: BigInt | null) {
+    if (!value) {
+      this.unset("tokenId");
+    } else {
+      this.set("tokenId", Value.fromBigInt(<BigInt>value));
+    }
+  }
+}
+
+export class ItemBougt extends Entity {
+  constructor(id: string) {
+    super();
+    this.set("id", Value.fromString(id));
+  }
+
+  save(): void {
+    let id = this.get("id");
+    assert(id != null, "Cannot save ItemBougt entity without an ID");
+    if (id) {
+      assert(
+        id.kind == ValueKind.STRING,
+        `Entities of type ItemBougt must have an ID of type String but the id '${id.displayData()}' is of type ${id.displayKind()}`
+      );
+      store.set("ItemBougt", id.toString(), this);
+    }
+  }
+
+  static load(id: string): ItemBougt | null {
+    return changetype<ItemBougt | null>(store.get("ItemBougt", id));
+  }
+
+  get id(): string {
+    let value = this.get("id");
+    return value!.toString();
+  }
+
+  set id(value: string) {
+    this.set("id", Value.fromString(value));
+  }
+
+  get buyer(): Bytes {
+    let value = this.get("buyer");
+    return value!.toBytes();
+  }
+
+  set buyer(value: Bytes) {
+    this.set("buyer", Value.fromBytes(value));
+  }
+
+  get nftAddress(): Bytes {
+    let value = this.get("nftAddress");
+    return value!.toBytes();
+  }
+
+  set nftAddress(value: Bytes) {
+    this.set("nftAddress", Value.fromBytes(value));
+  }
+
+  get tokenId(): BigInt {
+    let value = this.get("tokenId");
+    return value!.toBigInt();
+  }
+
+  set tokenId(value: BigInt) {
+    this.set("tokenId", Value.fromBigInt(value));
+  }
+
+  get price(): BigInt | null {
+    let value = this.get("price");
+    if (!value || value.kind == ValueKind.NULL) {
+      return null;
+    } else {
+      return value.toBigInt();
+    }
+  }
+
+  set price(value: BigInt | null) {
+    if (!value) {
+      this.unset("price");
+    } else {
+      this.set("price", Value.fromBigInt(<BigInt>value));
+    }
+  }
+}
+
+```
+
+각각의 테이블 마다 새로운 class가 추가되어 안에 들어있는 요소 seller, price 마다 get set 함수가 추가되었습니다.
+
+그러므로 매번 `schema.grapql`을 업데이트할때마다 `graph codegen`을 실행시켜서 업데이트 해줘야합니다.
+
+그리고 만약 이 과정에서 fail이 일어난다면 schema를 작성하는데 있어서 오류가 있었다는 뜻입니다.
+
+```ts
+import {
+  NftMarketplace,
+  ItemBought,
+  ItemCanceled,
+  ItemListed
+} from "../generated/NftMarketplace/NftMarketplace"
+```
+그리고 자동생성된 NftMarketplace.ts 에서 해당 이벤트들을 가져오는데요, 이벤트말고 NftMarketpalce를 가지고는 할 작업이 없으니 해당 불러오기는 지워줍시다.
+
+```ts
+import {
+  ItemBought,
+  ItemCanceled,
+  ItemListed
+} from "../generated/NftMarketplace/NftMarketplace"
+```
+
+그리고 나서 다시 `nft-marketplace.ts` 파일로 가서 각 함수안의 내용을 모두 지워줍시다.
+
+```ts
+import { BigInt } from "@graphprotocol/graph-ts"
+import {
+  NftMarketplace,
+  ItemBought,
+  ItemCanceled,
+  ItemListed
+} from "../generated/NftMarketplace/NftMarketplace"
+import { ExampleEntity } from "../generated/schema"
+
+export function handleItemBought(event: ItemBought): void {}
+
+export function handleItemCanceled(event: ItemCanceled): void {}
+
+export function handleItemListed(event: ItemListed): void {}
+
+```
+
+그리고 세가지 함수를 가지게 되는데요. 아이템이 구매되었을때는 `handleItemBought`를 마찬가지로 다른 이벤트가 발생했을때 알맞는 함수를 사용하면 되겠죠.
+
+이 모든 함수들은 `subgraph.yaml`에서 정의됩니다.
+
+```yaml
+specVersion: 0.0.4
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: NftMarketplace
+    network: goerli
+    source:
+      address: "0x15c1CBb843a47e51e33906eF661132F21276F027"
+      abi: NftMarketplace
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.6
+      language: wasm/assemblyscript
+      entities:
+        - ItemBought
+        - ItemCanceled
+        - ItemListed
+      abis:
+        - name: NftMarketplace
+          file: ./abis/NftMarketplace.json
+      eventHandlers:
+        - event: ItemBought(indexed address,indexed address,indexed uint256,uint256)
+          handler: handleItemBought
+        - event: ItemCanceled(indexed address,indexed address,indexed uint256)
+          handler: handleItemCanceled
+        - event: ItemListed(indexed address,indexed address,indexed uint256,uint256)
+          handler: handleItemListed
+      file: ./src/nft-marketplace.ts
+
+```
+
+```yaml
+      entities:
+        - ItemBought
+        - ItemCanceled
+        - ItemListed
+```
+엔티티에서 해당 이벤트들을 볼 수 있죠?
+
+```yaml
+      eventHandlers:
+        - event: ItemBought(indexed address,indexed address,indexed uint256,uint256)
+          handler: handleItemBought
+        - event: ItemCanceled(indexed address,indexed address,indexed uint256)
+          handler: handleItemCanceled
+        - event: ItemListed(indexed address,indexed address,indexed uint256,uint256)
+          handler: handleItemListed
+```
+
+그리고 이벤트 핸들러도 볼 수 있습니다.
+
+그래서 이 event가 발생할때마다 handler가 호출되게 됩니다. 바로 `nft-marketplace.ts`에 있는 함수죠
+
+그리고 이벤트이름을 헷갈리지 않게 하기 위해 다음과 같이 이름을 바꿔줄께요
+
+함수 안에 들어가는 인수들의 이름도 알맞게 수정해줍니다.
+
+```ts
+import { BigInt } from "@graphprotocol/graph-ts"
+import {
+  NftMarketplace,
+  ItemBought as ItemBoughtEvent,
+  ItemCanceled as ItemCanceledEvent,
+  ItemListed as ItemListedEvent
+} from "../generated/NftMarketplace/NftMarketplace"
+import { ExampleEntity } from "../generated/schema"
+
+export function handleItemBought(event: ItemBoughtEvent): void {
+  // Save that event in our graph
+  // update our activeitems
+
+  // get or create an itemListed object
+  // each item needs a unique Id
+}
+
+export function handleItemCanceled(event: ItemCanceledEvent): void {}
+
+export function handleItemListed(event: ItemListedEvent): void {}
+
+```
+
+그리고 먼저 해야할 일을 생각해봅시다.
+
+그래프에 이벤트들을 저장해야할겁니다.
+
+ActiveItem을 업데이트해야 합니다.
+
+그러므로 첫번째로, itemListed 객체를 만들거나 가져와야합니다.
+
+그리고 또 하나 알아둬야 할것은 각각의 item이 고유의 id가 필요하다는 것입니다.
+
+그래서 그 id도 만들어줘야 합니다.
+
+ID를 얻는 함수부터 만들어봅시다.
+
+```ts
+import { Address, BigInt } from "@graphprotocol/graph-ts"
+import {
+  NftMarketplace,
+  ItemBought as ItemBoughtEvent,
+  ItemCanceled as ItemCanceledEvent,
+  ItemListed as ItemListedEvent
+} from "../generated/NftMarketplace/NftMarketplace"
+
+export function handleItemBought(event: ItemBoughtEvent): void {}
+
+export function handleItemCanceled(event: ItemCanceledEvent): void {}
+
+export function handleItemListed(event: ItemListedEvent): void {}
+
+function getIdFromEventParams(tokenId: BigInt, nftAddress: Address): string {
+  return tokenId.toHexString() + nftAddress.toHexString()
+}
+```
+
+tokenId와 nftAddress를 Hex문자열로 바꾼 후 합쳐서 Id를 만들어주겠습니다.
+
+이제 해야할것은 새 `itemListed` 를 만드는 것입니다.
+
+우리는 ItemBoughtEvent는 있지만 ItemBoughtObject는 없습니다.
+
+`ItemBoughtObject` 는 저장을 위한 공간이고
+`ItemBoughtEvent`  는 순수 이벤트를 뜻합니다.
+
+따라서 `ItemBoughtEvent` 로부터 `ItemBoughtObject`를 생성해야합니다.
+
+또 타입스크립트에서는 이 두가지에 대해 두가지 타입이 필요한데요, 이 타입들은 자동으로 생성된 `generated/schema.ts` 파일에 정의되어 있습니다! `schema.ts`에 새로 생성된 `class`들을 `type`으로 사용하면 됩니다.
+
+아 그런데 에러가 났습니다. itemBought를 불러올수 없고 혹시 itemBougt가 아닌지 물어봅니다.
+
+schema에서 itemBougt라고 오타를 냈군요 itemBought가 되어야합니다! 이래서 타입스크립트를 쓰나봅니다.
+
+```graphql
+type ItemBought @entity {
+  id: ID!
+  buyer: Bytes!
+  nftAddress: Bytes!
+  tokenId: BigInt!
+  price: BigInt
+}
+```
+수정하고 다시 `graph codegen`을 터미널에서 실행시켜줍니다. 에러가 사라졌습니다.
+
+```ts
+import { Address, BigInt } from "@graphprotocol/graph-ts"
+import {
+  NftMarketplace,
+  ItemBought as ItemBoughtEvent,
+  ItemCanceled as ItemCanceledEvent,
+  ItemListed as ItemListedEvent
+} from "../generated/NftMarketplace/NftMarketplace"
+import { ItemListed, ActiveItem, ItemBought, ItemCanceled } from "../generated/schema"
+
+export function handleItemBought(event: ItemBoughtEvent): void {}
+
+export function handleItemCanceled(event: ItemCanceledEvent): void {}
+
+export function handleItemListed(event: ItemListedEvent): void {}
+
+function getIdFromEventParams(tokenId: BigInt, nftAddress: Address): string {
+  return tokenId.toHexString() + nftAddress.toHexString()
+}
+```
+
+그리고 아이템 객체를 불러오겠습니다.
+
+schema.ts에서 생성된 스태틱 메소드 `load`를 사용하면 됩니다. graph 패키지에서 제공하는 `store.get` 메소드로 해당 아이템오브젝트가 저장된 공간에서 id값을 통해 호출하는것 같네요!
+
+```ts
+  static load(id: string): ItemBought | null {
+    return changetype<ItemBought | null>(store.get("ItemBought", id));
+  }
+```
+
+ID로는 아까 만든 id생성 함수에 인수를 넣어 load 함수의 인수로 다시 넣어줍시다.
+
+```ts
+import { Address, BigInt } from "@graphprotocol/graph-ts"
+import {
+  NftMarketplace,
+  ItemBought as ItemBoughtEvent,
+  ItemCanceled as ItemCanceledEvent,
+  ItemListed as ItemListedEvent
+} from "../generated/NftMarketplace/NftMarketplace"
+import { ItemListed, ActiveItem, ItemBought, ItemCanceled } from "../generated/schema"
+
+export function handleItemBought(event: ItemBoughtEvent): void {
+  let itemBought = ItemBought.load(getIdFromEventParams(event.params.tokenId, event.params.nftAddress))
+}
+
+export function handleItemCanceled(event: ItemCanceledEvent): void {}
+
+export function handleItemListed(event: ItemListedEvent): void {}
+
+function getIdFromEventParams(tokenId: BigInt, nftAddress: Address): string {
+  return tokenId.toHexString() + nftAddress.toHexString()
+}
+```
+
+이렇게 아이템 객체를 하나 만들었습니다. 그리고 매번 아이템 구매이벤트가 일어나면, 모랄리스에서 그랬던 것 처럼
+ActiveItem도 업데이트 되어야겠죠!
+
+```ts
+export function handleItemBought(event: ItemBoughtEvent): void {
+  let itemBought = ItemBought.load(getIdFromEventParams(event.params.tokenId, event.params.nftAddress))
+  let activeItem = ActiveItem.load(getIdFromEventParams(event.params.tokenId, event.params.nftAddress))
+}
+```
+`itemBought`과 `activeItem`이 똑같은 ID값을 가진다 해도 상관없습니다. 어차피 둘의 타입이 다르니까요!!
+
+```ts
+export function handleItemBought(event: ItemBoughtEvent): void {
+  let itemBought = ItemBought.load(getIdFromEventParams(event.params.tokenId, event.params.nftAddress))
+  let activeItem = ActiveItem.load(getIdFromEventParams(event.params.tokenId, event.params.nftAddress))
+  if (!itemBought) {
+    itemBought = new ItemBought(getIdFromEventParams(event.params.tokenId, event.params.nftAddress))
+  }
+  itemBought.buyer = event.params.buyer
+  itemBought.nftAddress = event.params.nftAddress
+  itemBought.tokenId = event.params.tokenId
+  activeItem!.buyer = event.params.buyer
+
+  itemBought.save()
+  activeItem!.save()
+}
+```
+그리고 나서 itemBought가 없다면 클래스를 이용해 새 itemBought를 만들어줍니다.
+
+그리고 그래프큐엘 스키마를 보고 itemBought 안에 들어있는 필드들을 하나씩 업데이트 해줍니다.
+
+또 ActiveItem도 업데이트 해줘야겠죠. 그런데 여기서 나머지 정보는 모두 itemListed에서 받아올 수 있지만 하나 부족한 정보가 있는데 buyer 입니다. 따라서 바이어를 ItemBoughtEvent 의 params에서 받아옵시다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-02%20151834.png)
+
+`activeItem!.buyer = event.params.buyer`
+
+해당 객체가 null 일수 있다면 !를 이용해서 null이 아님을 확실시 해주면 됩니다.
+
+그리고 마지막으로 모랄리스와 비슷하게 `save()`메소드를 이용해 데이터를 저장해줍니다.
+
+`save` 메소드 역시 graph의 store API의 set메소드를 이용해 새 데이터를 세팅해주는 역할을 하는것 같습니다.
+
+그래서 우리는 매번 ItemBought 이벤트가 발생할때마다 itemBought 오브젝트를 생성하거나 업데이트하고 ActiveItem도 업데이트해줍니다.
+
+우리는 굳이 ActiveItem을 지우지 않아도 ActiveItem이 업데이트 되지 않았다면 해당 아이템이 아직 판매리스트에 있는 상태이고, 업데이트되었다면 판매된것으로 판단할 수 있습니다.
+
+다음은 `handleItemListed`함수를 작성해봅시다.
+
+```ts
+export function handleItemListed(event: ItemListedEvent): void {
+  let itemListed = ItemListed.load(getIdFromEventParams(event.params.tokenId, event.params.nftAddress));
+  let activeItem = ActiveItem.load(getIdFromEventParams(event.params.tokenId, event.params.nftAddress));
+  if (!itemListed) {
+    itemListed = new ItemListed(getIdFromEventParams(event.params.tokenId, event.params.nftAddress));
+  }
+  if (!activeItem) {
+    activeItem = new ActiveItem(getIdFromEventParams(event.params.tokenId, event.params.nftAddress))
+  }
+
+  itemListed.seller = event.params.seller;
+  itemListed.nftAddress = event.params.nftAddress;
+  itemListed.tokenId = event.params.tokenId;
+  itemListed.price = event.params.price;
+  
+  activeItem.seller = event.params.seller;
+  activeItem.nftAddress = event.params.nftAddress;
+  activeItem.tokenId = event.params.tokenId;
+  activeItem.price = event.params.price;
+
+  itemListed.save()
+  activeItem.save()
+}
+```
+이번에는 itemListed 와 activeItem 을 가져옵니다.
+
+그리고 신규 생성된 리스트라면 ItemListed 클래스로 새 itemListed를 만들어주고
+
+activeItem도 마찬가지로 없다면 새 ActiveItem 인스턴스를 만들어줍니다.
+
+그리고 둘다 똑같은 정보를 업데이트 해줍니다.
+
+이제 `handleItemCanceld`를 작성해보겠습니다. 아이템구매와 매우 흡사할겁니다.
+
+```ts
+export function handleItemCanceled(event: ItemCanceledEvent): void {
+  let itemCanceled = ItemCanceled.load(getIdFromEventParams(event.params.tokenId, event.params.nftAddress))
+  let activeItem = ActiveItem.load(getIdFromEventParams(event.params.tokenId, event.params.nftAddress))
+  if(!itemCanceled) {
+    itemCanceled = new ItemCanceled(getIdFromEventParams(event.params.tokenId, event.params.nftAddress))
+  }
+
+  itemCanceled.seller = event.params.seller
+  itemCanceled.nftAddress = event.params.nftAddress
+  itemCanceled.tokenId = event.params.tokenId
+  activeItem!.buyer = Address.fromString("0x000000000000000000000000000000000000dEaD");
+
+  itemCanceled.save()
+  activeItem!.save()
+}
+```
+여기서 한가지 다른점이있는데요, 바로 `activeItem!.buyer`에 `Address.fromString("0x000000000000000000000000000000000000dEaD")`로 특별한 주소를 할당해준다는 점입니다.
+
+`0x000000000000000000000000000000000000dEaD`(0x다음 0이 36개)는 우리가 정한 DEAD address로 취소된 주소를 뜻하는 우리끼리의 약속입니다.
+
+따라서 `activeItem` 의 주소가 데드 어드레스라면 취소됨을 나타내고 `activeItem` 이 빈값 `0x0000000000000000000000000000000000000000` 이라면 마켓에서 mint한뒤 ItemListied 이벤트가 발생하는 상황일겁니다. 그리고 `activeItem`이 실제 유효한 주소를 가지고 있다면, ItemBought이벤트가 발생해 누군가가 해당 아이템을 사갔다는 뜻이 될겁니다.
+
+DEAD address는 일반적으로 아무도 소유하고 있지 않다는 뜻을 가진 burner 어드레스의 일종으로도 많이 쓰입니다. 
+
+이로서 매핑함수 작성이 모두 끝났습니다. 그래프에게 이벤트를 어떻게 색인할 것인지 알려줄 수 있는 방법에 거의 근접했습니다.
+
+이제 한가지만 남았습니다.
+
+`subgraph.yaml` 파일로 이동합니다.
+
+```yaml
+specVersion: 0.0.4
+schema:
+  file: ./schema.graphql
+dataSources:
+  - kind: ethereum
+    name: NftMarketplace
+    network: goerli
+    source:
+      address: "0x15c1CBb843a47e51e33906eF661132F21276F027"
+      abi: NftMarketplace
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.6
+      language: wasm/assemblyscript
+      entities:
+        - ItemBought
+        - ItemCanceled
+        - ItemListed
+      abis:
+        - name: NftMarketplace
+          file: ./abis/NftMarketplace.json
+      eventHandlers:
+        - event: ItemBought(indexed address,indexed address,indexed uint256,uint256)
+          handler: handleItemBought
+        - event: ItemCanceled(indexed address,indexed address,indexed uint256)
+          handler: handleItemCanceled
+        - event: ItemListed(indexed address,indexed address,indexed uint256,uint256)
+          handler: handleItemListed
+      file: ./src/nft-marketplace.ts
+
+```
+
+여기서 
+
+```yaml
+dataSources:
+  - kind: ethereum
+    name: NftMarketplace
+    network: goerli
+    source:
+      address: "0x15c1CBb843a47e51e33906eF661132F21276F027"
+      abi: NftMarketplace
+```
+이 부분이 이것은 이더리움이 시작된 이후로 그래프가 인덱싱을 시작하도록 알려주는 부분입니다.
+
+그리고 우리는 그렇게 하고싶지 않습니다. 왜냐면 너무 오래걸리거든요 그냥 그래프에게
+
+기다릴필요 없이 계약이 배포되는 순간 바로 수신하라고 말할거에요.
+
+그러니 `startBlock`이라는 걸 추가할겁니다. 어떤 블록넘버에서 배포가 시작되는지 정하는 겁니다.
+
+```yaml
+dataSources:
+  - kind: ethereum
+    name: NftMarketplace
+    network: goerli
+    source:
+      address: "0x15c1CBb843a47e51e33906eF661132F21276F027"
+      abi: NftMarketplace
+      startBlock:
+```
+우리가 주소를 가지고 있다면 여기 위에 있는것처럼 말에요, 이것을 복사해서 테스트넷 이더스캔에 붙여넣어봅시다.
+
+저는 goerli을 사용하고 있으니 goerli 이더스캔에 넣어보겠습니다.
+
+그러면 어떤 블록넘버에 계약이 배포되었는지 알 수 있습니다.
+
+Goerli 에 배포된 NftMarketplace , BasicNft
+>NftMarketplace
+>https://goerli.etherscan.io/address/0x15c1CBb843a47e51e33906eF661132F21276F027
+>basicNft
+>https://goerli.etherscan.io/address/0xd6c1D241f75Be053A5b29255e83AB453D7eD8D95
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-03%20002514.png)
+
+`7512473` 블럭에 배포되었군요
+
+그러면 startBlock에 해당 값에서 "1을 뺀" 값을 넣어줍니다.
+
+왜냐하면 배포되기 "직전"에 인덱싱할 이벤트를 수신하기 위해서입니다.
+
+```yaml
+dataSources:
+  - kind: ethereum
+    name: NftMarketplace
+    network: goerli
+    source:
+      address: "0x15c1CBb843a47e51e33906eF661132F21276F027"
+      abi: NftMarketplace
+      startBlock: 7512472
+```
+
+이제 그래프를 인덱싱하고 그래프를 배포할 준비가 끝났습니다.
+
+## Deploying Our Subgraph
+
+이제 그래프 대시보드의 명령어들을 실행할 차례입니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-03%20004902.png)
+
+대시보드 상단에 있는 deploy-key를 복사해서 명령어 뒤에 붙여넣으면 됩니다.
+
+사용자(나) 인증하기
+```ps1
+graph auth --studio <delpoy-key>
+```
+
+그러면 다음과 같이 출력됩니다.
+```ps1
+Deploy key set for https://api.studio.thegraph.com/deploy/
+```
+모든 서브그래프 설정들은 그래프 홈페이지 대시보드에 업로드됩니다.
+
+그 다음 ENTER SUBGRAPH는 하지 않아도 됩니다. 이미 그래프 폴더에 있기때문입니다.
+
+그 다음 BUILD SUBGRAPH로 넘어가겠습니다.
+
+```
+graph codegen && graph build
+```
+
+이렇게 하면 제네레이티드 폴더가 업데이트되고 build폴더가 새로 생성됩니다.
+
+generated 폴더는 의사(pseudo) 빌드 폴더라고 생각하며 되고 build폴더가 실제 배포용 버전이라 보시면 됩니다.
+
+그리고 빌드가 만들어졌다면
+
+```ps1
+graph deploy --studio nft-marketplace
+```
+
+명령어를 입력합니다.
+
+버전 라벨(version label) 은 v0.0.1 을 입력해줍니다. 첫번째 버전임을 명시하는겁니다.
+
+입력해주면 IPFS에도 배포가 되는걸 확인할 수 있습니다.
+
+```ps1
+√ Version Label (e.g. v0.0.1) · v0.0.1
+  Skip migration: Bump mapping apiVersion from 0.0.1 to 0.0.2
+  Skip migration: Bump mapping apiVersion from 0.0.2 to 0.0.3
+  Skip migration: Bump mapping apiVersion from 0.0.3 to 0.0.4
+  Skip migration: Bump mapping apiVersion from 0.0.4 to 0.0.5
+  Skip migration: Bump mapping apiVersion from 0.0.5 to 0.0.6
+  Skip migration: Bump manifest specVersion from 0.0.1 to 0.0.2
+  Skip migration: Bump manifest specVersion from 0.0.2 to 0.0.4
+✔ Apply migrations
+✔ Load subgraph from subgraph.yaml
+  Compile data source: NftMarketplace => build\NftMarketplace\NftMarketplace.wasm
+✔ Compile subgraph
+  Copy schema file build\schema.graphql
+  Write subgraph file build\NftMarketplace\abis\NftMarketplace.json
+  Write subgraph manifest build\subgraph.yaml
+✔ Write compiled subgraph to build\
+  Add file to IPFS build\schema.graphql
+                .. QmcWXouAdupfbz2kw16TSSbsQGosYBu7YxScoMgyLpfVsx
+  Add file to IPFS build\NftMarketplace\abis\NftMarketplace.json
+                .. QmbkGC3BGjfgrMni3zXYFo2UzHmWFLTL6ZYZDYUdQEPwLK
+  Add file to IPFS build\NftMarketplace\NftMarketplace.wasm
+                .. QmNQsatpBxYTYKJnpShpE3uegsBxogLNX7nYt9fUSwsEpW
+✔ Upload subgraph to IPFS
+
+Build completed: QmYD3mnbByDu7w8oQxyTQ6bLXYcZH8QQ6mAsqyqirEDphz
+
+Deployed to https://thegraph.com/studio/subgraph/nft-marketplace
+
+Subgraph endpoints:
+Queries (HTTP):     https://api.studio.thegraph.com/query/33904/nft-marketplace/v0.0.1
+
+```
+성공했다면 Subgraph endpoints가 나타납니다.
+
+그래프 홈페이지로 가서 새로고침해보면 상태가 DEPLOY로 바뀌어있을겁니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-03%20140710.png)
+
+이제 우리의 이벤트를 수신하는 노드를 갖게 되었습니다.
+
+logs 에서는 해당 체인에서 일어나는 모든 일을 기록하게 됩니다.
+
+playground 에서는 우리가 원하는 쿼리를 테스트를 진행할 수 있습니다.
+
+이번에는 하드햇 nftmarketplace 프로젝트를 열어서 네트워크를 테스트네트워크로 바꿔서 `mint-and-list.js`를 실행시켜봅시다.
+
+```ps1
+yarn hardhat run scripts/mint-and-list.js --network goerli
+```
+
+```ps1
+network goerli
+발행중...
+92599
+1000001833
+민팅가스요금 92599169733967
+NFT 승인중...
+NFT 마켓에 등록중...
+80463
+1000001842
+리스팅가스요금 80463148212846
+등록되었습니다.
+Done in 50.73s.
+```
+
+이제 민팅이 되고 아이템을 리스트에 올렸으니  ItemListed 이벤트가 발생하고 ItemListed 객체를 생성했을겁니다. ActiveItem 객체도 마찬가지겠죠 GraphQL에서 그 둘을 볼 수 있을겁니다.
+
+그래프 대시보드에서 살펴봅시다.
+
+제일 왼쪽에 있는 코드를 GraphQl 쿼리라 부릅니다.
+
+모랄리스 테이블과 비슷하지만 단지 그래프ql 문법으로 작성되었을 뿐입니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-03%20142619.png)
+
+
+가운데 부분은 쿼리의 결과물입니다.
+
+오른쪽은 스키마 정보입니다.
+
+그리고 블럭이 컨펌될때까지 얼마정도 시간이 필요합니다. 지금은 아무값도 나오지 않는군요. NftMarketplace 계약을 이더스캔에서 확인해봅시다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-03%20143428.png)
+
+에러가 나왔군요. ActiveItem의 필수 필드인 buyer 의 값이 빠졌다고 나옵니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-03%20142735.png)
+
+`nft-marketplace.ts` 매핑파일로 가서 살펴봅시다. 
+schema에 ItemListed에서는 buyer가 bytes! 로 required로 표시되었지만
+매핑스크립트 파일에서 handleItemListed 함수가 activeItem.buyer에 빈 주소를 할당해 주지 않아서 생긴 문제였습니다.
+다음 줄을 추가해 주겠습니다.
+```ts
+activeItem.buyer = Address.fromString("0x0000000000000000000000000000000000000000")
+```
+```ts
+export function handleItemListed(event: ItemListedEvent): void {
+  let itemListed = ItemListed.load(getIdFromEventParams(event.params.tokenId, event.params.nftAddress));
+  let activeItem = ActiveItem.load(getIdFromEventParams(event.params.tokenId, event.params.nftAddress));
+  if (!itemListed) {
+    itemListed = new ItemListed(getIdFromEventParams(event.params.tokenId, event.params.nftAddress));
+  }
+  if (!activeItem) {
+    activeItem = new ActiveItem(getIdFromEventParams(event.params.tokenId, event.params.nftAddress))
+  }
+
+  itemListed.seller = event.params.seller;
+  itemListed.nftAddress = event.params.nftAddress;
+  itemListed.tokenId = event.params.tokenId;
+  itemListed.price = event.params.price;
+
+  activeItem.seller = event.params.seller;
+  activeItem.nftAddress = event.params.nftAddress;
+  activeItem.tokenId = event.params.tokenId;
+  activeItem.price = event.params.price;
+  activeItem.buyer = Address.fromString("0x0000000000000000000000000000000000000000");
+
+  itemListed.save()
+  activeItem.save()
+}
+
+```
+
+```ps1
+graph codegen && graph build
+```
+```ps1
+graph deploy --studio nft-marketplace
+```
+
+이후 다시 `mint-and-list.js`를 실행시켜보겠습니다.
+
+트랜잭션이 완료된 후 palyground의 버튼을 눌러보면 다음과 같이 쿼리가 성공했습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-03%20153352.png)
+
+```json
+{
+  "data": {
+    "activeItems": [
+      {
+        "id": "0x00xd6c1d241f75be053a5b29255e83ab453d7ed8d95",
+        "buyer": "0x0000000000000000000000000000000000000000",
+        "seller": "0xc2a354ac356d3c4bc00432a4989c5fd7a6c4e199",
+        "nftAddress": "0xd6c1d241f75be053a5b29255e83ab453d7ed8d95"
+      }
+    ],
+    "itemListeds": [
+      {
+        "id": "0x00xd6c1d241f75be053a5b29255e83ab453d7ed8d95",
+        "seller": "0xc2a354ac356d3c4bc00432a4989c5fd7a6c4e199",
+        "nftAddress": "0xd6c1d241f75be053a5b29255e83ab453d7ed8d95",
+        "tokenId": "0"
+      }
+    ]
+  }
+}
+```
+
+## Reading from The Graph
+
+이제 다시 프론트엔드 프로젝트로 돌아오겠습니다. 이제부터 모랄리스 서버가 아닌 그래프에서 데이터베이스를 읽어올 겁니다.
+
+`graphExample.ts` ts파일을 pages 폴더에 하나 만들겠습니다.
+
+여기에서 우리는 그래프가 어떻게 동작하는지 보여주는 아주 작은 웹페이지를 만들겁니다.
+
+그리고 아폴로 클라이언트라는 패키지를 사용할겁니다. 또한 graphql 패키지도 필요합니다.
+
+아폴로 (`apollo client`) 설치
+```ps1
+yarn add graphql
+yarn add @apollo/client
+```
+
+이 아폴로 클라이언트를 이용해 새로 생성된 graphql의 새 쿼리를 만들 수 있습니다.
+
+```jsx
+import { useQuery, gql } from "@apollo/client"
+
+const GET_ACTIVE_ITEM = gql`
+{}
+`
+
+export default function GraphExample() {
+    
+}
+
+```
+
+`useQuery`를 사용해 쿼리를 이용할 수 있고 `gql`을 통해 graphQL 아이템을 정의할 수 있습니다.
+
+gql은 스타일드컴포넌트 처럼 백틱(`)을 이용해 작성합니다.
+
+gql 안에 들어갈 쿼리들은 playground의 제일 왼쪽에 있는 코드와 비슷합니다.
+
+우리는 일단 playground에서 코드를 작성한 후에 gql 안에 넣겠습니다.
+
+```graphql
+{
+  activeItems(first: 5 where: {buyer:"0x00000000"})
+}
+```
+액티브 아이템 들('s) 의 처음포함 5개중에 buyer가 없는 즉, 값이 빈값("0x00000000)인 아이템을 찾아옵니다.
+
+```graphql
+{
+  activeItems(first: 5 where: {buyer:"0x00000000"}){
+    id
+    buyer
+    seller
+    nftAddress
+    tokenId
+    price
+  }
+}
+```
+그리고 새 중괄호(`{}`)를 열어 찾아올 아이템에 포함된 나머지 프로퍼티들을 입력해줍니다.
+
+그런다음 ▶ 버튼을 눌러봅시다.
+
+```json
+{
+  "data": {
+    "activeItems": []
+  }
+}
+```
+
+아무것도 안나옵니다. 우리가 buyer주소를 `0x0000000000000000000000000000000000000000`로 입력했기 때문인데요,
+
+`0x0000000000000000000000000000000000000000`를 대신 입력하고 ▶ 버튼을 눌러보겠습니다.
+
+```json
+{
+  "data": {
+    "activeItems": [
+      {
+        "id": "0x00xd6c1d241f75be053a5b29255e83ab453d7ed8d95",
+        "buyer": "0x0000000000000000000000000000000000000000",
+        "seller": "0xc2a354ac356d3c4bc00432a4989c5fd7a6c4e199",
+        "nftAddress": "0xd6c1d241f75be053a5b29255e83ab453d7ed8d95",
+        "tokenId": "0",
+        "price": "100000000000000000"
+      },
+      {
+        "id": "0x20xd6c1d241f75be053a5b29255e83ab453d7ed8d95",
+        "buyer": "0x0000000000000000000000000000000000000000",
+        "seller": "0xc2a354ac356d3c4bc00432a4989c5fd7a6c4e199",
+        "nftAddress": "0xd6c1d241f75be053a5b29255e83ab453d7ed8d95",
+        "tokenId": "2",
+        "price": "100000000000000000"
+      }
+    ]
+  }
+}
+```
+
+이번엔 제대로 나옵니다.
+
+첫번째 tokenId가 0인 아이템은 우리가 buyer의 빈값을 설정해주지 않아 error가 생겼던 아이템입니다.
+
+그래도 buyer에 빈값으로 제대로 들어갔네요.
+
+그리고 toeknId 1인 아이템이 없는 이유는 제가 `mint-and-list.js`를 실행시켜 mint 도중 스크립트를 취소했기 때문입니다.
+
+마지막 tokenId 2인 아이템이 buyer의 빈값을 수정하고 정상적으로 업데이트 된 데이터입니다.
+
+자 그럼 이 쿼리문을 gql 안에 넣어줍시다.
+
+이제 우린 graph에 있는 아이템을 가져올 수 있는 graphql 쿼리가 생겼습니다.
+
+```jsx
+import { useQuery, gql } from "@apollo/client"
+
+const GET_ACTIVE_ITEM = gql`
+{
+  activeItems(first: 5 where: {buyer:"0x0000000000000000000000000000000000000000"}){
+    id
+    buyer
+    seller
+    nftAddress
+    tokenId
+    price
+  }
+}
+`
+
+export default function GraphExample() {
+    
+}
+
+```
+
+그러면 이제 `useQuery` 훅을 이용해 이 쿼리를 사용할 수 있습니다.
+
+useQuery는 `DocumentNode` 혹은 `TypedDocumentNode` 타입의 `query`를 인수를 받습니다. 그리고 `DocumentNode` 타입의 `query`가 바로 위에서 작성한 `GET_ACTIVE_ITEM`입니다.
+
+```ts
+export default function GraphExample() {
+    const { loading, error, data} = useQuery(GET_ACTIVE_ITEM)
+}
+```
+
+그리고 loading, error 그리고 반환하는 data를 받아올 수 있습니다.
+
+```jsx
+import { useQuery, gql } from "@apollo/client"
+
+const GET_ACTIVE_ITEM = gql`
+{
+  activeItems(first: 5 where: {buyer:"0x0000000000000000000000000000000000000000"}){
+    id
+    buyer
+    seller
+    nftAddress
+    tokenId
+    price
+  }
+}
+`
+
+export default function GraphExample() {
+    const { loading, error, data} = useQuery(GET_ACTIVE_ITEM);
+    console.log(data);
+    return <div>그래프 쿼리</div>
+}
+
+
+```
+
+그리고 나서 다시 `_app.js`로 돌아와서 MoralisProvider로 둘려쌓여진 컴포넌트를 `ApolloProvider`로 감싸줘야합니다.
+
+그리고 APP_ID SERVER_URL을 설정해 모랄리스 서버에 연결하는 것처럼 graphQL에 연결해야합니다.
+
+```jsx
+import {ApolloProvider, ApolloClient, InMemoryCache} from "@apollo/client"
+
+const client = new ApolloClient({
+  cache: new InMemoryCache(),
+  uri: ""
+})
+```
+아폴로 문서를 참조하시기 바랍니다.
+
+uri 값은 그래프 홈페이지에 가보면 Details 탭에 TEMPORARY QUERY URL 이 있습니다.
+
+이 URL은 테스트전용으로 제한된 임시 쿼리 URL입니다.
+
+그리고 이 `uri:` 값은 어느 주소에서 쿼리를 만들어야 하는지 지정합니다.
+
+그리고 우린 TEMPORARY QUERY URL 에서 만들겁니다.
+
+그런데 주소가 https:// 로 시작하는데 중앙화된 거 아닌가요?
+
+네 맞습니다. 우리는 그래프 웹사이트를 호출하고 있습니다.
+
+그러나 모든 데이터들은 분산화된 그래프 인덱서에 저장될겁니다. 우리가 IPFS 로 하는 작업과 비슷한거라 생각하면 됩니다.
+
+우리가 gateway를 만들어 graph studio에서 데이터를 연결하고 읽기 더 편리하게 만든 것 뿐입니다.
+
+미래에는 더 많은 프로토콜과 브라우저에 graph나 IPFS가 적용되어 이러한 작업이 훨씬 편리해질겁니다.
+
+MoralisProvider 와 NotificationProvider 사이에 ApolloProvider 컴포넌트를 추가해 감싸줍니다.
+
+그리고 프롭으로 client에 client를 넣어줍니다.
+
+```jsx
+import "../styles/globals.css";
+import type { AppProps } from "next/app";
+import Header from "../components/Header";
+import { MoralisProvider } from "react-moralis";
+import Head from "next/head";
+import { NotificationProvider } from "web3uikit";
+import { ApolloProvider, ApolloClient, InMemoryCache } from "@apollo/client";
+
+const client = new ApolloClient({
+  cache: new InMemoryCache(),
+  uri: process.env.NEXT_PUBLIC_GRAPH_URI,
+});
+
+function MyApp({ Component, pageProps }: AppProps, DUMMY: any) {
+  return (
+    <>
+      <Head>
+        <title>NFT 마켓</title>
+        <meta name="description" content="NFT를 거래할 수 있는 장터입니다." />
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
+      <MoralisProvider initializeOnMount={false}>
+        <ApolloProvider client={client}>
+          <NotificationProvider {...DUMMY}>
+            <Header />
+            <Component {...pageProps} />
+          </NotificationProvider>
+        </ApolloProvider>
+      </MoralisProvider>
+    </>
+  );
+```
+
+그리고 다시 `yarn dev` 를 입력해 next dev server를 재시작해줍니다.
+
+그리고 나서 localhost:3000/graphExample로 이동해서 콘솔을 살펴보면
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-03%20183511.png)
+
+우리가 그래프QL에 저장되어있는 아이템 오브젝트가 보입니다!
+
+자 이제 `index.tsx`에서 Moralis Query 대신 Apollo query를 이용해 데이터를 받아오면 되는겁니다.
+
+우선 networkMapping을 불러옵시다.
+
+```tsx
+import networkMapping from "../constants/networkMapping.json"
+import { useQuery } from "@apollo/client";
+
+interface nftMarketplace {
+  nftMarketplace: string[]
+}
+
+interface NetworkMapping {
+  [chainId:string]: nftMarketplace
+}
+
+const Home: NextPage = () => {
+  const { isWeb3Enabled,chainId } = useMoralis();
+  const chainString = chainId ? parseInt(chainId).toString() : "31337"
+  const marketplaceAddress = (networkMapping as NetworkMapping)[chainString].nftMarketplace[0]
+
+  const { loading, error, data } = useQuery()
+```
+
+그리고 useQuery 안에 넣어줄 query를 다른 파일에서 작성할겁니다.
+
+`constants` 폴더에 `subGraphQueries.ts` 파일을 생성합니다.
+
+```ts
+import { gql } from "@apollo/client";
+
+const GET_ACTIVE_ITEMS = gql`
+{
+    activeItems(first: 5, where: { buyer: "0x0000000000000000000000000000000000000000"} {
+        id
+        buyer
+        seller
+        nftAddress
+        tokenId
+        price
+    })
+}
+`
+
+export default GET_ACTIVE_ITEMS
+```
+
+그리고 이 쿼리를 `index.tsx`에서 import 해오면 됩니다.
+
+```jsx
+import type { NextPage } from "next";
+import Head from "next/head";
+import Image from "next/image";
+import { useMoralis, useMoralisQuery } from "react-moralis";
+import styles from "../styles/Home.module.css";
+import NFTBox from "../components/NFTBox";
+import networkMapping from "../constants/networkMapping.json";
+import { useQuery } from "@apollo/client";
+import GET_ACTIVE_ITEMS from "../constants/subgraphQueries";
+
+interface INft {
+  nftAddress: string;
+  price: string;
+  seller: string;
+  tokenId: string;
+}
+
+interface nftMarketplace {
+  nftMarketplace: string[];
+}
+
+interface NetworkMapping {
+  [chainId: string]: nftMarketplace;
+}
+
+const Home: NextPage = () => {
+  const { isWeb3Enabled, chainId } = useMoralis();
+  const chainString = chainId ? parseInt(chainId).toString() : "31337";
+  const marketplaceAddress = (networkMapping as NetworkMapping)[chainString]
+    .nftMarketplace[0];
+
+  const { loading, error, data: listedNfts } = useQuery(GET_ACTIVE_ITEMS);
+
+  // const {
+  //   data: listedNfts,
+  //   isFetching: fetchingListedNfts,
+  //   error: reqError,
+  // } = useMoralisQuery(
+  //   // TableName
+  //   // Function for the query
+  //   "ActiveItem",
+  //   (query) => query.limit(10).descending("tokenId")
+  // );
+  // console.log(fetchingListedNfts);
+  // console.log(reqError);
+
+  // nft: { attributes: { createdAt: any; marketplaceAddress: any; nftAddress: any; price: any; seller: any; tokenId: any; updatedAt: any; }; }
+
+  console.log(loading);
+  console.log(error);
+  console.log(listedNfts);
+
+  return (
+    <div className="container mx-auto">
+      <h1 className="py-4 px-4 font-bold text-2xl">최근 등록됨</h1>
+      <div className="flex flex-wrap gap-4">
+        {isWeb3Enabled ? (
+          loading || !listedNfts ? (
+            <div>"로딩중 ... "</div>
+          ) : (
+            listedNfts.activeItems.map((nft: INft) => {
+              console.log(nft);
+              const { nftAddress, price, seller, tokenId } = nft;
+              return (
+                <NFTBox
+                  price={price}
+                  nftAddress={nftAddress}
+                  tokenId={tokenId}
+                  marketplaceAddress={marketplaceAddress}
+                  seller={seller}
+                  key={`${nftAddress}${tokenId}`}
+                />
+              );
+            })
+          )
+        ) : (
+          <div>web3 연결이 끊어졌습니다.</div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default Home;
+
+```
+
+## Deploy
+Nextjs에서 사용한 Image 컴포넌트는 프리 렌더링 되기 때문에 IPFS에 배포하기 까다로울 겁니다.
+
+그래서 다른 중앙화된 배포사이트 (Vercel, Netlify...등등) 에 배포하는 방법도 있지만
+
+IPFS 에 배포하는 방법을 찾아내는것이 여러분의 숙제입니다.
+
+# Finished Full Stack Basic!!
+
+# Lesson 16 Hardhat Upgrades
+
+이번시간에는 좀 더 로우레벨 코드로 들어가볼겁니다.
+
+깃허브에 여기에 관련된 추가 동영상이 있습니다 (업그레이더블 스마트컨트렉트)
+
+스마트 계약은 IMMUTABLE 하다고 알고 계실겁니다. 하지만 만약 MUTABLE (변경가능)하다면요?
+
+기술적으로는 변경불가한 것이 맞습니다. 그러나 스마트 계약은 트랜잭션 후 결과를 반영해서 계약 안에 있는 변수, 매핑, 잔액(balance) 등을 업데이트해야합니다.
+
+이들이 immutable(불변)인 이유는 그 로직에 한해서는 온체인에 있는한 영원하기 때문입니다.
+
+네 그래서 기술적으로는 배포되었을때 불변성을 지닙니다. 그리고 이것이 스마트 계약의 첫번째 주요 이점이기도 하구요. 누구도 한번 배포된 스마트 계약을 변경할 수 없습니다.
+
+그러나 프로토콜이 좀 더 많은 기능을 수행해야해서 업그레이드를 해야할때 아니면 버그 이슈를 고쳐야 할때 이러한 불변성은 문제가 되기도 합니다.
+
+오픈제플린 blog의 The State of Smart Contract Upgrades 를 참고했습니다.
+
+첫번째로 여러분은 이런 의문을 가지실 수 도 있는데요, "스마트 컨트렉트를 업그레이드 할 수 있다면, 그건 불변성에 어긋나는거 아닌가요?"
+
+In a way, you'd be right. So when explaining kind of the different philosophies and patterns that we can use here, we do need to keep in mind the pilosophies and decentralization impications that each one of these patterns have
+
+어떤 면에서는 당신이 옳았을 것입니다. 따라서 여기에서 사용할 수 있는 다양한 철학과 패턴을 설명할 때 각 패턴이 갖는 철학과 분산화 의미를 염두에 두어야 합니다. 그들은 모두 다른 장점과 단점을 가지고 있기 때문입니다.
+
+And yes, some of diadvantages here are going to affect decentralized.
+So we need to keep that in mind. And this is why it's so important that before you go ahead and jump in and start deploying upgradable smart contracts, you understand the tradeoffs
+
+그리고 예, 여기의 일부 단점은 탈중앙화에 영향을 미칠 것입니다.
+그래서 우리는 그것을 염두에 두어야 합니다. 그렇기 때문에 업그레이드 가능한 스마트 계약 배포를 시작하기 전에 장단점을 이해하는 것이 중요합니다.
+
+그래서 우리는 스마트 계약을 업그레이드 할 수 있는 세가지 방법을 배울것입니다.
+
+the first one being the "not really / parameterize" way to upgrade your smart contract, the social migration method, and then the method that you probably have heard about, which is proxies, which have a ton of subcategories, like metamorphic contracts, transparent upgradable proxies and universal upgradable proxies.
+
+첫 번째로는 "실제로는 업그레이드하지 않는" 혹은 매개변수화라 불리는 (Not Really / Parameterize) 스마트 컨트랙트를 업그레이드하는 방법, 소셜 마이그레이션 방법, 그리고 아마 들어본 적이 있는 방법인 프록시(proxies) 라는 방법이 있습니다. 프록시 는 변형(메타모픽) 계약, 투명 업그레이드 가능한 프록시와 같은 수많은 하위 범주가 있습니다. 및 범용 업그레이드 가능한 프록시.
+
+그럼 첫번째로 실제로 업그레이드 하지 않는 방법 혹은 파라미터화, 뭐 여러분이 부르고 싶은데로 불러도 되는, 그런 방법에 대해 얘기해봅시다.
+
+```
+Not Really / Parameterize
+
+- Can't add new storage
+- Can't add new logic 
+```
+So let's talk about the not really upgrading method, or the parameterization method, or whatever you want to call it.
+
+This is the simplest way to think about upgrading your smart contracts. And it really isn't upgrading our smart contracts. Because we can't really change logic of the smart contract, whatever logic that we've written, is there. 
+we also can't add new storage or state variables. So this is really not really upgrading. 
+
+But it is something to think about. upgrades is just parameterizing everything. whatever logic that we've deployed, is there. And that's what we're interacting with. 
+
+이것은 스마트 계약 업그레이드에 대해 생각하는 가장 간단한 방법입니다. 그리고 그것은 실제로 우리의 스마트 계약을 업그레이드하는 것이 아닙니다. 우리가 작성한 논리가 무엇이든 스마트 계약의 논리를 실제로 변경할 수는 없기 때문입니다.
+또한 새 저장소 또는 상태 변수를 추가할 수 없습니다. 따라서 이것은 실제로 실제로 업그레이드되지 않습니다.
+
+하지만 생각해볼 문제입니다. 업그레이드는 모든 것을 매개변수화하는 것입니다. 우리가 배포한 논리가 무엇이든 거기에 있습니다. 그것이 바로 우리가 상호작용하는 것입니다.
+
+
+
+이 함수는 우리가 단지 많은 setter 함수를 가지고 있다는 것을 의미합니다. 그리고 특정 매개변수를 업데이트할 수 있습니다. 예를 들어 매년 1%씩 토큰을 제공하는 보상 매개변수가 있을 수 있습니다.
+
+
+```solidity
+uint256 public reward;
+
+function setReward(uint256 _reward) public onlyOwner {
+  reward = _reward;
+}
+```
+
+Maybe we have a setter function that says, "hey, update that to 2percent", or "update that to 4 percent". It's just a setter function that changes some variable. Now the advantages here obviously this is really simple to implement. The disadvantage is that if you didn't think of some logic or some functionality, the first you deployed their smart contract, that's too bad, you stuck with it, you can't update the logic or really update anything with the parameterization. (a.k.a. Not really method)
+
+
+"이봐, 2%로 업데이트" 또는 "4%로 업데이트"라고 말하는 설정기 기능이 있을 수 있습니다. 일부 변수를 변경하는 setter 함수일 뿐입니다. 이제 여기의 장점은 분명히 구현하기가 정말 간단합니다. 단점은 일부 논리 또는 일부 기능에 대해 생각하지 않고 스마트 계약을 처음 배포한 경우에는 , 좋지않습니다. 당신은 로직을 업데이트하거나 매개변수화(일명 "실제로 업데이트 하는게 아닌" 방법으로 말이죠)를 사용하여 아무 것도 업데이트할 수 없습니다. 
+
+그리고 또 하나 고려해야할 문제가 있습니다.
+
+Who the admins?
+관리자가 누구요?
+
+누가 이 setter 함수에 접근하고 업데이트 함수에 접근할것이냐는 문제입니다.
+
+만약 '한 사람' 이라면 뭐가될까요? 네, 당신은 중앙화된 스마트 계약을 가지게 되어버리는겁니다.
+
+네 물론 거버넌스(governance) 계약을 추가해서 프로토콜 관리자로 사용할 수 도 있으며, 그것이라면 탈중앙화 방식이 될겁니다.
+
+so, just keep that in mind, you can do this method just need a governance protocol to do so.
+
+따라서 이 방법을 수행하려면 거버넌스 프로토콜만 있으면 된다는 점을 염두에 두십시오.
+
+또다른 예시는 `contract registry`가 될겁니다.
+>> AAVE 프로토콜의 Addresses Provider Registry
+
+그리고 이 방법은 초기 AAVE 프로토콜이 이용하던 방법입니다.
+
+함수를 호출하기 전에 누군가의 파라미터로 업데이트된 contract registry 를 확인하고 당신은 계약으로 라우트(routed)되며, 그리고 그곳에서 호출을 실시할 수 있습니다.
+
+Again, this really doesn't allow us to have the full functionality of upgrades here, you can argue that this registry is a mix of one of the later version. But for all intents and purposes, this doesn't really give us that flexibility that we want for upgrades
+
+다시 말하지만, 다시 말하지만, 여기서는 업그레이드의 전체 기능을 사용할 수 없습니다. 이 레지스트리가 최신 버전 중 하나를 혼합한 것이라고 주장할 수 있습니다. 그러나 모든 의도와 목적을 위해 이것은 실제로 우리가 업그레이드에 원하는 유연성을 제공하지 않습니다.
+
+그러나 어떤 사람들은 아마 스마트컨트렉트를 업그레이드하는것은 탈중앙화를 무너뜨리는 것이라 생각할 수 있습니다. 
+
+And one of the things that makes smart contracts so potent is that they are immutable, and that this is one of the benefits that they have. So there are some people who think that you shouldn't add any customization or any upgradability, you should deploy contract, and then that's it.
+
+스마트 계약을 매우 강력하게 만드는 것 중 하나는 변경할 수 없으며 이것이 그들이 가진 이점 중 하나라는 것입니다. 그래서 커스터마이징이나 업그레이드를 추가하면 안되고 계약을 배포하기만 해야한다고 생각하는 사람들이 있습니다.
+
+'Trail of Bits' has actually argue that if you deploy your contract knowing that it be changed later, you take a little bit extra time, make sure you get everything right and there are often less security vulnerabilities because you're just setting it and forgetting it and not looking at it again.
+
+'Trail of Bits'는 실제로 계약이 나중에 변경된다는 것을 알고 계약을 구축하면 시간이 조금 더 걸리고 모든 것을 올바르게 처리하며 종종 보안 취약점이 줄어든다고 주장했습니다. 왜냐하면 계약을 설정했다가 잊어버리고 다시 보지 않기 때문입니다.
+
+Now, If I wanted to upgrade a smart contract with this philosophy in mind, the pilosophy that I do want to keep my samrt contracts immutable, we can instaed use the social migration method. (Which I previously called the `YEET` method. And now I think it's less funny.) So we're just gonna stick with social migraiton.
+
+The social `YEET` method, or migration method is just when you deploy your new contract, not connected to the old contract in any way, and by social convention, you tell everybody "hey, hey, this new contract, this new one that we just deployed?" <- "Yeah, this is the real one now." (AAVE V1 에서 AAVE V2 로 넘어가는 과정처럼) 
+
+And it's just by convention of people migrating over into using this new one, that the upgrade is done. (hence my slang name of social YEET. Because you yeet the first one out of the way and move to the second one. I think I'm funny.) 
+
+Yeah, this has the advantage of truly always saying, "Hey, this is our immutable smart contract. And this is our new one. This is really the truest definition of immutable, because since you give it no way of being upgraded in place, than if somebody calls that contract in 50,000 years in the future, it will respond exactly the same.
+
+Another huge disadvantage here is that you have to have a totally new contract address.
+So if you're an ERC 20 token, for example, you have to go convince all the exchanges to list your new contract address as the actual address. Keep in mind that when we do this, we do have to move the state of the first one over to the second one. So for example, If you're an ERC token moving to a new version of that ERC token, you do have to have a way to take all those mappings from the first contract and move it to the second one.
+Obviously, there are ways to do this, since everything is on-chain. 
+But if you have a million transfer calls, I don't want to have to write the script that updates everyone's balance and figures out what everyone's(whatever ones?) balnace is just so I can migrate to my new version of the contract. So there's a ton of social convention work here to do. 
+
+> Trail of Bits - How contract migration works
+Trail of Bits has actually written a fantastic blog on upgrading from a v1 to v2 or etc. With this YEET methodology(방법론). And they give a lot of steps for moving your storage and your state variables over To the new contract. So link in the description if you wan to read that. 
+
+```md
+Social YEET / Migration
+
+Pros:
+- Truest to blockchain values
+- Easiest to audit
+
+Cons:
+- Lot of work to convince users to move
+- Different addresses
+```
+
+Now let's get to our big ticket item. So in order to have a really robust upgrading mentality or philosophy, we need to have some type of methodology or framework that can update our state, keep our contract address and allow us to update any type of logic in our smart contracts in a easy way, which leads us to our big ticket item is the `Proxies`.
+
+What's our big ticket item?
+
+*truest form of Programmatic upgrades, Others may argue the YEET is the truest*
+
+Proxies are the truest form of upgrades, since a user can keep interacting with the protocols through these proxies, and not even notice that anything changed or even got updated. Now, these are also the places where you can screw up the easiest. 
+
+```solidity
+contract Proxy {
+  mapping(bytes4 => address) implementations;
+  fallback() external payable {
+    address implementation = implementation(msg.sig);
+    return implementation.delegatecall.value(msg.value)(msg.data);
+  }
+}
+```
+
+Proxies use a lot of low level functionality. And the main one being the delegate call functionality.
+
+>Delegate call - https://docs.soliditylang.org/en/v0.8.16/introduction-to-smart-contracts.html?highlight=delegatecall#delegatecall-callcode-and-libraries
+
+Delegate call is a low level function where the code in the target contract is executed in the context of the calling contract. And `message.sender` and `message.value` also don't change. So you understand what delegate call
+means now, right? Great.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-05%20072816.png)
+
+And in English, this means if I delegate call a function in contract B from contract a, I will do contracts B's logic in contract a. So if contract B has a function that says hey, store this value in a variable up top,
+I'm going to store that variable in contract a. 
+
+This is the powerhouse. And this combined with the fallback function allows us to delegate all calls through a proxy contract address to some other contract. 
+
+This means that I can have one proxy contract that will have the same address forever. And I can just point and route people to the correct implementation contract that has the logic. 
+Whenever I want to upgrade, I just deploy a new implementation contract and point my proxy to that new implementation.
+
+Now, whenever a user calls a function on the proxy contract, I'm going to delegate call it to the new contract, I can just call an admin only function on my proxy contract.
+
+```solidity
+// Sample code, do not use in production!
+contract TransparentAdminUpgradableProxy {
+  address implementation;
+  address admin;
+
+  fallback() external payable {
+    require(msg.sender != admin);
+    implementationdelegatecall.value(msg.value)(msg.data);
+  }
+
+  function upgrade(address newImplementation) exteranl {
+    if (msg.sender != admin) fallback();
+    implementation = newImplementation
+  }
+}
+```
+
+Let's call it upgrade or something and I make all the contract calls go to this new contract. 
+When we're talking about proxies, there are four pieces of terminology that we want to keep in mind. 
+
+```md
+Proxy Terminology:
+1. The Implementation Contrarct
+ - Which has all our code of our protocol. When we upgrade, we launch a brand new implementaion contract.
+2. The proxy contract
+ - Which points to which implementation is the "correct" one, and routes everyone's function calls to that contract.
+3. The user
+ - They make calls to the proxy
+4. The admin
+ - This is the user (or group of users/voters) who upgrade to new implementaion contracts.
+```
+
+First is the implementation contract. 
+The implementation contract has all of our logic and all the pieces of our protocol. Whenever we upgrade, we actually launch a brand new implementation contract. the proxy contract. 
+
+Proxy points to which implementation is the correct one. And routes everyone's calls to the correct implementation contract.
+
+You can think the proxy contracts sits on top of the implementations. The user. 
+The user is going to be making contract and function calls through the proxy contract. 
+
+And then some type of admin, the admin is the one who's going to decide when to upgrade and which contract to point to. 
+
+In this scenario, the other cool thing about the proxy and delegate call is that all my storage variables are going to be stored in the proxy contract and not in the implementation contract.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-05%20080627.png)
+
+This way, when I upgrade to a new logic contract, all of my data will stay on the proxy contract. So whenever I want to update my logic, just point to a new implementation contract. 
+
+if I want to add a new storage variable or a new type of storage, I just add it in my logic contract and the proxy contract will pick it up. 
+
+Now, using proxies has a couple of gotchas. And we're gonna talk about the gotchas. And then we're going to talk about the different proxy contract methodologies. because yes, there are many proxy contract methodologies as well. And this is why trilobites doesn't really recommend using upgradable proxies for your smart contracts.
+Because they're fraught(염려하는) with a lot of these potential issues. 
+
+Not to mention, again, you do still have some type of admin who's going to be upgrading your smart contracts. 
+
+Now, if this is a governance protocol, then great, you're decentralized. But if this is a single group or entity, then we have a problem. 
+
+```
+Biggest Gotchas:
+1. Storage Clashes
+2. Function Selector Clashes
+```
+
+The two biggest gotchas are storage, clashes, and function selector clashes. Now, what does this mean? 
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-05%20072816.png)
+
+When we use delegate call, remember, we do the logic of contract B inside contract a. So if contract B says we need to set value to two, we go ahead and set value to two. 
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-05%20094755.png)
+
+what these smart contracts are actually kind of dumb, we actually set the value of whatever is in the same storage location on contract A as contract B. So if our contract looks like this, and we have two variables, contract a, we're still going to set the first storage spot on a contract a to the new value.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-05%20095040.png)
+
+This is really important to know because this means we can only append new storage variables and new implementation contracts.
+
+And we can't reorder or change old ones. This is called storage clashing. And in the implementations we're going to talk about, they all address this issue. 
+
+The next one is called function select or clashes. When we tell our proxies to delegate call to one of these implementations, it uses what's called a function selector to find a function. 
+
+```
+Function Selector:
+A 4byte hash of a function name and function signature that define a function
+```
+
+A function selector is a four byte hash of the function name and the function signature. Don't worry about the function signature for now. 
+
+Now, it's possible that a function in the implementation contract has the same function selector as an admin function in the proxy contract, which may cause you to do accidentally a whole bunch of weird stuff. 
+
+```solidity
+// This contract will not compile, as both functions have the same function selector
+contract Foo {
+  function collate_propagate_storage(bytes16) external { }
+  function burn(uint256) external { }
+}
+```
+For example, in this sample code in front of you even though All these functions are totally different, they actually have the same function selector. 
+So yes, we can run into an issue where some harmless function like `getPrice` has the same function selector as upgrade proxy or destroy proxy or something like that. 
+
+This leads to our first out of the three implementations of the proxy contracts. This is called the transparent proxy pattern. And it's actually going to be the pattern that we're gonna be demoing to you today. 
+
+```md
+Transparent Proxy Patern
+
+- Admins can't call implementation contract functions
+- Users still powerless on admin functions
+- Admin functions are functions that govern the upgrades
+```
+
+In this methodology, admins are only allowed to call admin functions. And they can't call any functions in the implementation contract. And users can only call functions in the implementation contract and not any admin contracts. This way, you can't ever accidentally have one of the two swapping, and having a function selector clash and you running into a big issue where"you call a function, you probably shouldn't have". if you're an admin, you're calling admin functions. If your user you're calling implementation functions. 
+
+So if you're an admin, and you build some crazy, awesome defi protocol, you better come up with a new wallet address because you can't participate. 
+
+```md
+Universal Upgradable Proxies
+
+- AdminOnly Upgrade functions are in the implementation contracts instead of the proxy
+```
+
+The second type of proxy we're going to talk about is the universal upgradeable proxy, or the `UUPS`. 
+
+This version of upgradable contracts actually puts all the logic of upgrading in the implementation itself. 
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-05%20101800.png)
+
+this way, the solidity compiler will actually kick out and say, "Hey, we got two functions in here that have the same function selector.". 
+
+This is also advantageous because we have one less read that we have to do, we no longer have to check in the proxy contract if someone is an admin or not. 
+
+This saves on gas of course. 
+and the proxy is also a little bit smaller because of this. 
+
+The issue is that if you deploy an implementation contract, without any upgradeable functionality. 
+
+you're stuck! And it's back to the YEET method with you. 
+
+And the last pattern or methodology that we're going to talk about is the diamond pattern. which does a number of things. But one of the biggest things that it does, it actually allows for multiple implementation contracts. 
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-05%20103232.png)
+
+This addresses a couple of different issues. For example, if your contract is so big, and it doesn't fit into the one contract maximum size, you can just have multiple contracts through this multi implementation method. 
+
+It also allows you to make more granular(세분화된) upgrades, like you don't have to always deploy and upgrade your entire smart contract, you can just upgrade little pieces of it. If you've chunked them out. All the proxies mentioned here have some type of ethereum improvement proposal, and most of them are in the draft phase. And at the end of this explainer, we will do a demo of showing you how the delegate call function works. And the end of the demo is right now. So let's look at delegate call.
+
+## Delegate Call
+
+Now, we're going to learn about how to actually build these proxies how to build these upgradable smart contracts. 
+
+자 이제 실제로 어떻게 프록시를 구축하고 업그레이드 가능한 계약을 만드는지 배워보겠습니다.
+
+And to do this, we first need to learn about this delegate call function. And it's going to be really similar to the call function, which we learned much earlier. If you haven't seen that, be sure to go back to our Harnett. 
+
+그리고 이를 위해서 먼저 Delegate call (대리 호출)에 대해서 배워야합니다. 전에 배웠던 콜 함수와 굉장히 비슷합니다.
+
+Like I said, in the explainer, it's very similar to call however, the way that I think about it is one contract says Oh, I really like your function, I'm going to borrow it myself.
+
+제가 설명했듯이 call 함수와 굉장히 유사합니다. 어쨌든 저는 어떤 한 계약이 "님 계약이 정말 맘에 들어요. 그 함수 제가 쓸께요"
+라고 말하는것이라 생각하고 있습니다.
+
+And we're going to be looking at solidity by example.
+
+솔리디티 바이 이그젬플로 시작하겠습니다.
+
+>https://solidity-by-example.org/delegatecall/
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.13;
+
+// NOTE: Deploy this contract first
+contract B {
+    // NOTE: storage layout must be the same as contract A
+    uint public num;
+    address public sender;
+    uint public value;
+
+    function setVars(uint _num) public payable {
+        num = _num;
+        sender = msg.sender;
+        value = msg.value;
+    }
+}
+
+contract A {
+    uint public num;
+    address public sender;
+    uint public value;
+
+    function setVars(address _contract, uint _num) public payable {
+        // A's storage is set, B is not modified.
+        (bool success, bytes memory data) = _contract.delegatecall(
+            abi.encodeWithSignature("setVars(uint256)", _num)
+        );
+    }
+}
+```
+
+
+Now we have two contracts, we have this contract B that we're going to be deploying on remix and it looks like a real minimalistic real simple contract. 
+
+자 지금 두개의 계약을 가지고 있는데요, 이 계약 B는 우리가 리믹스에 배포하게 될겁니다. 그리고 굉장히 간소하고 단순한 계약처럼 보이네요.
+
+We have a couple of storage variables here. And then we have a function that updates our values, we have a function called Set VARs and updates are you into public num? 
+
+몇몇의 스토리지 변수도 가지고 있습니다. 그리고 우리의 값(value)를 업데이트 해줄 함수도 가지고 있군요(function setVars), 우리는 setVars라는 함수를 가지고 있고 이것이 `uint public num`을 업데이트 해줄겁니다.  
+
+Now as we learned before, whenever we have some type of contract with storage variables they get stored in, in this storage data structure that's index starting from zero, right now are you into public num is that index zero, or sender's at index one, our values and index two etc.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-05%20222844.png)
+
+그리고 전에 배운것처럼, 0으로 시작하는 스토리지 자료구조에 저장되는 저장(스토리지)변수를 가지고 있는 계약을 가지고 있을대 현재 `uint public num` 은 인덱스 0 입니다 그리고 sender는 인덱스 1이거나요, 그리고 우리가 업데이트하는 값(value)는 인덱스 2가 되거나 그럴겁니다.  
+
+Now we're going to deploy a contract a and now this contract is actually going to use the delegates call function. Now a contract a this is going to look a little bit different, but it's still going to have this set bars functions, except it's going to make a delegate call function call to our contract B.
+
+자 이제 우리는 contract A를 배포할 겁니다. 그리고 이 계약이 실제로 delegate call 함수로 사용될겁니다. 이제 이 contract A는 생김새가 좀 달라졌습니다. 그러나 여전히 setVars 함수는 가지고 있습니다. 대신에 setVars 함수가 contract B에게 delegate call 함수를 수행할겁니다.
+
+Now in our lesson 14 with NF TS we learned about call API dot encode with signature API dot encode etc. So if you're unfamiliar with function selectors, if you're unfamiliar with if you're unfamiliar with this syntax, be sure to go back to lesson 14 To understand ABI dot encode with signature and contract dot call. The difference here is we're doing contract dot delegate call. 
+
+Lesson 14 NFT 에서 우리는 call(abi.encodeWithSignature)나 abi.encode 의 여러 형태에 대해 배웠습니다. 익숙하지 않다면 Lesson 14로 돌아가서 복습해보세요. 
+여기에서 달라진 점이라면 `call` 대신 `delegatecall` 을 사용한다는 점입니다.
+
+What this call does is something very similar to call. Normally, if we did contract dot call on this contract, we would just call this, we would just be calling this function set VARs, which would update contracts B's storage, but instead we're saying Hey, call that set VARs function, and then pass this as an input parameter, but call it in our contract, call it on contract a, we're kind of borrowing a function for our contract. 
+
+이 `call`이 하는 일은 `call`이 하는 일과 매우 비슷합니다. 보통은 우리가 contract.call()을 이 계약에서 하면, 우리는 contract B를 호출하게 됩니다. 우리는 단지 contract B의 setVars를 호출하는겁니다. 바로 contract B의 스토리지(uint public num, address public sender, uint public value...) 를 업데이트 해줄 함수말이에요.
+
+그러나 대신, 이런식으로 하는겁니다. "contract B의 setVars 함수를 불러오긴 불러오는데, 이 인풋 파라미터(_num)도 넘기긴 하는데, 단! 우리 계약에서(contract A)에서 호출해!" 현재 계약(contract A)에서 쓸 함수를 contract B에서 빌려오는 겁니다.
+
+And so instead, what we're going to do, is we're going to borrow this set bars and run the set bars function over here. 
+
+그래서 우리는 contract B에 있는 setVars를 contract A 로 가져와 실행시킬겁니다. 
+
+Now the difference is instead of num equals num The variables could be named different than the variables on contract a. 
+
+그리고 차이점이라면 contractB의 num = _num 대신 변수들은 contract A에 있는 `num` `sender` `value` 와 이름이 달라질겁니다. 
+
+So instead of num equals num, our contract is going to say, hey, whatever that storage of zero have that equal to whatever we pass as an input parameter. And if that's a little bit confusing, just stay with me. Let's go ahead and let's see this in remix. 
+
+그래서 `num = _num` 대신 우리의 계약은 이렇게 말할겁니다. "스토리지 0번째에 있는것이 인풋 파라미터가 뭐든간에 이것과 equal(=)이 되게 해라." 그리고 좀 헷갈리신다면 일단 저를 따라오세요, 리믹스에서 직접 살펴봅시다.
+
+So I'm going to copy paste this code into remix here. So we can kind of test and see what this looks like. Again, there's a link to this in the GitHub repo associated with this course, feel free to pause the video to grab this link. It's solidity, hyphen, by hyphen, example.org/delegate call, or you can just grab the code directly from lesson 16 Hardhead upgrades. 
+
+So let's compile this code. And let me show you what I mean. So I'm going to compile it, and we'll go to the Run tab.
+
+리믹스에 해당 코드를 복사해서 붙여넣고 컴파일 해봅시다. 그리고 제가 말하는게 뭔지 보여드릴께요. 
+
+And first let's deploy this contract beam, we'll hit Deploy, we now have a contract, num, center and value are all blank, we'll update the number to something like 777, we'll hit Set VARS. Set VARs will change the storage variable num to 777.
+
+먼저 contract B를 배포합니다. contract B의 num, sender, value 는 모두 빈값을 가지고 있을겁니다. 
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-07%20223100.png)
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-07%20223142.png)
+
+우리는 num을 `777`로 업데이트 해보겠습니다. setVars 를 눌러주시고요. setVars 가 스토리지 변수 `num`을 `777`로 바꿀겁니다.
+
+
+And then we're changing the sender and the value, sender, and value is zero. 
+
+그러면 값들은 다음과 같이 바뀔겁니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-07%20223219.png)
+
+Now let's deploy contract a. So we'll scroll back up contract a deploy, of course, we're on the JavaScript VM. Now we have this contract a with num value in Cinder are also all blank. But when we call set VARs, it's going to borrow this set VARs function from contract B and run it in contract a, you can almost think of it as if we're copying,set VARs and pasting it into our contract a just for one run, and then immediately deleting ADM, that's what this delegate call function does. 
+
+자 이제 계약 A를 배포해봅시다. 그리고 계약 A deploy 쪽으로 가보면, 이 계약은 당연히 Javascript 가상머신에 있을것이고, 그리고 A 걔약의 화살표를 눌러 확인해보면 num value sender 가 모두 빈값이라는 걸 확인 할 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-07%20223822.png)
+
+그러나 여기서 setVars를 호출한다면 setVars 함수를 contract B에서 빌려와 contract A에서 실행할겁니다. 거의 이렇게 생각하시면 됩니다. setVars 코드줄을 복사해서 contract A에다 붙여넣는거죠, 단 한번 실행하기 위해서요. 그리고 실행후 즉시 IDE에서 해당 코드를 삭제하는 것과 같습니다. 이것이 바로 Delegate call function이 하는 일입니다.
+
+So when I call set VARs, we're going to pass it this contract address as an input parameter. So it knows to call this contract said virus function. When I pass it the address, and I pass 987. Since we're borrowing the function, we're not going to update this num. On contract B, we're going to update the num on contract a. 
+
+그래서 제가 setVars를 호출했을때, ( 이번엔 여기 이 contract B의 주소를 인풋 파라미터로 보낼겁니다.) 그래서 setVars 함수를 이 계약에서 불렀다는걸 알아차릴 수 있도록 할겁니다.
+
+제가 contract A의 setVars 함수에 contractB의 주소를 넣고 num값으로 987을 입력하고(`0xd9145CCE52D386f254917e481eB44e9943F39138, 987`) setVars를 누르면
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-07%20225238.png)
+
+우리가 이 함수를 contractB에서 빌렸기 때문에 우리는 contractB 쪽의 num을 업데이트 하지 않습니다.
+우리는 contract A의 num을 업데이트 하게 되는것입니다.
+
+So when I hit Set VARs, we see num now has 19. Seven, we see Senator and we see value still being zero here, because again, we're borrowing this function and running it here. Now the way that this works, is it actually doesn't look at the names of our stored variables, it looks at the storage slots.
+
+그래서 이 상태에서 setVars를 누르게 되면 num 값이 987이 되는걸 볼 수 있고, sender 값을 볼 수 있고, value는 0인 것을 확인 할 수 있습니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-07%20232714.png)
+
+다시 말하지만 왜 그러냐면 우리는 함수를 빌려와서 contract A에서 실행했기 때문입니다.
+그리고 이렇게 하면 실제로 저장된 변수의 이름이 아니라 스토리지 슬롯을 볼 수 있습니다.
+
+So when we borrow this function using delegate call, so we could have this these variables we named
+29:12:29
+anything instead of num, we could call this first value. Senator, we could call something else. And then value we could
+29:12:38
+call foo, or whatever you want here. 
+
+```solidity
+contract A {
+  uint public firstValue;
+  address public somethingElse;
+  uint public wooooo;
+
+  function setVars(address _contract, uint _num) public payable {
+    // A's storage is set, B is not modified.
+    (bool success, bytes memory data) = _contract.delegatecall(
+      abi.encodeWithSignature("setVars(uint256)", _num)
+    );
+  }
+}
+```
+
+이런식으로 변수이름을 다 바꿔봅시다.
+
+And when we borrow this function using delegate call, instead of grabbing the actual names of the variables, our contract will swap out these variable names with the storage slot. So it says oh, okay, well, in contract B, you're accessing the num variable, which is, which is at storage slot zero. So when we borrow set bars and
+contract a with Delegate call, we'll say storage slot zero is going to equal that underscore num. Which are this
+contract storage slot zero is first value. 
+
+그리고 우리가 setVars 함수를 delgate call을 이용해 빌려서 사용하면 실제 변수이름을 파악하지 않고 우리의 계약은 이 변수이름을 스토리지 슬롯으로 바꿔서 판단합니다. 
+
+계약은 이렇게 생각할겁니다. "그래, 계약 B에서는 num 변수에 접근하려고 하는구나, 스토리지 슬롯 0번째에 있는 거 말야."
+
+그래서 우리가 setVars와 contract a를 delegate call로 빌리면 , 이 계약의 firstValue 값이되는 `스토리지 슬롯 0`이 `_num` 과 동일하다고 말할 수 있습니다. 
+
+```solidity
+contract A {
+  uint public firstValue;
+  address public somethingElse;
+  uint public wooooo;
+
+  function setVars(address _contract, uint _num) public payable {
+    // A's storage is set, B is not modified.
+    (bool success, bytes memory data) = _contract.delegatecall(
+      abi.encodeWithSignature("setVars(uint256)", _num)
+    );
+  }
+
+  function setVars(uint _num) public payable() {
+    // num = _num;
+    // storageSlot[0] = _num;
+    firstValue = _num
+    somethingElse = msg.sender;
+    wooooo = msg.value;
+
+  }
+}
+```
+
+그러면 somethingElse 는 스토리지 슬롯 1이 되겠죠? woooo도 마찬가지로 슬롯 2가 될겁니다.
+
+이것이 뒤편에서 일어나는 작동원리입니다.
+
+So we'll say first value equals underscore Now, something else is going to be
+29:13:23
+stored slot two, so it's gonna say okay, storage slot two, we're gonna update storage slot two to message that sender.
+29:13:30
+Okay? value here is storage slot three. So whatever's in storage,
+29:13:35
+slot three, will update with message dot value like this. So that's essentially what's going on behind the scenes. 
+
+So let's go ahead and let's delete those and redeploy. redeploy them. So we'll deploy contract be deployed contract a, right now in B, once again, if we do 1234, set VARs, we have 123. And then contract a. Now even though these variables have different names, we could grab contract B's address, paste it in, do 654, hit Set VARS. And first value is now six by four. So delegate call allows us to borrow functions, and then just transposes whatever is in here to the storage location equivalents. 
+
+
+자 그럼 변수 이름을 바꾼 상태에서 다시 배포해볼까요? b를 배포한 뒤 a를 배포합니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-08%20213047.png)
+
+그리고 b의 setvars 에 123을 넣어봅시다. 123이 나오나요?
+
+그러면 a로 가서 setVars에 다시 contract b의 주소와 원하는 uint 값을 집어넣어봅시다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-08%20213326.png)
+
+즉 델리게이트 콜은 함수를 빌릴 수 있도록 해주며, 
+
+```solidity
+    function setVars(uint _num) public payable {
+        num = _num;
+        sender = msg.sender;
+        value = msg.value;
+    }
+```
+이 안에있는 num , sender, value를 불려진 계약안의 스토리지 슬롯으로 치환합니다.
+
+
+And the other thing that's interesting is even if you don't have variables, it'll still save to storage slots. So in contract a, if we didn't have any of those variable names, storage slot, 01, and two would still get updated. Now here's where things can get really interesting. Let's delete our contract again. And let's change the type of our contract A's first value to from a UNT to a Boolean. Let's save that. And now let's deploy contract a. Now when we call set VARs, on our contract a, it's still going to use the Set VARs function of contract B, which takes a Yewande and assigns the first storage slot that number we pass it, but our first storage slot is now a Boolean was so what do you think's going to happen now? Well, let's try it out. Let's copy contract B's address, paste it in here. We'll pass we'll do tu tu, tu as our input parameter, we'll hit Set VARS. Our transaction actually does go through. And now when we look at first value, it says true. Hmm, that's really weird. What if we change set VARs to zero, and hit Set VARS. And now, first value is false. In storage here, when we add a number with set VARs, it's going through because it's just setting the storage slot of the boolean to a number. And when solidity reads it, it goes, Oh, well, first value is a Boolean. So if it's anything other than zero, it's going to be true. So this is how you can actually get some really weird results. If your typings are different, or if your stored variants are different. What if we made this an address. So this is where working with Delegate call can get really weird and really tricky, really fast.
+
+또 하나 흥미로운 사실은 여러분이 변수를 가지고 있지 않아도 그것을 스토리지 슬롯에 저장합니다.
+우리가 이런 변수이름이 없더라도 스토리지 슬롯 01 과 02는 여전히 업데이트 됩니다.
+
+이 부분이 정말 재미있는 부분입니다. 리믹스에 배포한 계약을 다시 지워봅시다.
+
+그리고 계약 A에 있는 uint 변수를 boolean 형태로 바꿔봅시다. 그리고 이것은 계속 B 계약의 setVars를 빌려쓰게 될겁니다. 
+
+```solidity
+contract A {
+    bool public firstValue;
+    address public somethingElse;
+    uint public wooooo;
+
+    function setVars(address _contract, uint _num) public payable {
+        // A's storage is set, B is not modified.
+        (bool success, bytes memory data) = _contract.delegatecall(
+            abi.encodeWithSignature("setVars(uint256)", _num)
+        );
+    }
+}
+```
+
+계약 B의 setVars는 파라미터를 uint로 받고 첫번째 스토리지 슬롯에 그것을 할당하게 될테죠.
+
+그러나 이제 contract A의 첫번째 스토리지 슬롯의 변수는 boolean 형태가 되었습니다.
+
+그리고 contract A에서 setVars 에 contract B의 주소와 마찬가지로 uint 파라미터(여기선 222를 넣었습니다.)를 넣어서 실행시켜봅시다.
+
+어떻게 될까요?
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-08%20214411.png)
+
+firstValue가 true로 나오는군요
+
+그렇다면 setVars에 0을 넘기면 어떻게 될까요?
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-08%20214516.png)
+
+이번엔 false 값이 나옵니다.
+
+우리가 firstValue를 boolean으로 바꾸게 되면 솔리디티는 해당 스토리지 슬롯 안에 들어가있는 숫자를 보고 `0`만 아니라면 모두 true로 판단하게 됩니다.
+
+이번엔 address로 바꿔볼까요?
+
+`0xddaAd340b0f1Ef65169Ae5E41A8b10776a75482d, 1` 을 넣었을 때
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-08%20214936.png)
+
+`0xddaAd340b0f1Ef65169Ae5E41A8b10776a75482d, 100` 을 넣었을 때
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-08%20215018.png)
+
+해당 파라미터에서 받은 숫자를 address의 형태로 변환해서 나옵니다. 
+
+그래서 이렇게 델리게이트 콜의 정말 이상하면서도 까다로운 면을 빠르게 배워보았습니다.
+
+## Small Proxy Example
+
+All right. Now, with all this being said, let's turn up the heat. And let me show you a small proxy, a minimal proxy example, that shows how a contract can be used as a singular address, but the underlying code can actually change. And all the code we're gonna be working with, once again, in the hardhat upgrades, FCC sub lesson, small proxy dot Sol, and you can go ahead and copy paste this code if you want to follow along. So you don't have to code along with me here. But you absolutely can if we want. Now, I will say this is going to be one of the most, if not the most advanced section of the entire course. So feel free to go ahead and skip over this sub lesson. If you want to just move on to learning how to actually build these proxies, without really understanding what's going on behind the scenes. However, it is still really powerful if you do understand what's going on behind the scenes. 
+
+좋습니다. 이제 더 힘을 내봅시다. 그리고 아주 간단한 프록시 예제를 보여드릴겁니다.
+
+어떻게 계약을 단일(singular) 주소로 사용하면서 기본 코드를 실제로 변경할 수 있는 방법을 보여드리겠습니다.
+
+저는 이것이 전체 과정의 가장 고급 과정은 아닐지라도 가장 어려운 섹션 중 하나가 될 것이라고 말씀드리겠습니다. 따라서 이 하위 강의를 건너뛰어도 됩니다. 배후에서 무슨 일이 일어나고 있는지 이해하지 않고 이러한 프록시를 실제로 구축하는 방법을 배우고 싶다면 계속 진행하십시오. 그러나 동작원리를 이해한다면 매우 강력한 능력이 될겁니다.
+
+
+
+So I have this minimalistic starting position right here. I have small proxy is proxy. And I'm importing this proxy dot sole thing from up in Zeplin. openzeppelin has this minimalistic proxy contract that we can use to actually start working with this delegate call. 
+
+Now this contract uses a lot of assembly or what's something called you'll. And it's an intermediate language that can be compiled to bytecode for different backends.
+
+It's a sort of inline assembly inside solidity and allows you to write really, really low level code close to the opcodes. Now we're not going to go over you'll but I'll leave some links to the you'll documentation if you want to learn more. 
+
+Even if you're a really advanced user, you really want to try to use as little EULA as possible. Because since it is so much lower level, it is much easier to screw things up. However, like I said, for this example, we are going to be using a little bit of you'll now in this proxy that we're going to be doing, we have this delegate function, which inside this inline assembly, which is you'll, it does a whole lot of really low level stuff. But the main thing that it does is it goes ahead and it does this
+
+
+자 이 코드조각으로부터 출발하도록 하겠습니다. 여기 작은 프록시가 있습니다.
+이 프록시를 오픈제플린에서 가져왔습니다. 오픈제플린에는 delegate call과 함께 사용할 수 있는 프록시 계약이 있습니다.
+
+그리고 이 계약은 아주많은 `assembly` 즉 `Yul`이라 불리는 것을 사용할 겁니다.
+
+>https://docs.soliditylang.org/en/v0.8.16/yul.html?highlight=yul
+
+율은 다른 백엔드를 위한 바이트코드로 컴파일 될 수 있는 중간 언어(intermedate)입니다.
+
+이것은 솔리디티 안의 `inline assembly`로 옵코드에 가까운 저수준(lowlevel)으로 코드를 작성할 수 있게 해줍니다.
+
+여러분이 정말 숙련된 사용자라 할지라도 가능하다면 최대한 적은 `YUL`을 사용하고 싶을겁니다.
+
+왜냐하면 저수준에 가깝기 때문에 그만큼 무언가를 고장나게 만들 가능성이 많기 때문입니다.
+
+그러나 이 예제에서는 아주 적은 YUL을 사용할겁니다.
+
+>https://github.com/OpenZeppelin/openzeppelin-contracts/blob/master/contracts/proxy/Proxy.sol
+```solidity
+// SPDX-License-Identifier: MIT
+// OpenZeppelin Contracts (last updated v4.6.0) (proxy/Proxy.sol)
+
+pragma solidity ^0.8.0;
+
+/**
+ * @dev This abstract contract provides a fallback function that delegates all calls to another contract using the EVM
+ * instruction `delegatecall`. We refer to the second contract as the _implementation_ behind the proxy, and it has to
+ * be specified by overriding the virtual {_implementation} function.
+ *
+ * Additionally, delegation to the implementation can be triggered manually through the {_fallback} function, or to a
+ * different contract through the {_delegate} function.
+ *
+ * The success and return data of the delegated call will be returned back to the caller of the proxy.
+ */
+abstract contract Proxy {
+    /**
+     * @dev Delegates the current call to `implementation`.
+     *
+     * This function does not return to its internal call site, it will return directly to the external caller.
+     */
+    function _delegate(address implementation) internal virtual {
+        assembly {
+            // Copy msg.data. We take full control of memory in this inline assembly
+            // block because it will not return to Solidity code. We overwrite the
+            // Solidity scratch pad at memory position 0.
+            calldatacopy(0, 0, calldatasize())
+
+            // Call the implementation.
+            // out and outsize are 0 because we don't know the size yet.
+            let result := delegatecall(gas(), implementation, 0, calldatasize(), 0, 0)
+
+            // Copy the returned data.
+            returndatacopy(0, 0, returndatasize())
+
+            switch result
+            // delegatecall returns 0 on error.
+            case 0 {
+                revert(0, returndatasize())
+            }
+            default {
+                return(0, returndatasize())
+            }
+        }
+    }
+
+    /**
+     * @dev This is a virtual function that should be overridden so it returns the address to which the fallback function
+     * and {_fallback} should delegate.
+     */
+    function _implementation() internal view virtual returns (address);
+
+    /**
+     * @dev Delegates the current call to the address returned by `_implementation()`.
+     *
+     * This function does not return to its internal call site, it will return directly to the external caller.
+     */
+    function _fallback() internal virtual {
+        _beforeFallback();
+        _delegate(_implementation());
+    }
+
+    /**
+     * @dev Fallback function that delegates calls to the address returned by `_implementation()`. Will run if no other
+     * function in the contract matches the call data.
+     */
+    fallback() external payable virtual {
+        _fallback();
+    }
+
+    /**
+     * @dev Fallback function that delegates calls to the address returned by `_implementation()`. Will run if call data
+     * is empty.
+     */
+    receive() external payable virtual {
+        _fallback();
+    }
+
+    /**
+     * @dev Hook that is called before falling back to the implementation. Can happen as part of a manual `_fallback`
+     * call, or as part of the Solidity `fallback` or `receive` functions.
+     *
+     * If overridden should call `super._beforeFallback()`.
+     */
+    function _beforeFallback() internal virtual {}
+}
+```
+
+
+자 이 Proxy 계약에서(오픈제플린의) 우리는 뭘 할꺼냐면, 
+
+여기 delegate 함수를 가지고 있죠 그리고 안에는 인라인 어셈블리인 YUL을 가지고 있습니다.
+```solidity
+    function _delegate(address implementation) internal virtual {
+        assembly {
+            // Copy msg.data. We take full control of memory in this inline assembly
+            // block because it will not return to Solidity code. We overwrite the
+            // Solidity scratch pad at memory position 0.
+            calldatacopy(0, 0, calldatasize())
+
+            // Call the implementation.
+            // out and outsize are 0 because we don't know the size yet.
+            let result := delegatecall(gas(), implementation, 0, calldatasize(), 0, 0)
+
+            // Copy the returned data.
+            returndatacopy(0, 0, returndatasize())
+
+            switch result
+            // delegatecall returns 0 on error.
+            case 0 {
+                revert(0, returndatasize())
+            }
+            default {
+                return(0, returndatasize())
+            }
+        }
+    }
+```
+
+정말 많은 로우레벨 코드를 가지고 있지만 , 여기서 핵심은 
+```solidity
+ let result := delegatecall(gas(), implementation, 0, calldatasize(), 0, 0)
+```
+이 delegatecall을 부르는 부분입니다.
+
+그리고 좀 더 아래로 내려보면 `fallback`와 `receive` 함수를 사용하는걸 볼 수 있습니다.
+
+```solidity
+    /**
+     * @dev Fallback function that delegates calls to the address returned by `_implementation()`. Will run if call data
+     * is empty.
+     */
+    receive() external payable virtual {
+        _fallback();
+    }
+
+    /**
+     * @dev Hook that is called before falling back to the implementation. Can happen as part of a manual `_fallback`
+     * call, or as part of the Solidity `fallback` or `receive` functions.
+     *
+     * If overridden should call `super._beforeFallback()`.
+     */
+    function _beforeFallback() internal virtual {}
+```
+
+그래서 우리가 파악되지 않은 함수를 받았을 경우 fallback을 호출할것이며, fallback은 다시 delegate 함수를 호출할겁니다.
+
+따라서 매번 프록시 계약이 인식할 수 없는 함수를 받을 경우 그것은 `implementation`이란 값으로 보내지게 됩니다.
+
+```solidity
+    function _delegate(address implementation) internal virtual {
+        assembly {
+            // Copy msg.data. We take full control of memory in this inline assembly
+            // block because it will not return to Solidity code. We overwrite the
+            // Solidity scratch pad at memory position 0.
+            calldatacopy(0, 0, calldatasize())
+
+            // Call the implementation.
+            // out and outsize are 0 because we don't know the size yet.
+            let result := delegatecall(gas(), implementation, 0, calldatasize(), 0, 0)
+
+            // Copy the returned data.
+            returndatacopy(0, 0, returndatasize())
+
+            switch result
+            // delegatecall returns 0 on error.
+            case 0 {
+                revert(0, returndatasize())
+            }
+            default {
+                return(0, returndatasize())
+            }
+        }
+    }
+```
+
+어떤 `implemetation`(구현) 계약이 delegatecall로 호출된다는 겁니다!
+
+리믹스에 있는 우리의 간단한 예제를 보면
+```solidity
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.7;
+
+import "@openzeppelin/contracts/proxy/Proxy.sol";
+
+contract SmallProxy is Proxy {
+    // This is the keccak-256 hash of "eip1967.proxy.implementation" subtracted by 1
+    bytes32 private constant _IMPLEMANTATION_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
+
+    function setImplementation(address newImplementation) public {
+        assembly {
+            sstore(_IMPLEMANTATION_SLOT, newImplementation)
+        }
+    }
+
+    function _implementation() internal view override returns (address implementationAddress) {
+        assembly {
+            implementationAddress := sload(_IMPLEMANTATION_SLOT)
+        }
+    }
+}
+```
+`setImplementation` 이 delegate call이 어디로 전송되어야 하는지 결정해주는 역할을 하고 있습니다.
+
+이것이 바로 스마트 계약 업그레이드와 동일한겁니다.
+
+그리고 `_implementation()` 함수가 있는데 이것이 어디에 그 implementation 계약이 있는지 읽을 수 있게 해주는 함수입니다.
+
+자 이제, 프록시로 작업을 할때는 우리는 스토리지에 있는 어떤것도 가지고 싶지 않습니다. 왜냐하면 우리가 delegate call을 하면, 그리고 그 delegate call이 스토리지 를 바꾼다면 우리는 계약의 스토리지를 망쳐버리게 됩니다.
+
+여기서 단 한가지 주의사항(caveat)은 우리는 여전히 우리가 호출할 수 있도록 implementation address를 저장할 곳이 필요합니다.
+
+그래서 `EIP-1976`에서는 그것을 `표준 프록시 스토리지 슬롯(the standard proxy storage slot)`라고 부르는 특별히 프록시를 사용하기 위한 특정 스토리지 슬롯을 가지고 있습니다. 
+
+```solidity
+    bytes32 private constant _IMPLEMANTATION_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
+```
+그리고 바로 이 슬롯이 그 스트로지를 가르키는 변수입니다.
+
+따라서 이것이 바로 implementation address가 위차하고 있는 공간입니다.
+
+그래서 우리의 프록시가 어떤 계약이든 이 SmallProxy를 호출하는 모든 계약에 대해 동작하는 방법은 ,
+
+setImplementation 함수가 아니라 거기에 무엇이 들어있든 _IMPLEMENTATION_SLOT으로 전달될겁니다.
+
+그것이 여기서 만든 것입니다.
+
+그리고 아주 작은 계약을 하나 만들어보겠습니다. 
+
+```solidity
+contract implementationA {
+    uint256 public value;
+
+    function setValue(uint256 newValue) public {
+        value = newValue;
+    }
+}
+```
+
+그리고 이것이 바로 implementation 이 될겁니다.
+
+그래서 이제 어떤사람이든 SamllProxy를 호출한 사람은 ImplementationA를 델리게이트 콜로 호출 할것이며
+
+SmallProxy 주소를 스토리지를 저장하게 됩니다.
+
+따라서 이 `setValue` 함수 셀렉터를 사용하기 위해 데이터와 함께 `SmallProxy`를 호출할 것입니다.
+
+그러니 그 데이터를 얻을 수 있는 도우미 함수를 만들어보겠습니다. `getDataToTransact`
+
+그리고 우리는 그 데이터를 abi.encodedWithSignature 로 얻을 수 있다는 사실을 저번시간에 배웠습니다.
+
+```solidity
+// SPDX-License-Identifier: MIT
+
+pragma solidity ^0.8.7;
+
+import "@openzeppelin/contracts/proxy/Proxy.sol";
+
+contract SmallProxy is Proxy {
+    // This is the keccak-256 hash of "eip1967.proxy.implementation" subtracted by 1
+    bytes32 private constant _IMPLEMANTATION_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
+
+    function setImplementation(address newImplementation) public {
+        assembly {
+            sstore(_IMPLEMANTATION_SLOT, newImplementation)
+        }
+    }
+
+    function _implementation() internal view override returns (address implementationAddress) {
+        assembly {
+            implementationAddress := sload(_IMPLEMANTATION_SLOT)
+        }
+    }
+
+    function getDataToTransact(uint256 numberToUpdate) public pure returns (bytes memory) {
+        return abi.encodeWithSignature("setValue(uint256)", numberToUpdate);
+    }
+
+}
+
+// SmallProxy -> ImplementationA
+
+contract implementationA {
+    uint256 public value;
+
+    function setValue(uint256 newValue) public {
+        value = newValue;
+    }
+}
+```
+
+자 이제 트랜잭션 할 data(selector)를 얻게되었습니다.
+
+그리고 우리는 SnallProxy에서 implementation A를 호출 할때, SmallProxy 스토리지를 업데이트 할것임을 알고 있습니다.
+
+그러므로 SamllProxy의 스토리지를 읽을 수 있는 함수를 하나 만들겠습니다.
+
+```solidity
+    function readStorage() public view returns (uint256 valueAtStorageSlotZero) {
+        assembly {
+            valueAtStorageSlotZero
+        }
+    }
+```
+
+그리고 스토리지 슬롯 0에 있는 값을 읽기 위해 sload 옵코드를 이용할겁니다.
+
+우리는 `set it`을 할건데 `:=` 이것이 어셈블리에서 set 입니다.
+
+그리고 `sload(0)`에 set 해주고 `valueAtStorageSlotZero`에는 스토리지 슬롯0에 있는 값이 반환될 겁니다.
+
+그래서 윌는 이렇게 스토리지에서 직접 값을 읽었습니다.
+
+자. 이제 `SmallProxy`와 `ImplementationA`를 배포해봅시다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-08%20230900.png)
+
+자 우리의 SmallProxy는 setImplementation 함수가 있어서, 매번 이 프록시 계약을 호출할때마다, 우리는 `implementationA`계약에 있는 함수를 delegate call 할겁니다.
+
+그러니 `implementationA` 주소를 복사해서 `setImplementation`에 인수로 넣어봅시다.
+
+그리고 `getDataToTransaction` 에 `777`을 넣어보겠습니다. 
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-08%20231248.png)
+
+```
+0: bytes: 0x552410770000000000000000000000000000000000000000000000000000000000000309
+```
+그리고 바로 이 값이 
+
+```solidity
+    function getDataToTransact(uint256 numberToUpdate) public pure returns (bytes memory) {
+        return abi.encodeWithSignature("setValue(uint256)", numberToUpdate);
+    }
+```
+
+setValue(uin256) 함수를  numberToUpdate(777) 인수와 함께 인코딩 한것입니다. 
+그래서 우리가 SmallPorxy를 이 데이터와 함께 호출하면
+
+프록시 계약이 이렇게 생각할겁니다. " 아 그래 이건 함수구나, 어... 여기에선 그 함수를 못찾겠는데? fallback을 호출해야겠어"
+
+그리고 fallback은 오픈제플린 Proxy 계약에 있는 그 fallback 입니다. 그리고 그 fallback은 _delegate(여러 로우레벨 코드가 있지만 결국엔 delegatecall을 실행하는)를 호출할 것입니다.
+
+우리는 `implementationA`에 있는 함수 `setValue`를 얻게 될 것이고, 우리는 이 함수를 빌려서 가져와서 SmallProxy 에서 사용할 겁니다. 
+
+
+getDataToTransact 에 있는 값을 복사해서 Low level interactions 에 있는 CALLDATA에 붙여넣고 Transact를 누르면
+
+그리고 readStorage 를 누르게 되면 0이 였던것이 777로 바뀌는 모습을 확인 할 수 있습니다!
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-08%20232124.png)
+
+자 이것은 아주 정말 유용할겁니다.
+
+우리는 계약을 업데이트 할거죠?
+
+자 이번엔 `implementationA` 계약을 복사해서 `implementationB` 계약을 하나 더 만들어봅시다.
+
+단, 이번에는 `setValue = newValue +2 ;` 로 설정해 보겠습니다.
+
+```solidity
+contract implementationB {
+    uint256 public value;
+
+    function setValue(uint256 newValue) public {
+        value = newValue + 2;
+    }
+}
+```
+
+그럼 이제 implementationB를 배포하고 해당 주소를 `setImplementation`에 넣고 넣어 호출해봅시다.
+
+자 그럼면 우리는 근본적으로 우리는 지금 `implementationA`계약을 `implementationB` 계약으로 업그레이드 한 것입니다!
+
+
+
+`getDataToTransact`에 똑같이 777을 넣어 호출하고 해당 데이터를 CALLDATA에 넣어 Transact를 눌러봅시다.
+그렇게 되면 우리는 `implementationA`계약에서 setValue를 빌려오는 것이 아니라 `implementationB`에서 해당 함수를 불러올 것입니다!
+
+자 값을 확인해보면 2가 더해진 `779` 가 나왔습니다!
+
+그런데 getDataToTransact의 값은 동일하군요!
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-08%20232856.png)
+
+자 이것이 바로 업그레이드가 작동하는 아주 단순한 예제입니다.
+
+이제 사람들에게 "여러분 함수를 호출할때 Small Proxy를 통해서 호출하도록 해요" 라고만 말해주면 됩니다!
+
+이것은 또한 이 프로토콜의 개발자가 기본 논리를 언제든지 본질적으로 변경할 수 있음을 의미합니다. 
+
+그렇기 때문에 계약서를 읽고 누가 개발자 키를 가지고 있는지 확인하는 것이 매우 중요합니다.
+
+그리고 계약을 업데이트할 수 있고 한 사람이 이를 업데이트할 수 있다면 하나의 중앙 집중화된 실패점을 만들게 되는겁니다. 
+
+그리고 기술적으로도 여러분의 계약은 탈중앙화되지 않은것입니다.
+
+그리고 또 한가지 말씀드릴것은 function clashes 에 대한 것입니다. function selector clashes 함수 선택자 충돌
+
+지금 우리가 setImplementation 을 호출할때  만약
+
+```solidity
+contract implementationB {
+    uint256 public value;
+
+    function setValue(uint256 newValue) public {
+        value = newValue + 2;
+    }
+
+    function setImplementation(){}
+}
+```
+여기서 `function setImplementation(){}` 는 절대 호출되지 못할겁니다. 
+
+## Transparent Upgradeable Proxy Contract
+
+
+`Box.sol`
+```solidity
+// SPDX-License-Identifier: SEE LICENSE IN LICENSE
+pragma solidity ^0.8.7;
+
+// Implementation (Logic)
+
+contract Box {
+    uint256 internal value;
+
+    event ValueChanged(uint256 newValue);
+
+    function store(uint256 newValue) public {
+        value = newValue;
+        emit ValueChanged(newValue);
+    }
+
+    function retrieve() public view returns (uint256) {
+        return value;
+    }
+
+    function version() public pure returns (uint256) {
+        return 1;
+    }
+}
+```
+
+`BoxV2.sol`
+```solidity
+// SPDX-License-Identifier: SEE LICENSE IN LICENSE
+pragma solidity ^0.8.7;
+
+// Implementation (Logic)
+
+contract Box {
+    uint256 internal value;
+
+    event ValueChanged(uint256 newValue);
+
+    function store(uint256 newValue) public {
+        value = newValue;
+        emit ValueChanged(newValue);
+    }
+
+    function retrieve() public view returns (uint256) {
+        return value;
+    }
+
+    function version() public pure returns (uint256) {
+        return 2;
+    }
+
+    function increment() public {
+        value = value + 1;
+        emit ValueChanged(value);
+    }
+}
+```
+
+두 파일을 contracts 폴더에 만든 후에 Box 를 BoxV2 로 업그레이드 해볼겁니다.
+
+README.md 파일을 작성해봅시다.
+```md
+1. Upgrade Box -> Box V2
+2. Proxy -> Box
+         -> Box V2
+
+1. Deploy a Proxy manually
+2. hardhat-deploy's built-in proxies <-
+3. Openzeppelin upgrades plugin
+```
+
+여기서 우리는 2번째 방법으로 해볼겁니다.
+
+첫번째는 방금 전의 레슨에서 해보았고
+세번째는 깃허브 리포지토리에 스크립트가 있습니다.
+
+deploy 폴더에 `01-deploy-box.js` 스크립트를 생성합니다.
+
+```js
+const { network } = require("hardhat");
+
+module.exports = async ({getNamedAccounts, deployments}) => {
+    const {deploy, log} = deployments;
+    const {deployer} = await getNamedAccounts();
+
+    log("----------------")
+    const box = await deploy("Box", {
+        from: deployer,
+        args: [],
+        waitConfirmations: network.config.blockConfirmations || 1,
+        proxy: {
+            
+        }
+    })
+}
+```
+
+이렇게 box를 배포하는 스크립트를 짠 후 proxy 프로퍼티를 넣어 프록시에 대해 설정할 수 있습니다.
+
+오픈제플린의 `TransparentUpgradeableProxy.sol`을 사용할겁니다.
+
+오픈제플린도 설치해줍시다.
+
+```ps1
+yarn add --dev @openzeppelin/contracts
+```
+
+우리는 이 계약을 프록시 뒤에 배포할 수 있도록 설정할 수 있습니다.
+
+So instead of having an admin address, for the proxy contract, we're going to have the proxy contract owned by an admin contract.
+
+프록시 계약을 위한 어드민 주소를 가지는 대신, 우리는 어드민 계약이 소유한 프록시 계약을 가질겁니다.
+
+이것은 또한 여러가지 이유로 BestPractice 이기도 합니다.
+
+```js
+const { network } = require("hardhat");
+
+module.exports = async ({ getNamedAccounts, deployments }) => {
+  const { deploy, log } = deployments;
+  const { deployer } = await getNamedAccounts();
+
+  log("----------------");
+  const box = await deploy("Box", {
+    from: deployer,
+    args: [],
+    waitConfirmations: network.config.blockConfirmations || 1,
+    proxy: {
+      proxyContract: "OpenZepplinTransparentPorxy",
+      viaAdminContract: {
+        name: "BoxProxyAdmin",
+        artifact: "BoxProxyAdmin",
+      },
+    },
+  });
+};
+```
+
+그래서 우리는 BoxProxyAdmin 계약을 Box계약의 소유권을 가지기 위해서 만들어야합니다.
+
+contract/proxy 폴더를 새로 생성하고 `BoxProxyAdmin.sol` 파일을 생성합니다.
+
+그리고 이 파일이 box의 프록시를 결정하는 어드민 계약이 될겁니다.
+
+그리고 오픈제플린의 `ProxyAdmin.sol`계약을 사용할겁니다.
+
+```solidity
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.7;
+
+import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+
+contract BoxProxyAdmin is ProxyAdmin {
+    constructor(address /* owner */) ProxyAdmin() {}
+}
+```
+
+ProxyAdmin.sol 파일에는 프록시 어드민에 관한 함수와 프록시를 바꾸는 함수등 다양한 기능이 들어있습니다.
+
+이제 Box 계약을 프록시 뒤에 배포할겁니다. 그리고 그 프록시 계약은 `OpenZepplinTransparentPorxy` 가 될 텐데요.
+
+이 `OpenZepplinTransparentProxy`는 `BoxProxyAdmin`이 소유하고 있는 계약입니다.
+
+그리고 wighawag/ template-ethereum-contracts 에 보면 example/openzeppeline-proxies 라는 예제파일이 또 있습니다.
+
+해당 리포의 deploy 폴더를 보면 프록시타입에 따라 배포하는 스크립트들이 작성되어있습니다.
+
+그 전에 모든 스크립트를 타입스크립트로 변환하겠습니다.
+
+`tsconfig.json`
+```json
+{
+    "compilerOptions": {
+      "target": "es2018",
+      "module": "commonjs",
+      "strict": true,
+      "esModuleInterop": true,
+      "outDir": "dist"
+      // optional:
+      // "suppressImplicitAnyIndexErrors": true
+    },
+    "include": ["./scripts", "./test", "./deploy", "./deploy-helpers"],
+    "files": ["./hardhat.config.ts", "./helper-hardhat-config.ts"]
+  }
+```
+
+`01-deploy-box.ts`
+```ts
+import {HardhatRuntimeEnvironment} from 'hardhat/types';
+import {DeployFunction} from 'hardhat-deploy/types';
+import { blockConfirmations, developmentChains } from '../helper-hardhat-config';
+import verify from "../utils/verify"
+
+const deployBox:DeployFunction = async function (hre:HardhatRuntimeEnvironment) {
+  const {deployments, getNamedAccounts, network} = hre;
+
+  const {deploy, log} = deployments;
+  const {deployer} = await getNamedAccounts();
+
+  const waitConfirmations = developmentChains.includes(network.name) ? 1 : blockConfirmations
+
+  log("************************** 배포중 **************************")
+  const box = await deploy("Box",{
+    from: deployer,
+    log: true,
+    args: [],
+    waitConfirmations: waitConfirmations,
+    proxy: {
+      proxyContract:"OpenZeppelinTransparentProxy",
+      viaAdminContract: {
+        name: "BoxProxyAdmin",
+        artifact: "BoxProxyAdmin"
+      }
+    }
+  })
+
+  if(!developmentChains.includes(network.name) && process.env.ETHERSCAN_API_KEY) {
+    await verify(box.address, [])
+  }
+  log("-----------------------------------------")
+};
+
+export default deployBox;
+deployBox.tags = ["all","box"];
+```
+
+`utils/verify.ts`
+```ts
+import { run } from "hardhat";
+
+async function verify(contractAddress: string, args: any[]) {
+  console.log("계약 검증을 시도합니다");
+  try {
+    await run("verify:verify", {
+      address: contractAddress,
+      constructorAddress: args,
+    });
+  } catch (error:any) {
+    if (error.message.toLowerCase().includes("already verified")) {
+      console.log("이미 검증된 계약입니다.");
+      return;
+    }
+    console.log(error);
+  }
+}
+
+export default verify;
+
+```
+
+`hepler-hardhat-config.ts`
+
+```ts
+import { BigNumber } from "ethers";
+import { ethers } from "hardhat";
+
+export interface networkConfigItem {
+    name?: string,
+    vrfCoordinatorV2?: string,
+    entranceFee?: string | BigNumber,
+    keyHash?: string,
+    subscriptionId?: string,
+    callbackGasLimit?: string,
+    interval?: string,
+    mintFee?: string | BigNumber,
+    ethUsdPriceFeed?: string,
+}
+
+export interface networkConfigInfo {
+    [key:string]: networkConfigItem
+}
+
+export const networkConfig:networkConfigInfo = {
+    4: {
+        name: "rinkeby",
+        vrfCoordinatorV2: "0x6168499c0cFfCaCD319c818142124B7A15E857ab",
+        entranceFee: ethers.utils.parseEther("0.01"),
+        keyHash: "0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc",
+        subscriptionId: "7276",
+        callbackGasLimit: "500000", // 500,000
+        interval: "30",
+        mintFee: ethers.utils.parseEther("0.01"),
+        ethUsdPriceFeed: "0x8A753747A1Fa494EC906cE90E9f37563A8AF630e",
+    },
+    5: {
+        name: "goerli",
+        vrfCoordinatorV2: "0x2Ca8E0C643bDe4C2E08ab1fA0da3401AdAD7734D",
+        entranceFee: ethers.utils.parseEther("0.01"),
+        keyHash: "0x79d3d8832d904592c0bf9818b621522c988bb8b0c05cdc3b15aea1b6e8db0c15", // 30gwei keyHash
+        subscriptionId: "7276",
+        callbackGasLimit: "500000",
+        interval: "30",
+        mintFee: ethers.utils.parseEther("0.01"),
+        ethUsdPriceFeed: "0xD4a33860578De61DBAbDc8BFdb98FD742fA7028e",
+    },
+    31337: {
+        name: "localhost",
+        entranceFee: ethers.utils.parseEther("0.01"),
+        keyHash: "0xd89b2bf150e3b9e13446986e571fb9cab24b13cea0a43ea20a6049a85cc807cc", //모의계약이기때문에 뭐가와도 상관없음(비어있어도 돌아감)
+        callbackGasLimit: "500000", // 500,000
+        interval: "30",
+        mintFee: ethers.utils.parseEther("0.01")
+    }
+}
+
+export const developmentChains = ["hardhat","localhost"];
+export const blockConfirmations = 6;
+// export const frontEndContractsFile = "../nextjs-smartcontract-lottery-fcc/constants/contractAddresses.json"
+```
+
+
+`hardhat.config.ts`
+```ts
+import "@typechain/hardhat"
+import "@nomiclabs/hardhat-ethers";
+import "@nomiclabs/hardhat-etherscan";
+import "@nomiclabs/hardhat-waffle";
+import "hardhat-deploy";
+import "hardhat-gas-reporter";
+import "hardhat-contract-sizer";
+import "solidity-coverage";
+import "dotenv/config";
+import { HardhatUserConfig } from "hardhat/config"
+
+const RINKEBY_RPC_URL = process.env.RINKEBY_RPC_URL;
+const GOERLI_RPC_URL = process.env.GOERLI_RPC_URL;
+const PRIVATE_KEY = process.env.PRIVATE_KEY;
+const ETHERSCAN_API_KEY = process.env.ETHERSCAN_API_KEY;
+const COINMARKETCAP_API_KEY = process.env.COINMARKETCAP_API_KEY;
+const MAINNET_RPC_URL = process.env.MAINNET_RPC_URL;
+
+
+/** @type import('hardhat/config').HardhatUserConfig */
+const config:HardhatUserConfig = {
+  defaultNetwork: "hardhat",
+  solidity: {
+    compilers: [
+      { version: "0.8.7" },
+      { version: "0.6.6" },
+      { version: "0.6.12" },
+      { version: "0.4.19" },
+    ],
+  },
+  networks: {
+    hardhat: {
+      chainId: 31337,
+      // forking: {
+      //   url: MAINNET_RPC_URL,
+      // }
+    },
+    localhost: {
+      chainId: 31337,
+    },
+    rinkeby: {
+      chainId: 4,
+      url: RINKEBY_RPC_URL,
+      accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [],
+    },
+    goerli: {
+      chainId: 5,
+      url: GOERLI_RPC_URL,
+      accounts: PRIVATE_KEY !== undefined ? [PRIVATE_KEY] : [],
+    }
+  },
+  namedAccounts: {
+    deployer: {
+      default: 0,
+    },
+    user: {
+      default: 1,
+    },
+  },
+  etherscan: {
+    apiKey: ETHERSCAN_API_KEY,
+  },
+  gasReporter: {
+    enabled: true,
+    outputFile: "gas-report.txt",
+    noColors: true,
+    coinmarketcap: COINMARKETCAP_API_KEY,
+    currency: "KRW",
+    token: "ETH",
+  },
+  mocha: {
+    timeout: 300000,
+  },
+};
+
+export default config;
+```
+
+자 이제 배포를 한번 해볼까요
+
+```ps1
+yarn hardhat deploy
+```
+
+
+에러가 발생했습니다.
+```ps1
+Error: ERROR processing C:\Users\ESO\Desktop\Dev\web3\hardhat-upgrade\deploy\01-deploy-box.ts:
+HardhatError: HH701: There are multiple artifacts for contract "Box", please use a fully qualified name.
+
+Please replace Box for one of these options wherever you are trying to read its artifact:
+
+contracts/Box.sol:Box
+contracts/BoxV2.sol:Box
+```
+
+Box.sol 안의 계약명과 BoxV2 안의 계약명이 같아서 발생한 문제입니다. 
+
+```solidity
+// contract Box { ... }
+contract BoxV2 { ... }
+```
+BoxV2로 계약이름을 바꿔줍니다.
+
+```ps1
+Generating typings for: 1 artifacts in dir: typechain-types for target: ethers-v5
+Successfully generated 30 typings!
+Compiled 1 Solidity file successfully
+************************** 배포중 **************************
+deploying "BoxProxyAdmin" (tx: 0x1cac364f909462e367346b8a4d5403b1707964152db0f0467850843dcee19182)...: deployed at 0x5FbDB2315678afecb367f032d93F642f64180aa3 with 789621 gas
+deploying "Box_Implementation" (tx: 0xac240b695123c063a5d14f803094ef0cd6b360b1eed343a203b82c4624da5435)...: deployed at 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512 with 148435 gas
+deploying "Box_Proxy" (tx: 0xa6541c97c4ba8258112ae244f983eacc4179d9c086dbb847af24bb59da094ab2)...: deployed at 0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0 with 720430 gas
+-----------------------------------------
+Done in 3.52s.
+```
+
+배포되었습니다!
+
+그리고 뭔가 다른점이 보이시나요?
+
+hardhat-deploy 플러그인이 BoxPorxyAdmin을 통해서 배포한 Box의 이름을 `Box_Implementation`으로 바꿔서 배포했습니다.
+
+그리고 나서 `Box_Proxy`를 또 다른 주소에 배포했습니다.
+
+따라서 Box_Proxy 주소를 호출할때마다 가리키는 로직은 Box계약의 로직입니다.
+
+자 이제 Box2를 Box2_implementation으로 배포하고 Box를 Box2로 업그레이드 해봅시다.
+
+새 디플로이 스크립트 `02-deploy-boxv2.ts`를 생성합니다.
+
+```ts
+import { DeployFunction } from "hardhat-deploy/types";
+import { HardhatRuntimeEnvironment } from "hardhat/types";
+import { blockConfirmations, developmentChains } from "../helper-hardhat-config";
+import verify from "../utils/verify";
+
+const boxV2Deploy:DeployFunction = async function(hre:HardhatRuntimeEnvironment) {
+    const { deployments, getNamedAccounts, network } = hre;
+
+    const { deploy, log } = deployments;
+    const { deployer } = await getNamedAccounts();
+
+    const waitConfirmations = developmentChains.includes(network.name) ? 1 : blockConfirmations;
+
+    const boxV2 = await deploy("BoxV2", {
+        from: deployer,
+        log: true,
+        args: [],
+        waitConfirmations: waitConfirmations, 
+    })
+
+    if(!developmentChains.includes(network.name) && process.env.ETHERSCAN_API_KEY) {
+        await verify(boxV2.address, []);
+    }
+}
+
+export default boxV2Deploy;
+boxV2Deploy.tags = ["all","boxv2"];
+```
+
+그리고 `scripts` 폴더를 만들어 업그레이드 해주는 스크립트를 만들어보겠습니다.
+
+scripts 폴더 안에 `upgrade-box.ts` 파일을 만들겠습니다.
+
+첫번째로는 수동으로 하는 방법을 먼저 알아보겠습니다.
+
+정확히 어떤 함수가 작동하여 업그레이드 과정을 진행하는지 보여드리기 위해서입니다.
+
+hardhat-deploy는 api가 제공되어 box 계약을 정말 쉽게 업그레이드 할 수 있습니다.
+
+```ts
+// manual way
+
+import { ethers } from "hardhat";
+
+async function main() {
+    const boxProxyAdmin = await ethers.getContract("BoxProxyAdmin");
+    
+}
+
+main()
+  .then(() => {
+    process.exitCode = 0;
+  })
+  .catch((error) => {
+    console.log(error);
+    process.exitCode = 1;
+  });
+```
+먼저 boxProxyAdmin 계약을 불러옵니다.
+
+그리고 실제 프록시를 불러올겁니다. 어떤 것이나면 바로 transparentProxy 입니다.
+
+```ts
+// manual way
+
+import { ethers } from "hardhat";
+
+async function main() {
+    const boxProxyAdmin = await ethers.getContract("BoxProxyAdmin");
+    const transparentProxy = await ethers.getContract("Box_Proxy")
+
+}
+
+main()
+  .then(() => {
+    process.exitCode = 0;
+  })
+  .catch((error) => {
+    console.log(error);
+    process.exitCode = 1;
+  });
+
+```
+
+hardhat-deploy가 우리의 프록시를 Box_Proxy 로 개명했기 때문에 이렇게 써야합니다.
+
+그리고 다음으로 당연히 BoxV2 계약이 필요하겠죠
+
+그런다음  호출된 BoxProxyAdmin 계약에서 upgrade 함수를 호출하고
+
+이 함수는 또다시 transparentProxy를 호출하고 implementation을 Box 에서 Box2로 바꿔줄겁니다.
+
+```ts
+const upgradeTx = await boxProxyAdmin.upgrade(transparentProxy.address, boxV2.address);
+```
+바로 이렇게 box1을 상징하는 transparentProxy.address 에서 boxV2.address로 업그레이드 해줄겁니다.
+
+BoxProxyAdmin에 있는 ProxyAdmin 계약에서 upgrade 함수를 살펴보면
+
+```solidity
+    /**
+     * @dev Upgrades `proxy` to `implementation`. See {TransparentUpgradeableProxy-upgradeTo}.
+     *
+     * Requirements:
+     *
+     * - This contract must be the admin of `proxy`.
+     */
+    function upgrade(TransparentUpgradeableProxy proxy, address implementation) public virtual onlyOwner {
+        proxy.upgradeTo(implementation);
+    }
+
+```
+upgradeTo 를 호출하는 upgrade 함수를 볼 수 있습니다.
+
+```ts
+// manual way
+
+import { ethers } from "hardhat";
+
+async function main() {
+    const boxProxyAdmin = await ethers.getContract("BoxProxyAdmin");
+    const transparentProxy = await ethers.getContract("Box_Proxy");
+    const boxV2 = await ethers.getContract("BoxV2");
+    const upgradeTx = await boxProxyAdmin.upgrade(transparentProxy.address, boxV2.address);
+    await upgradeTx.wait(1);
+
+    const proxyBox = await ethers.getContractAt("BoxV2", transparentProxy.address)
+
+}
+
+main()
+  .then(() => {
+    process.exitCode = 0;
+  })
+  .catch((error) => {
+    console.log(error);
+    process.exitCode = 1;
+  });
+
+```
+
+그리고 BoxV2 계약을 가져오는데 주소를 transparentProxy에 있는 주소로 설정합니다. 
+
+그리고 proxy로 배포된 BoxV2에서 version 함수를 호출합니다.
+
+```ts
+// manual way
+
+import { ethers } from "hardhat";
+
+async function main() {
+    const boxProxyAdmin = await ethers.getContract("BoxProxyAdmin");
+    const transparentProxy = await ethers.getContract("Box_Proxy");
+    const boxV2 = await ethers.getContract("BoxV2");
+    const upgradeTx = await boxProxyAdmin.upgrade(transparentProxy.address, boxV2.address);
+    await upgradeTx.wait(1);
+
+    const proxyBox = await ethers.getContractAt("BoxV2", transparentProxy.address)
+    const version = await proxyBox.version();
+    console.log(version);
+}
+
+main()
+  .then(() => {
+    process.exitCode = 0;
+  })
+  .catch((error) => {
+    console.log(error);
+    process.exitCode = 1;
+  });
+
+```
+
+그리고 이 버전의 implementation과 전 버전의 implementation을 비교해보도록 하겠습니다.
+
+다음과 같이 proxyBoxV1 과 proxyBoxV2 로 나누어 비교해보도록 하겠습니다.
+
+```ts
+// manual way
+
+import { ethers } from "hardhat";
+
+async function main() {
+    const boxProxyAdmin = await ethers.getContract("BoxProxyAdmin");
+    const transparentProxy = await ethers.getContract("Box_Proxy");
+    
+    const proxyBoxV1 = await ethers.getContract("Box", transparentProxy.address);
+    const versionV1 = await proxyBoxV1.version();
+    console.log(versionV1.toString());
+    
+    const boxV2 = await ethers.getContract("BoxV2");
+    const upgradeTx = await boxProxyAdmin.upgrade(transparentProxy.address, boxV2.address);
+    await upgradeTx.wait(1);
+    
+    const proxyBoxV2 = await ethers.getContractAt("BoxV2", transparentProxy.address)
+    const versionV2 = await proxyBoxV2.version();
+    console.log(versionV2.toString());
+}
+
+main()
+  .then(() => {
+    process.exitCode = 0;
+  })
+  .catch((error) => {
+    console.log(error);
+    process.exitCode = 1;
+  });
+
+```
+
+이제 두가지의 version 함수가 어떤 값을 반환하는지 비교해보겠습니다.
+
+```ps1
+yarn hardhat node
+```
+box와 boxv2를 프록시로 로컬에 배포합니다.
+
+```ps1
+Generating typings for: 14 artifacts in dir: typechain-types for target: ethers-v5
+Successfully generated 48 typings!
+Compiled 14 Solidity files successfully
+************************** 배포중 **************************
+deploying "BoxProxyAdmin" (tx: 0x1cac364f909462e367346b8a4d5403b1707964152db0f0467850843dcee19182)...: deployed at 0x5FbDB2315678afecb367f032d93F642f64180aa3 with 789621 gas
+deploying "Box_Implementation" (tx: 0xac240b695123c063a5d14f803094ef0cd6b360b1eed343a203b82c4624da5435)...: deployed at 0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512 with 148435 gas
+deploying "Box_Proxy" (tx: 0xa6541c97c4ba8258112ae244f983eacc4179d9c086dbb847af24bb59da094ab2)...: deployed at 0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0 with 720430 gas
+-----------------------------------------
+deploying "BoxV2" (tx: 0x42a52b9d56182a7ecf701987586c17ad773dcc4b851c2f8cbc807c45d51c7da7)...: deployed at 0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9 with 198607 gas
+Started HTTP and WebSocket JSON-RPC server at http://127.0.0.1:8545/
+
+Accounts
+...
+```
+
+`BoxProxyAdmin`
+`Box_Implementation`
+`Box_Proxy`
+
+그리고 `BoxV2` 가 배포되었습니다.
+
+```ps1
+yarn hardhat run scripts/upgrade-box.ts --network localhost
+```
+그리고 터미널을 하나 더 열어 로컬네트워크에서 업그레이드 스크립트를 실행시킵니다.
+
+```ps1
+1
+2
+Done in 3.37s.
+```
+
+똑같은 주소에서 계약의 버전이 1 에서 2로 업그레이드 되었습니다.
+
+자 이 몇줄의 스크립트를 가지고 업그레이드 하는 방법을 알게되었습니다.
+
+오픈제플린 튜토리얼에 오플제플린 업그레이드 플러그인을 이용한 업그레이드 방법에 대해 나와있습니다.
+>https://forum.openzeppelin.com/t/openzeppelin-upgrades-step-by-step-tutorial-for-hardhat/3580
+
+물론 깃허브에도 코드가 있어요.
+
+자 이 부분이 정말 어렵다는 걸 압니다 그리고 정말 급하게 지나갔지요, 하지만 여기서 로우레벨을 다루는 델리게이트 콜, 율(Yul), 그리고 프록시 패턴을 배움으로써 여러분이 스마트 계약 개발자로 한층 더 성장할 수 있었을겁니다.
+
+디스커션 탭에서 사람들과 얘기하는것도 잊지마세요
+
+이제 가서 체육관이든 커피를 마시든 휴식을 취하세요. 이제 정말 끝에 다가왔습니다. 
+
+# Lesson 17 Build a DAO
+
+이 부분은 이미 예전에 타입스크립트와 솔리디티를 이용한 DAO를 만드는 튜토리얼을 제작한 적이 있습니다.
+
+똑같은 내용이 될겁니다.
+
+그러나 이번에 새로 코드를 개정한 리포지토리가 따로 있습니다. 확인해보세요.
+
+## What is a DAO
+
+`Decentralized Autonomous Oraganizations` 분산 자치 조직 이 단어는 다소 과중한(overloaded) 단어입니다.
+
+하지만 단순히 설명하자면 일반적으로 블록체인 또는 스마트 계약에서 발견되는 투명한 규칙 집합에 의해 관리되는 모든 그룹을 지칭합니다.
+
+그리고 제가 너무 뜻이 많다고(overloaded) 한 이유는, 어떤 사람들은 비트코인도 DAO라고 주장합니다. 왜냐하면 채굴자들이 그들의 소프트웨어를 업그레이드할지 말지 결정할 수 있기 때문입니다.  
+
+Other people think that DAO must use transparent smart contracts, which have the rules ingrained right into them. And then other people think DAO is just a buzzword, so they just slap the name really on to any organization so that they can get some clout.
+
+또 다른 사람들은 DAO가 반드시 규칙이 뿌리내린 투명한 스마트 계약을 사용해야 한다고 생각합니다. 그리고 다른 사람들은 DAO가 단지 유행어라고 생각하기 때문에, 그들은 영향력을 얻기 위해 DAO라는 이름을 어떤 조직에나 붙입니다.
+이건 저를 굉장히 슬프게 하는 일입니다.
+
+And it's not to be confused with the DAO, which was an implementation of a DAO back in 2016, which set the record for the largest hack at that time.
+
+그리고 2016년에 발생한 대규모 해킹사건인 DAO와 헷갈리지 마시기 바랍니다. 
+
+그래서 많은 뜻으로 사용될 수 있지만 근본적으로 이렇게 생각해봅시다.
+
+수많은 구글 유저들이 구글의 앞으로의 방향에 대해 투표한다고 생각해봅시다. 그리고 투표 규칙은 불변이며(immutable),투명하고(Transparent), 탈중앙화(Decentralized) 되어있습니다.
+
+이것은 아주 고질적인 문제인 신용(trust),중앙화(centrality) 그리고 투명성(transparency)에 대한 해결방안입니다. 그리고 모든 일이 폐쇄적으로 진행되지 않고 서로 다른 어플리케이션과 프로토콜 `유저`에게 `권리`를 줍니다.
+
+그리고 이 투표용지(voting piece)가 바로 `Decentralized Governance`를 어떻게 운영하는지에 대한 초석입니다. 
+
+그리고 정말 단순화해서 말하자면 `Company / Organization Operated Exclusively Through Code`(코드를 통해 독점적으로 운영되는 회사 / 조직)이라고 말할 수 있습니다.
+
+And to really understand all this, we're going to look under the hood of the protocol that's setting the precedent for all other doubts and compound, then once we look at compound, we'll understand what goes into building one of these and all the trade offs, all the different architectural choices mean for your group. 
+
+이 모든걸 진정으로 이해하기 위해 우리는 다른 모든 DAO의 선례 프로토콜 격인 `Compound` 의 동작원리에 대해 알아볼겁니다. 그리고 우리가 `Compound`에 대해 살펴본 후 우리는 이것들 중 하나를 만드는(building) 데 무엇이 필요한지 이해할 수 있을 것입니다. 그리고 모든 아키텍쳐적인 선택지와 장단점이 여러분의 그룹에 끼치는 영향에 대해 이해하실 수 있을겁니다.
+
+그리고 이 다음에 따라할 수 있는 DAO 튜토리얼을 제공할 겁니다. 하지만 그전에 반드시 이 과정을 완수하세요. 이 과정은 DAO의 아키텍쳐 기본원칙을 알려줄겁니다. 그리고 튜토리얼에 가게되면 현명한 선택을 할 수 있게 될겁니다.
+
+>https://compound.finance/
+
+자 이곳이 컴파운드입니다. 임대/임차가 가능한 어플리케이션으로 사용자들이 자신의 자산을 대출받거나 대출해줄수 있습니다.
+
+이 모든것들은 스마트 계약으로 이루어져 있습니다.
+
+자 이제 가끔 그들은 새 토큰을 추가해서 대출할 수 있도록 하거나, `APY` 파라미터를 바꾸고 싶을때가 있을겁니다. 혹은 아마 어떤 코인들을 금지할 수 도 있고, 다른 많은 것들을 할 수 있습니다. 그것들은 모두 `governance`에서 이루어집니다. 
+
+>https://compound.finance/governance
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-12%20203443.png)
+
+So that's where we're gonna go ahead to governance, this is where you can find a user interface for list of all the proposals and all the different ballots that came to be.
+
+이것이 우리가 거버넌스를 진행할 곳입니다. 여기에서 모든 제안과 모든 다른 투표용지(안건) 목록에 대한 사용자 인터페이스를 찾을 수 있습니다.
+
+그리고 여기서 진행중인 안건을 하나 클릭해서 들어가봅시다.
+
+그리고 옆에 보시면 proposal transaction이란게 있을겁니다. 클릭해보면 이더스캔에서 해당 proposal의 트랜잭션 내역을 볼 수 있습니다. 이 proposal을 만들기 위해 사용된 정확한 파라미터들을 확인할 수 있는겁니다.
+
+![](%ED%99%94%EB%A9%B4%20%EC%BA%A1%EC%B2%98%202022-09-13%20162228.png)
+
+IpputData에서 Decode 버튼을 눌러 보면 proposal이 어떻게 생겼는지 알 수 있습니다. 보통 주소와 주소에서 불러올 함수 그리고 당연히 넘겨줄 파라미터값들로 나눠져 있습니다.
+
+그래서 여기선 저 두 주소에서 두 함수를 불러오고 두 파라미터 값(바이트로 변환된)을 넘겨주며 여기서 정확히 어떤일이 일어나는지 Description 에 작성되어있습니다. 그리고 이러한 계약은 엑세스 컨트롤을 가지고 있어서 오직 이 계약의 소유자만이 두 함수를 호출할 수 있고, target에 있는 두 계약의 소유자들이 이 government style이 될겁니다.
+
+value 가 0인 이유는 아무 eth 도 보내지 않았기 때문이겠죠?
+
+porposal이 `Created` 된 뒤 Proposal History에서 얼마간의 딜레이를 가진 후 `Active`상태로 넘어가게 됩니다.
+
+바로 이부분이 사람들이 투표를 할 수 있는 때입니다. Created 와 Active 사이의 딜레이는 필요에 따라 조정할 수 있습니다.
+
+그리고 액티브 상태에서 투표가 과반수를 넘는다면 `Succeeded`상태로 넘어가게 됩니다.
+
+다시 한번 해당 거버넌스 계약으로 이더스캔으로 들어가봅시다. 그리고 Write as Proxy 부분을 살펴보면 `castVote`, `castVoteBySig`,`castVoteWithReason` 등의  함수를 찾을 수 있습니다. 다음 영상에서 이들의 차이점에 대해 알아볼겁니다.
+
+이번에는 컴파운드 App 으로 들어가서 Vote 탭을 눌러봅시다.
+
+이곳은 사용자들이 실제로 투표를 할 수 있는 UI로 전문적인 기술자가 아니더라도 쉽게 투표할 수 있도록 만들어놓은 공간입니다.
+
+혹은 트랜잭션을 직접 보내 투표를 진행할 수 있습니다.
+
+그리고 이 투표행위가 이루어지고 나면 이것은 `Queued` 단계에 이르게 됩니다.
+
+자 `Queued`가 무얼 의미하는걸까요?
+
+proposal이  활성화되기 전에 또 작은 딜레이가 있습니다. proposal이 통과되고 proposal이 활성화되기 전에요.
+
+그래서 vote가 끝나고 나면 누군가 Queued 함수를 호출해야하고 proposalId 가 queued 되었고 곧 실행할 것이라 말해주어야 합니다.
+
+자 이번엔 다른 proposal을 들어가보면 `Executed` 상태로 되어있는 걸 확인 할 수 있습니다. 누군가 Executed 함수를 호춣하여 일어난 일입니다. 그리고 proposal을 proposalId 와 함께 실행(execute)시킵니다.
+
+그래서 이것이 바로 proposal의 라이프 사이클 입니다.
+
+그리고 어떤 경우에는 실패하는 경우가 있는데요, 이경우는 `Against`표가 과반수를 차지하는 경우입니다. 
+
+proposal history를 보시면 Created-Active-Failed 순으로 되어있을겁니다.
+
+가끔식 제안(proposal)을 해도 충분한 지지를 끌어모으지 못하는 경우도 있을겁니다. 그래서 여러분은 이제안에 대해 얘기할 수 있는 포럼이나 토론장을 원할 수 도 있겠죠, 이 제안을 왜 좋아하고 왜 싫어하는지 말이에요. 
+
+보통은 `discoruse`가 바로 이러한 토론이 장소가 되곤 합니다. 
+
+또한 저번에 보여드린 `Snapshot`또한 아ㄹㅇㅇㄹ아라ㅓ어라야ㅏㄹ
+
+...
+...
+
+## How to build a DAO
+
+
+
+
+
+
+
