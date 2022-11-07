@@ -317,23 +317,11 @@ pls fix.
 
 ## 풀리퀘스트를 나누어서 보내야하는 이유
 
-
-
-https://developers.google.com/blockly/guides/contribute/get-started/write_a_good_pr
-
-
-
 클린코드를 작성하는 것은 풀리퀘스트를 만들때 고려해야할 여러가지 이유중 한가지에 불과합니다.
-
-
 
 거대한 풀리퀘스트는 코드리뷰와 버그수정에 있어서 과부하를  발생시킵니다.
 
-
-
 이러한 이유로 풀리퀘스트 자체에 대해 신경써야합니다. 짧고, 명확한 제목과 내용이 있어야하며, 딱 한가지의 일만 수행해야합니다.
-
-
 
 왜 신경써야 하나요?
 
@@ -493,7 +481,7 @@ See the subject.
 
 
 
-```ps1
+```
 
 ## What ?
 
@@ -507,7 +495,7 @@ Added support for authentication. #JIRA-123.
 
 
 
-```ps1
+```
 
 ## What?
 
@@ -531,6 +519,27 @@ OKR1의 Key Result 2를 구현하기 위해 인증 지원을 추가했습니다.
 
 간단한 환경변수 기본값을 추가하는 상황을 가정해봅시다.
 
-### 풀리퀘스트는 사람을 위한것
+## 어떻게 (HOW)
+
+물론 PR diff 가 "어떻게"에 대한 대부분의 설명을 해줄겁니다. 하지만 디자인적인 부분에 주의를 기울여야 합니다. 예를 들어 루프대신 재귀 메소드를 사용한다했을때, 리뷰어에게 재귀메소드의 이점을 설명한다면 리뷰어가 여러분의 의도를 쉽게 파악하여 훨씬 더 나은 리뷰를 제공받을 수 있을겁니다.
+
+Bad:
+```ps1
+## How?
+Wrote migration and model.
+
+마이그레이션과 모델 작성
+```
+
+이건 코드를 보면 명백히 나와있는 사실입니다. 리뷰어를 좀 더 도와줍시다.
+
+Good:
+```
+## How?
+This includes a migration, model and controller for user authentication. I'm using Devise to do the heavy lifting. I ran Devise migrations and those are included here.
+
+여기에는 사용자 인증을 위한 마이그레이션이 포함됩니다. 무거운 작업에는 Devise를 사용하고 있습니다. Devise 마이그레이션을 실행했으며 여기에 포함되어있습니다.
+```
+### 풀 리퀘스트는 사람을 위한것
 
 항상 간결함을 유지하세요. 코드를 작성하는것이 아니라 사람과 의사소통하려하는 것입니다. 길고 복잡한 설명은 상대방을 피곤하게 할 뿐입니다. 짧고 간결하게 작성하여 PR 리뷰어의 흥미를 유발하고 과정을 원할하게 진행 할 수 있도록 합시다.
